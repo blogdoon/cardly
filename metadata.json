@@ -1,0 +1,6 @@
+{
+  "name": "Cardly - Personalized Greeting Cards",
+  "description": "Create, personalize, and send custom greeting cards for birthdays, celebrations, holidays, and every special moment.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

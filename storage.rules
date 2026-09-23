@@ -1,0 +1,19 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // User photo uploads
+    match /users/{userId}/photos/{imageId} {
+      // Owner can read and write their own uploaded photos
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow write: if request.auth != null && request.auth.uid == userId
+                   && request.resource.size < 10 * 1024 * 1024 // 10MB maximum
+                   && request.resource.contentType.matches('image/.*');
+    }
+
+    // Public assets and card template thumbnails
+    match /templates/{allPaths=**} {
+      allow read: if true;
+      allow write: if request.auth != null && request.auth.token.email == 'blogdoontv@gmail.com';
+    }
+  }
+}

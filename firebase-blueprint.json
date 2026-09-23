@@ -1,0 +1,101 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile with basic authentication and address information",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "maxLength": 128 },
+        "email": { "type": "string", "maxLength": 256 },
+        "displayName": { "type": "string", "maxLength": 120 },
+        "photoURL": { "type": "string", "maxLength": 1024 },
+        "role": { "type": "string", "enum": ["customer", "admin"] },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["uid", "email", "createdAt"]
+    },
+    "Template": {
+      "title": "Template",
+      "description": "Greeting card template catalog item",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 64 },
+        "title": { "type": "string", "maxLength": 160 },
+        "description": { "type": "string", "maxLength": 1000 },
+        "category": { "type": "string", "maxLength": 64 },
+        "recipient": { "type": "string", "maxLength": 64 },
+        "style": { "type": "string", "maxLength": 64 },
+        "tone": { "type": "string", "maxLength": 64 },
+        "price": { "type": "number" },
+        "isPhotoCard": { "type": "boolean" },
+        "published": { "type": "boolean" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["id", "title", "category", "price"]
+    },
+    "Design": {
+      "title": "Design",
+      "description": "Personalized user card design with pages and editable elements",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "templateId": { "type": "string", "maxLength": 64 },
+        "userId": { "type": "string", "maxLength": 128 },
+        "title": { "type": "string", "maxLength": 160 },
+        "previewThumbnail": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["id", "templateId", "userId", "createdAt"]
+    },
+    "Favorite": {
+      "title": "Favorite",
+      "description": "User favorited card template reference",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "maxLength": 128 },
+        "templateId": { "type": "string", "maxLength": 64 },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["userId", "templateId"]
+    },
+    "Order": {
+      "title": "Order",
+      "description": "Customer greeting card purchase order",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "orderNumber": { "type": "string", "maxLength": 64 },
+        "userId": { "type": "string", "maxLength": 128 },
+        "total": { "type": "number" },
+        "status": { "type": "string", "enum": ["processing", "printed", "dispatched", "delivered"] },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["id", "orderNumber", "userId", "total", "status", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/User" },
+      "description": "Stores user profile and preferences"
+    },
+    "/templates/{templateId}": {
+      "schema": { "$ref": "#/entities/Template" },
+      "description": "Master catalog of greeting card templates"
+    },
+    "/users/{userId}/designs/{designId}": {
+      "schema": { "$ref": "#/entities/Design" },
+      "description": "User customized card designs"
+    },
+    "/users/{userId}/favorites/{templateId}": {
+      "schema": { "$ref": "#/entities/Favorite" },
+      "description": "User favorited templates list"
+    },
+    "/users/{userId}/orders/{orderId}": {
+      "schema": { "$ref": "#/entities/Order" },
+      "description": "Customer purchase history"
+    }
+  }
+}
