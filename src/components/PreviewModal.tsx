@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { X, ZoomIn, ZoomOut, RotateCw, Eye, BookOpen, Layers, Check } from 'lucide-react';
 import { CardPageDefinition, CardPageType, StickerElement } from '../types/template';
 
@@ -33,6 +33,15 @@ export const PreviewModal: React.FC<PreviewModalProps> = ({
   const [activeView, setActiveView] = useState<'front' | 'inside' | 'back'>('front');
   const [is3DMode, setIs3DMode] = useState(true);
   const [zoomLevel, setZoomLevel] = useState(1);
+  const workspaceRef = useRef<HTMLDivElement>(null);
+
+  // Switching Front/Inside/Back always starts at the top of the page
+  useEffect(() => {
+    if (workspaceRef.current) {
+      workspaceRef.current.scrollTop = 0;
+      workspaceRef.current.scrollLeft = 0;
+    }
+  }, [activeView]);
 
   if (!isOpen) return null;
 
@@ -226,16 +235,20 @@ export const PreviewModal: React.FC<PreviewModalProps> = ({
           </div>
         </div>
 
-        {/* Center Canvas Workspace */}
-        <div className="flex-1 overflow-auto flex items-center justify-center p-6 bg-radial from-slate-800 to-slate-950 relative">
+        {/* Center Canvas Workspace — centering via m-auto, not items-center:
+            centered content taller than the workspace puts its top out of scroll reach */}
+        <div
+          ref={workspaceRef}
+          className="flex-1 overflow-auto flex p-6 bg-radial from-slate-800 to-slate-950 relative"
+        >
           {activeView === 'front' && (
-            <div className={`transition-all duration-500 ${is3DMode ? 'rotate-[-1deg] shadow-2xl' : ''}`}>
+            <div className={`m-auto transition-all duration-500 ${is3DMode ? 'rotate-[-1deg] shadow-2xl' : ''}`}>
               {renderCardPage(pages.front)}
             </div>
           )}
 
           {activeView === 'inside' && (
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-0 bg-slate-800/40 p-3 sm:p-6 rounded-2xl shadow-2xl border border-slate-700/50">
+            <div className="m-auto flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-0 bg-slate-800/40 p-3 sm:p-6 rounded-2xl shadow-2xl border border-slate-700/50">
               {/* Inside Left Page */}
               <div className="border-r border-slate-300/40">
                 {renderCardPage(pages.insideLeft || {
@@ -252,7 +265,7 @@ export const PreviewModal: React.FC<PreviewModalProps> = ({
           )}
 
           {activeView === 'back' && (
-            <div className="transition-all duration-300">
+            <div className="m-auto transition-all duration-300">
               {renderCardPage(pages.back)}
             </div>
           )}

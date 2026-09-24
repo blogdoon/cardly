@@ -10,6 +10,7 @@ import { getTemplateById } from '../data/templates';
 import { saveUserDesign } from '../services/cardStorage';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
+import { X } from 'lucide-react';
 
 interface CardEditorProps {
   templateId: string;
@@ -39,6 +40,7 @@ export const CardEditor: React.FC<CardEditorProps> = ({
   const [currentPage, setCurrentPage] = useState<CardPageType>('front');
   const [zoom, setZoom] = useState<number>(0.9);
   const [selectedElementId, setSelectedElementId] = useState<string | null>(null);
+  const [isPropertiesOpen, setIsPropertiesOpen] = useState(false);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [autosaveStatus, setAutosaveStatus] = useState<AutosaveStatus>('saved');
 
@@ -98,6 +100,11 @@ export const CardEditor: React.FC<CardEditorProps> = ({
 
   const selectedElement =
     activePageDefinition.elements.find((el) => el.id === selectedElementId) || null;
+
+  // The mobile properties sheet only exists while an element is selected
+  useEffect(() => {
+    if (!selectedElementId) setIsPropertiesOpen(false);
+  }, [selectedElementId]);
 
   // Push new state to history & mark autosave
   const pushState = (newPages: typeof pages) => {
@@ -445,6 +452,20 @@ export const CardEditor: React.FC<CardEditorProps> = ({
     onFinish();
   };
 
+  // Shared inspector: rendered as the desktop right sidebar AND inside the mobile properties sheet
+  const inspectorPanel = (
+    <PropertyPanel
+      selectedElement={selectedElement}
+      onUpdateElement={handleUpdateElement}
+      onDeleteElement={handleDeleteElement}
+      onDuplicateElement={handleDuplicateElement}
+      onBringForward={handleBringForward}
+      onSendBackward={handleSendBackward}
+      onBringToFront={handleBringToFront}
+      onSendToBack={handleSendToBack}
+    />
+  );
+
   return (
     <div className="h-screen w-screen flex flex-col overflow-hidden bg-white relative">
       {/* Toast Notification */}
@@ -477,41 +498,97 @@ export const CardEditor: React.FC<CardEditorProps> = ({
         onBack={onBack}
       />
 
-      {/* Main editor split area: Left sidebar | Center Canvas | Right inspector */}
-      <div className="flex-1 flex overflow-hidden">
-        {/* Left Toolbar */}
-        <EditorSidebar
-          currentPage={currentPage}
-          onPageChange={setCurrentPage}
-          onAddText={handleAddText}
-          onAddPhoto={handleAddPhoto}
-          onAddSticker={handleAddSticker}
-          onBackgroundChange={handleBackgroundChange}
-          quickFields={quickFields}
-          onQuickFieldChange={handleQuickFieldChange}
-        />
+      {/* Main editor split area
+          Desktop: sidebar | canvas | inspector
+          Mobile:  canvas | contextual bar / properties sheet | bottom dock */}
+      <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
+        {/* Left Toolbar — desktop sidebar, mobile bottom dock */}
+        <div className="order-3 shrink-0 md:order-1">
+          <EditorSidebar
+            currentPage={currentPage}
+            onPageChange={setCurrentPage}
+            onAddText={handleAddText}
+            onAddPhoto={handleAddPhoto}
+            onAddSticker={handleAddSticker}
+            onBackgroundChange={handleBackgroundChange}
+            quickFields={quickFields}
+            onQuickFieldChange={handleQuickFieldChange}
+          />
+        </div>
 
         {/* Center Interactive Canvas */}
-        <CardCanvas
-          page={activePageDefinition}
-          zoom={zoom}
-          selectedElementId={selectedElementId}
-          onSelectElement={setSelectedElementId}
-          onUpdateElement={handleUpdateElement}
-          onDeleteSelected={() => selectedElementId && handleDeleteElement(selectedElementId)}
-        />
+        <div className="order-1 flex flex-1 min-h-0 md:order-2">
+          <CardCanvas
+            page={activePageDefinition}
+            zoom={zoom}
+            selectedElementId={selectedElementId}
+            onSelectElement={setSelectedElementId}
+            onUpdateElement={handleUpdateElement}
+            onDeleteSelected={() => selectedElementId && handleDeleteElement(selectedElementId)}
+          />
+        </div>
 
-        {/* Right Inspector Property Panel */}
-        <PropertyPanel
-          selectedElement={selectedElement}
-          onUpdateElement={handleUpdateElement}
-          onDeleteElement={handleDeleteElement}
-          onDuplicateElement={handleDuplicateElement}
-          onBringForward={handleBringForward}
-          onSendBackward={handleSendBackward}
-          onBringToFront={handleBringToFront}
-          onSendToBack={handleSendToBack}
-        />
+        {/* Mobile only: contextual bar while selected, properties sheet on explicit Edit/Style/Position tap.
+            Both sit in normal flow, so they can never cover the canvas or intercept a drag. */}
+        {selectedElement && (
+          <div className="order-2 shrink-0 border-t border-slate-200 bg-white md:hidden">
+            {isPropertiesOpen ? (
+              <div className="flex max-h-[45vh] flex-col">
+                <div className="flex items-center justify-between border-b border-slate-100 px-4 py-1.5">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-slate-800">
+                    Element Properties
+                  </span>
+                  <button
+                    onClick={() => setIsPropertiesOpen(false)}
+                    className="p-2 text-slate-500 hover:text-slate-800"
+                    title="Close properties"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+                <div className="overflow-y-auto p-1">{inspectorPanel}</div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-5 gap-1.5 p-2">
+                <button
+                  onClick={() => setIsPropertiesOpen(true)}
+                  className="min-h-11 rounded-xl border border-slate-200 bg-white text-[11px] font-bold text-slate-700 active:bg-rose-50"
+                >
+                  Edit
+                </button>
+                <button
+                  onClick={() => setIsPropertiesOpen(true)}
+                  className="min-h-11 rounded-xl border border-slate-200 bg-white text-[11px] font-bold text-slate-700 active:bg-rose-50"
+                >
+                  Style
+                </button>
+                <button
+                  onClick={() => setIsPropertiesOpen(true)}
+                  className="min-h-11 rounded-xl border border-slate-200 bg-white text-[11px] font-bold text-slate-700 active:bg-rose-50"
+                >
+                  Position
+                </button>
+                <button
+                  onClick={() => handleDuplicateElement(selectedElement)}
+                  className="min-h-11 rounded-xl border border-slate-200 bg-white text-[11px] font-bold text-slate-700 active:bg-rose-50"
+                >
+                  Duplicate
+                </button>
+                <button
+                  onClick={() => handleDeleteElement(selectedElement.id)}
+                  className="min-h-11 rounded-xl border border-rose-200 bg-rose-50 text-[11px] font-bold text-rose-600 active:bg-rose-100"
+                >
+                  Delete
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Right Inspector Property Panel — desktop only */}
+        <div className="order-4 hidden shrink-0 md:order-3 md:flex md:w-64 lg:w-72">
+          {inspectorPanel}
+        </div>
       </div>
 
       {/* Realistic 3D & Flat Preview Modal */}

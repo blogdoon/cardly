@@ -52,6 +52,12 @@ export const EditorSidebar: React.FC<EditorSidebarProps> = ({
   const [isUploading, setIsUploading] = useState(false);
   const [stickerCategory, setStickerCategory] = useState<string>('all');
   const [stickerSearch, setStickerSearch] = useState<string>('');
+  // Mobile: tab content stays collapsed until a tab is tapped (desktop always shows it)
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const selectTab = (tab: TabType) => {
+    setActiveTab(tab);
+    setMobileOpen(activeTab === tab ? !mobileOpen : true);
+  };
 
   const filteredStickers = STICKER_CATALOG.filter((stk) => {
     const matchesCategory = stickerCategory === 'all' || stk.category === stickerCategory;
@@ -100,11 +106,11 @@ export const EditorSidebar: React.FC<EditorSidebarProps> = ({
   };
 
   return (
-    <div className="flex h-full border-r border-slate-200 bg-white">
+    <div className="flex flex-col-reverse h-full border-t border-slate-200 bg-white md:flex-row md:border-t-0 md:border-r">
       {/* Primary vertical icon bar */}
-      <div className="w-18 bg-slate-50 border-r border-slate-200 flex flex-col items-center py-4 space-y-4 shrink-0">
+      <div className="w-full bg-slate-50 border-t border-slate-200 flex flex-row items-center justify-around py-2 shrink-0 md:w-18 md:border-t-0 md:border-r md:flex-col md:justify-start md:py-4 md:space-y-4">
         <button
-          onClick={() => setActiveTab('quick')}
+          onClick={() => selectTab('quick')}
           className={`flex flex-col items-center gap-1 p-2 rounded-xl text-[10px] font-bold transition w-14 ${
             activeTab === 'quick'
               ? 'bg-rose-500 text-white shadow-sm'
@@ -116,7 +122,7 @@ export const EditorSidebar: React.FC<EditorSidebarProps> = ({
         </button>
 
         <button
-          onClick={() => setActiveTab('text')}
+          onClick={() => selectTab('text')}
           className={`flex flex-col items-center gap-1 p-2 rounded-xl text-[10px] font-bold transition w-14 ${
             activeTab === 'text'
               ? 'bg-rose-500 text-white shadow-sm'
@@ -128,7 +134,7 @@ export const EditorSidebar: React.FC<EditorSidebarProps> = ({
         </button>
 
         <button
-          onClick={() => setActiveTab('photos')}
+          onClick={() => selectTab('photos')}
           className={`flex flex-col items-center gap-1 p-2 rounded-xl text-[10px] font-bold transition w-14 ${
             activeTab === 'photos'
               ? 'bg-rose-500 text-white shadow-sm'
@@ -140,7 +146,7 @@ export const EditorSidebar: React.FC<EditorSidebarProps> = ({
         </button>
 
         <button
-          onClick={() => setActiveTab('elements')}
+          onClick={() => selectTab('elements')}
           className={`flex flex-col items-center gap-1 p-2 rounded-xl text-[10px] font-bold transition w-14 ${
             activeTab === 'elements'
               ? 'bg-rose-500 text-white shadow-sm'
@@ -152,7 +158,7 @@ export const EditorSidebar: React.FC<EditorSidebarProps> = ({
         </button>
 
         <button
-          onClick={() => setActiveTab('background')}
+          onClick={() => selectTab('background')}
           className={`flex flex-col items-center gap-1 p-2 rounded-xl text-[10px] font-bold transition w-14 ${
             activeTab === 'background'
               ? 'bg-rose-500 text-white shadow-sm'
@@ -164,7 +170,7 @@ export const EditorSidebar: React.FC<EditorSidebarProps> = ({
         </button>
 
         <button
-          onClick={() => setActiveTab('pages')}
+          onClick={() => selectTab('pages')}
           className={`flex flex-col items-center gap-1 p-2 rounded-xl text-[10px] font-bold transition w-14 ${
             activeTab === 'pages'
               ? 'bg-rose-500 text-white shadow-sm'
@@ -177,7 +183,7 @@ export const EditorSidebar: React.FC<EditorSidebarProps> = ({
       </div>
 
       {/* Secondary flyout tab content panel */}
-      <div className="w-64 sm:w-72 p-4 overflow-y-auto bg-white">
+      <div className={`p-4 overflow-y-auto bg-white w-full max-h-[45vh] md:max-h-none md:w-64 lg:w-72 ${mobileOpen ? '' : 'hidden'} md:block`}>
         {/* Quick Fill Panel */}
         {activeTab === 'quick' && (
           <div className="space-y-4">

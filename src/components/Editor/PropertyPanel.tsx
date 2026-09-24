@@ -43,7 +43,7 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
 }) => {
   if (!selectedElement) {
     return (
-      <div className="w-64 sm:w-72 border-l border-slate-200 bg-white p-5 flex flex-col justify-between text-slate-500 text-xs">
+      <div className="w-full md:w-64 lg:w-72 md:border-l border-slate-200 bg-white p-5 flex flex-col justify-between text-slate-500 text-xs">
         <div className="space-y-4">
           <div className="flex items-center space-x-2 text-slate-800 font-bold text-sm">
             <Sliders className="w-4 h-4 text-rose-500" />
@@ -73,7 +73,7 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
     const textEl = selectedElement as TextElement;
 
     return (
-      <div className="w-64 sm:w-72 border-l border-slate-200 bg-white p-4 space-y-5 overflow-y-auto text-xs">
+      <div className="w-full md:w-64 lg:w-72 md:border-l border-slate-200 bg-white p-4 space-y-5 overflow-y-auto text-xs">
         <div className="flex items-center justify-between border-b border-slate-100 pb-3">
           <div className="flex items-center space-x-1.5 font-bold text-slate-900 text-sm">
             <Type className="w-4 h-4 text-rose-500" />
@@ -300,7 +300,7 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
     };
 
     return (
-      <div className="w-64 sm:w-72 border-l border-slate-200 bg-white p-4 space-y-4 overflow-y-auto text-xs">
+      <div className="w-full md:w-64 lg:w-72 md:border-l border-slate-200 bg-white p-4 space-y-4 overflow-y-auto text-xs">
         <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
           <div>
             <span className="font-bold text-slate-900 text-sm block">Photo Settings</span>
@@ -545,7 +545,7 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
   const stickerEl = selectedElement as StickerElement;
 
   return (
-    <div className="w-64 sm:w-72 border-l border-slate-200 bg-white p-4 space-y-5 overflow-y-auto text-xs">
+    <div className="w-full md:w-64 lg:w-72 md:border-l border-slate-200 bg-white p-4 space-y-5 overflow-y-auto text-xs">
       <div className="flex items-center justify-between border-b border-slate-100 pb-3">
         <div className="flex items-center space-x-2">
           <div className="w-7 h-7 rounded-lg bg-rose-50 border border-rose-200 flex items-center justify-center overflow-hidden">

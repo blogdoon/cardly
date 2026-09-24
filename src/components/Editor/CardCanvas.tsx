@@ -43,6 +43,14 @@ export const CardCanvas: React.FC<CardCanvasProps> = ({
   });
   const [rotateStart, setRotateStart] = useState({ initialAngle: 0, currentAngle: 0 });
 
+  // Tap vs drag: movement under this many px counts as a tap (deselect), never as a drag end
+  const downPosRef = useRef({ x: 0, y: 0 });
+  const recordDown = (e: { clientX: number; clientY: number }) => {
+    downPosRef.current = { x: e.clientX, y: e.clientY };
+  };
+  const isTap = (e: { clientX: number; clientY: number }) =>
+    Math.abs(e.clientX - downPosRef.current.x) + Math.abs(e.clientY - downPosRef.current.y) < 6;
+
   const getFilterCss = (filter?: string) => {
     switch (filter) {
       case 'warm':
@@ -67,7 +75,12 @@ export const CardCanvas: React.FC<CardCanvasProps> = ({
       setResizeHandle(null);
     };
     window.addEventListener('pointerup', handleGlobalPointerUp);
-    return () => window.removeEventListener('pointerup', handleGlobalPointerUp);
+    // Mobile: the browser cancels the pointer when it claims the gesture as a scroll
+    window.addEventListener('pointercancel', handleGlobalPointerUp);
+    return () => {
+      window.removeEventListener('pointerup', handleGlobalPointerUp);
+      window.removeEventListener('pointercancel', handleGlobalPointerUp);
+    };
   }, []);
 
   // Handle global keyboard shortcuts: Delete, Backspace, Esc
@@ -93,6 +106,7 @@ export const CardCanvas: React.FC<CardCanvasProps> = ({
   const handlePointerDownElement = (e: React.PointerEvent, element: CardElement) => {
     if (e.button !== 0) return;
     e.stopPropagation();
+    recordDown(e);
     onSelectElement(element.id);
 
     setIsDragging(true);
@@ -111,6 +125,7 @@ export const CardCanvas: React.FC<CardCanvasProps> = ({
   ) => {
     if (e.button !== 0) return;
     e.stopPropagation();
+    recordDown(e);
     setIsResizing(true);
     setResizeHandle(handle);
     setResizeStart({
@@ -126,6 +141,7 @@ export const CardCanvas: React.FC<CardCanvasProps> = ({
   const handlePointerDownRotate = (e: React.PointerEvent, element: CardElement) => {
     if (e.button !== 0) return;
     e.stopPropagation();
+    recordDown(e);
     setIsRotating(true);
     setRotateStart({
       initialAngle: element.rotation || 0,
@@ -230,24 +246,24 @@ export const CardCanvas: React.FC<CardCanvasProps> = ({
   return (
     <div
       ref={containerRef}
+      onPointerDown={recordDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
       onClick={(e) => {
-        if (e.target === e.currentTarget) {
+        if (e.target === e.currentTarget && isTap(e)) {
           onSelectElement(null);
         }
       }}
-      className="flex-1 overflow-auto bg-stone-100 flex items-center justify-center p-6 select-none relative"
-      style={{ minHeight: '400px' }}
+      className="flex-1 overflow-auto bg-stone-100 flex items-center justify-center p-3 md:p-6 select-none relative md:min-h-[400px]"
     >
       {/* Visual Workspace Canvas */}
       <div
         onClick={(e) => {
-          if (e.target === e.currentTarget) {
+          if (e.target === e.currentTarget && isTap(e)) {
             onSelectElement(null);
           }
         }}
-        className="relative rounded-2xl shadow-2xl transition-transform border border-slate-300 overflow-hidden bg-white"
+        className="m-auto relative rounded-2xl shadow-2xl transition-transform border border-slate-300 overflow-hidden bg-white"
         style={{
           width: '380px',
           height: '532px',
@@ -296,7 +312,7 @@ export const CardCanvas: React.FC<CardCanvasProps> = ({
                   whiteSpace: 'pre-wrap',
                   zIndex: textEl.zIndex,
                 }}
-                className={`cursor-move transition-shadow ${
+                className={`cursor-move touch-none transition-shadow ${
                   isSelected
                     ? 'ring-2 ring-rose-500 ring-offset-2 rounded-xs shadow-lg'
                     : 'hover:outline-dashed hover:outline-1 hover:outline-rose-300'
@@ -345,7 +361,7 @@ export const CardCanvas: React.FC<CardCanvasProps> = ({
                   transform: `translate(-50%, -50%) rotate(${photoEl.rotation}deg)`,
                   zIndex: photoEl.zIndex,
                 }}
-                className={`cursor-move select-none ${
+                className={`cursor-move touch-none select-none ${
                   isSelected
                     ? 'ring-2 ring-rose-500 ring-offset-2 rounded-lg shadow-xl'
                     : 'hover:outline-dashed hover:outline-1 hover:outline-rose-300'
@@ -449,7 +465,7 @@ export const CardCanvas: React.FC<CardCanvasProps> = ({
                   transform: `translate(-50%, -50%) rotate(${stickerEl.rotation}deg)`,
                   zIndex: stickerEl.zIndex,
                 }}
-                className={`cursor-move flex items-center justify-center select-none ${
+                className={`cursor-move touch-none flex items-center justify-center select-none ${
                   isSelected
                     ? 'ring-2 ring-rose-500 ring-offset-2 rounded-lg'
                     : 'hover:outline-dashed hover:outline-1 hover:outline-rose-300'
