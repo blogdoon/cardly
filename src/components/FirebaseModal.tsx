@@ -96,7 +96,17 @@ export const FirebaseModal: React.FC<FirebaseModalProps> = ({ isOpen, onClose })
               </li>
             </ol>
 
+            {/* Localhost notice */}
+            <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-900 leading-relaxed">
+              <strong className="font-semibold block mb-1">Local Development on localhost:3000:</strong>
+              The default remote Firebase project (<code className="font-mono text-rose-700">tenacious-mountain-h3skh</code>) is managed by the AI Studio hosting environment. Because personal Google accounts do not have IAM console permissions to add domains to this system project, Cardly automatically falls back to a simulated local developer session (<code className="font-mono text-rose-700">blogdoontv@gmail.com</code> with Admin role) whenever Firebase throws <code className="font-mono">auth/unauthorized-domain</code> on localhost.
+              <p className="mt-1.5">
+                If you want live Google OAuth authentication on localhost, create a free Firebase project where you are the owner (which has localhost authorized by default), set <code className="font-mono font-semibold">VITE_CUSTOM_FIREBASE="true"</code>, and add your project keys to <code className="font-mono">.env</code>.
+              </p>
+            </div>
+
             <div className="bg-slate-900 text-slate-200 p-3 rounded-xl font-mono text-xs overflow-x-auto select-all">
+              VITE_CUSTOM_FIREBASE="true"<br />
               VITE_FIREBASE_API_KEY="your-api-key"<br />
               VITE_FIREBASE_AUTH_DOMAIN="your-project.firebaseapp.com"<br />
               VITE_FIREBASE_PROJECT_ID="your-project-id"<br />

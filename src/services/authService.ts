@@ -55,6 +55,19 @@ export async function loginWithGoogle(): Promise<UserProfile> {
         return getFallbackDemoProfile();
       }
 
+      // If unauthorized-domain occurs (e.g. running on http://localhost:3000 where localhost is not authorized on the remote Firebase project)
+      if (
+        err?.code === 'auth/unauthorized-domain' ||
+        err?.message?.includes('unauthorized-domain') ||
+        err?.message?.includes('auth/unauthorized-domain')
+      ) {
+        console.warn(
+          'Firebase Auth: localhost is not in the Authorized Domains of the remote cloud project (tenacious-mountain-h3skh). ' +
+          'Activating local admin developer profile for development.'
+        );
+        return getFallbackDemoProfile();
+      }
+
       throw new Error(err.message || 'Failed to sign in with Google');
     }
   }

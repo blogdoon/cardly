@@ -47,52 +47,57 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
   onBack,
 }) => {
   return (
-    <header className="h-16 bg-white border-b border-slate-200 px-4 flex items-center justify-between shrink-0 shadow-xs z-30">
+    <header className="h-14 sm:h-16 bg-white border-b border-slate-200 px-2 sm:px-4 flex items-center justify-between shrink-0 shadow-xs z-30">
       {/* Left: Back & Title */}
-      <div className="flex items-center space-x-3">
+      <div className="flex items-center space-x-1.5 sm:space-x-3 min-w-0">
         <button
           onClick={onBack}
-          className="p-2 rounded-xl hover:bg-slate-100 text-slate-600 transition"
+          className="p-2 min-w-[40px] min-h-[40px] flex items-center justify-center rounded-xl hover:bg-slate-100 text-slate-700 active:scale-95 transition"
           title="Back to Product Page"
+          aria-label="Back"
         >
           <ArrowLeft className="w-5 h-5" />
         </button>
 
-        <div className="hidden sm:block">
+        <div className="min-w-0 flex flex-col justify-center">
           <input
             type="text"
             value={title}
             onChange={(e) => onTitleChange(e.target.value)}
-            className="font-bold text-slate-800 text-sm hover:border-b hover:border-slate-300 focus:outline-hidden focus:border-b-2 focus:border-rose-500 py-0.5 max-w-[200px] truncate"
+            className="font-bold text-slate-800 text-xs sm:text-sm hover:border-b hover:border-slate-300 focus:outline-hidden focus:border-b-2 focus:border-rose-500 py-0.5 max-w-[110px] xs:max-w-[140px] sm:max-w-[200px] truncate bg-transparent"
             title="Click to rename design"
           />
-          <div className="flex items-center space-x-2 text-[11px]">
+          <div className="flex items-center space-x-1 sm:space-x-2 text-[10px] sm:text-[11px]">
             {autosaveStatus === 'saving' && (
-              <span className="text-amber-600 flex items-center gap-1">
-                <RefreshCw className="w-3 h-3 animate-spin" />
-                Saving changes...
+              <span className="text-amber-600 flex items-center gap-1 font-medium truncate">
+                <RefreshCw className="w-2.5 h-2.5 animate-spin shrink-0" />
+                <span className="hidden xs:inline">Saving...</span>
               </span>
             )}
             {autosaveStatus === 'saved' && (
-              <span className="text-emerald-600 flex items-center gap-1 font-medium">
-                <Check className="w-3 h-3" />
-                All changes saved
+              <span className="text-emerald-600 flex items-center gap-1 font-medium truncate">
+                <Check className="w-2.5 h-2.5 shrink-0" />
+                <span className="hidden xs:inline">Saved</span>
               </span>
             )}
             {autosaveStatus === 'unsaved' && (
-              <span className="text-slate-400">Unsaved edits</span>
+              <span className="text-slate-400 truncate">
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-400 inline-block mr-1" />
+                <span className="hidden xs:inline">Unsaved</span>
+              </span>
             )}
           </div>
         </div>
       </div>
 
-      {/* Center: Undo, Redo, Zoom controls */}
-      <div className="flex items-center space-x-1 sm:space-x-2 bg-slate-50 border border-slate-200 rounded-xl p-1">
+      {/* Center: Undo & Redo (plus Zoom on desktop) */}
+      <div className="flex items-center space-x-1 bg-slate-50 border border-slate-200 rounded-xl p-0.5 sm:p-1">
         <button
           onClick={onUndo}
           disabled={!canUndo}
-          className="p-1.5 rounded-lg hover:bg-white text-slate-700 disabled:opacity-30 disabled:hover:bg-transparent transition"
+          className="p-1.5 sm:p-1.5 min-w-[34px] min-h-[34px] sm:min-w-0 sm:min-h-0 flex items-center justify-center rounded-lg hover:bg-white text-slate-700 disabled:opacity-25 disabled:hover:bg-transparent transition active:scale-95"
           title="Undo (Ctrl+Z)"
+          aria-label="Undo"
         >
           <Undo2 className="w-4 h-4" />
         </button>
@@ -100,59 +105,67 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
         <button
           onClick={onRedo}
           disabled={!canRedo}
-          className="p-1.5 rounded-lg hover:bg-white text-slate-700 disabled:opacity-30 disabled:hover:bg-transparent transition"
+          className="p-1.5 sm:p-1.5 min-w-[34px] min-h-[34px] sm:min-w-0 sm:min-h-0 flex items-center justify-center rounded-lg hover:bg-white text-slate-700 disabled:opacity-25 disabled:hover:bg-transparent transition active:scale-95"
           title="Redo (Ctrl+Y)"
+          aria-label="Redo"
         >
           <Redo2 className="w-4 h-4" />
         </button>
 
-        <div className="h-4 w-px bg-slate-200 mx-1" />
+        {/* Zoom controls: shown on desktop/tablet */}
+        <div className="hidden md:flex items-center">
+          <div className="h-4 w-px bg-slate-200 mx-1" />
 
-        <button
-          onClick={() => onZoomChange(-0.1)}
-          className="p-1.5 rounded-lg hover:bg-white text-slate-700 transition"
-          title="Zoom out"
-        >
-          <ZoomOut className="w-4 h-4" />
-        </button>
+          <button
+            onClick={() => onZoomChange(-0.1)}
+            className="p-1.5 rounded-lg hover:bg-white text-slate-700 transition"
+            title="Zoom out"
+          >
+            <ZoomOut className="w-4 h-4" />
+          </button>
 
-        <span className="text-xs font-mono font-medium px-1 text-slate-600 min-w-[42px] text-center">
-          {Math.round(zoom * 100)}%
-        </span>
+          <span className="text-xs font-mono font-medium px-1 text-slate-600 min-w-[42px] text-center">
+            {Math.round(zoom * 100)}%
+          </span>
 
-        <button
-          onClick={() => onZoomChange(0.1)}
-          className="p-1.5 rounded-lg hover:bg-white text-slate-700 transition"
-          title="Zoom in"
-        >
-          <ZoomIn className="w-4 h-4" />
-        </button>
+          <button
+            onClick={() => onZoomChange(0.1)}
+            className="p-1.5 rounded-lg hover:bg-white text-slate-700 transition"
+            title="Zoom in"
+          >
+            <ZoomIn className="w-4 h-4" />
+          </button>
+        </div>
       </div>
 
       {/* Right: Preview, Save, Add to Basket */}
-      <div className="flex items-center space-x-2">
+      <div className="flex items-center space-x-1.5 sm:space-x-2">
         <button
           onClick={onPreview}
-          className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl text-xs font-bold flex items-center gap-1.5 transition"
+          className="p-2 sm:px-3 sm:py-2 min-w-[38px] min-h-[38px] bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition active:scale-95"
+          title="Preview 3D Card"
+          aria-label="Preview"
         >
-          <Eye className="w-4 h-4 text-slate-600" />
+          <Eye className="w-4 h-4 text-slate-700" />
           <span className="hidden sm:inline">Preview</span>
         </button>
 
         <button
           onClick={onSave}
-          className="px-3 py-2 border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition"
+          className="p-2 sm:px-3 sm:py-2 min-w-[38px] min-h-[38px] border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition active:scale-95"
+          title="Save Design"
+          aria-label="Save"
         >
-          <Save className="w-4 h-4 text-slate-500" />
-          <span className="hidden md:inline">Save</span>
+          <Save className="w-4 h-4 text-slate-600" />
+          <span className="hidden lg:inline">Save</span>
         </button>
 
         <button
           onClick={onAddToBasket}
-          className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs rounded-xl shadow-md shadow-rose-200 flex items-center gap-1.5 transition active:scale-95"
+          className="px-2.5 py-2 sm:px-4 sm:py-2 min-h-[38px] bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs rounded-xl shadow-md shadow-rose-200 flex items-center justify-center gap-1.5 transition active:scale-95 shrink-0"
         >
           <ShoppingBag className="w-4 h-4" />
-          <span>Add to Basket</span>
+          <span className="hidden xs:inline">Basket</span>
         </button>
       </div>
     </header>
