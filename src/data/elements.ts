@@ -85,8 +85,24 @@ export const STICKER_CATALOG: StickerItem[] = [
     name: 'Party Cone Hat',
     category: 'Birthday',
     defaultColor: '#3b82f6',
-    tags: ['hat', 'cone', 'celebrate'],
+    tags: ['hat', 'cone', 'celebrate', 'party'],
     svg: `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a1.5 1.5 0 100 3 1.5 1.5 0 000-3zm-1.2 4.2L4.2 19c-.4.9.2 1.9 1.2 2h13.2c1 0 1.6-1.1 1.2-2L13.2 6.2a1.3 1.3 0 00-2.4 0zM7.5 19l2.2-4.5h4.6l2.2 4.5H7.5z"/></svg>`
+  },
+  {
+    id: 'party-hat-polka',
+    name: 'Polka Party Hat',
+    category: 'Birthday',
+    defaultColor: '#ec4899',
+    tags: ['hat', 'polka', 'dots', 'party', 'birthday'],
+    svg: `<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="2.5" r="1.5"/><path d="M5.2 19.5L11 4.5h2l5.8 15c.3.8-.3 1.5-1.1 1.5H6.3c-.8 0-1.4-.7-1.1-1.5zM8 18h8l-1.3-3.2H9.3L8 18z"/><circle cx="12" cy="9.5" r="1.2" fill="white"/><circle cx="10" cy="13.5" r="1.2" fill="white"/><circle cx="14" cy="13.5" r="1.2" fill="white"/></svg>`
+  },
+  {
+    id: 'party-hat-stripes',
+    name: 'Striped Fiesta Hat',
+    category: 'Birthday',
+    defaultColor: '#f59e0b',
+    tags: ['hat', 'stripes', 'carnival', 'festive'],
+    svg: `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 1a2 2 0 100 4 2 2 0 000-4zm-.8 4.2L3.5 19.5c-.3.7.2 1.5 1 1.5h15c.8 0 1.3-.8 1-1.5L12.8 5.2a1 1 0 00-1.6 0zM6.6 18l1.6-3h7.6l1.6 3H6.6zm3.2-6l1.6-3h1.2l1.6 3H9.8z"/></svg>`
   },
   {
     id: 'cheers-mug',
@@ -121,6 +137,22 @@ export const STICKER_CATALOG: StickerItem[] = [
     defaultColor: '#ec4899',
     tags: ['cupid', 'arrow', 'romance'],
     svg: `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35zM2 2l5 2-2 5 2 2-7-9zm20 20l-5-2 2-5-2-2 7 9z"/></svg>`
+  },
+  {
+    id: 'heart-sparkle',
+    name: 'Sparkle Heart',
+    category: 'Love',
+    defaultColor: '#f43f5e',
+    tags: ['heart', 'sparkle', 'love', 'shine', 'magic'],
+    svg: `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/><path d="M19 1l.9 2.1L22 4l-2.1.9L19 7l-.9-2.1L16 4l2.1-.9L19 1zm-15 4l.6 1.4L6 7l-1.4.6L4 9l-.6-1.4L2 7l1.4-.6L4 5z"/></svg>`
+  },
+  {
+    id: 'heart-ribbon',
+    name: 'Heart With Ribbon',
+    category: 'Love',
+    defaultColor: '#e11d48',
+    tags: ['heart', 'ribbon', 'gift', 'banner', 'valentine'],
+    svg: `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/><path d="M3 10h18v3H3z" fill="#fbcfe8"/><path d="M5 9l2 5H3l2-5zm14 0l2 5h-4l2-5z"/></svg>`
   },
   {
     id: 'kiss-lips',
@@ -275,6 +307,22 @@ export const STICKER_CATALOG: StickerItem[] = [
     defaultColor: '#facc15',
     tags: ['star', 'sparkle', 'magic', 'shine'],
     svg: `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.4 7.2L21.6 12l-7.2 2.8L12 22l-2.4-7.2L2.4 12l7.2-2.8L12 2z"/></svg>`
+  },
+  {
+    id: 'star-classic',
+    name: 'Golden Star',
+    category: 'Stars & Magic',
+    defaultColor: '#eab308',
+    tags: ['star', 'gold', 'classic', 'rating', 'shine'],
+    svg: `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>`
+  },
+  {
+    id: 'magic-wand',
+    name: 'Magic Fairy Wand',
+    category: 'Stars & Magic',
+    defaultColor: '#ec4899',
+    tags: ['wand', 'star', 'magic', 'fairy', 'sparkle'],
+    svg: `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M7.5 5.6L10 2l1.6 4.1 4.4.4-3.3 3.1.9 4.3-3.9-2.2-3.9 2.2.9-4.3L3.4 6.5l4.1-.9zM2.8 21.2l11.4-11.4 1.4 1.4L4.2 22.6z"/><circle cx="19" cy="4" r="1.5"/><circle cx="21" cy="9" r="1"/><circle cx="15" cy="15" r="1"/></svg>`
   },
   {
     id: 'shooting-star',

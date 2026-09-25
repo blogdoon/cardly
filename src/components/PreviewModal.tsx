@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, ZoomIn, ZoomOut, RotateCw, Eye, BookOpen, Layers, Check } from 'lucide-react';
+import { X, ZoomIn, ZoomOut, RotateCw, Eye, BookOpen, Layers, Check, Printer } from 'lucide-react';
 import { CardPageDefinition, CardPageType, StickerElement } from '../types/template';
 
 interface PreviewModalProps {
@@ -13,6 +13,7 @@ interface PreviewModalProps {
     back: CardPageDefinition;
   };
   onProceedToCart?: () => void;
+  onOpenPrintPreview?: () => void;
 }
 
 const formatStickerSvg = (svg: string) => {
@@ -29,6 +30,7 @@ export const PreviewModal: React.FC<PreviewModalProps> = ({
   title,
   pages,
   onProceedToCart,
+  onOpenPrintPreview,
 }) => {
   const [activeView, setActiveView] = useState<'front' | 'inside' | 'back'>('front');
   const [is3DMode, setIs3DMode] = useState(true);
@@ -55,7 +57,9 @@ export const PreviewModal: React.FC<PreviewModalProps> = ({
       <div
         className="relative w-[300px] h-[420px] sm:w-[340px] sm:h-[476px] rounded-lg overflow-hidden shadow-2xl transition-all select-none border border-slate-200/60"
         style={{
-          background: page.backgroundGradient || page.backgroundColor || '#ffffff',
+          background: page.backgroundImage
+            ? `url("${page.backgroundImage}") center/cover no-repeat`
+            : (page.backgroundGradient || page.backgroundColor || '#ffffff'),
           transform: `scale(${zoomLevel})`,
           transformOrigin: isLeftInside ? 'right center' : 'left center'
         }}
@@ -205,6 +209,17 @@ export const PreviewModal: React.FC<PreviewModalProps> = ({
               <span>{is3DMode ? '3D Folded View' : 'Flat Print View'}</span>
             </button>
 
+            {onOpenPrintPreview && (
+              <button
+                onClick={onOpenPrintPreview}
+                className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-rose-600/30 hover:bg-rose-600/40 text-rose-300 text-xs font-semibold rounded-lg border border-rose-500/40 transition"
+                title="Format to standard 5x7 & paper sizes for printing"
+              >
+                <Printer className="w-3.5 h-3.5" />
+                <span>5"×7" Print Preview</span>
+              </button>
+            )}
+
             {/* Zoom Controls */}
             <div className="flex items-center bg-slate-800 rounded-lg p-0.5">
               <button
@@ -310,6 +325,17 @@ export const PreviewModal: React.FC<PreviewModalProps> = ({
           </div>
 
           <div className="flex items-center space-x-3">
+            {onOpenPrintPreview && (
+              <button
+                onClick={onOpenPrintPreview}
+                className="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-semibold flex items-center gap-1.5"
+                title="Format into 5x7 or standard paper size"
+              >
+                <Printer className="w-3.5 h-3.5 text-rose-400" />
+                <span>Print Card (5"×7")</span>
+              </button>
+            )}
+
             <button
               onClick={onClose}
               className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-semibold"

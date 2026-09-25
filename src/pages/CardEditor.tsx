@@ -1,16 +1,18 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { EditorToolbar } from '../components/Editor/EditorToolbar';
-import { EditorSidebar } from '../components/Editor/EditorSidebar';
+import { EditorSidebar, TabType } from '../components/Editor/EditorSidebar';
 import { CardCanvas } from '../components/Editor/CardCanvas';
 import { PropertyPanel } from '../components/Editor/PropertyPanel';
 import { PreviewModal } from '../components/PreviewModal';
+import { PrintPreview } from '../components/PrintPreview';
+import { StickerLibraryPanel } from '../components/Editor/StickerLibraryPanel';
 import { CardTemplate, CardPageType, CardPageDefinition, CardElement, TextElement, PhotoElement, StickerElement } from '../types/template';
 import { UserDesign, AutosaveStatus } from '../types/design';
 import { getTemplateById } from '../data/templates';
 import { saveUserDesign } from '../services/cardStorage';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
-import { X } from 'lucide-react';
+import { X, Sparkles } from 'lucide-react';
 
 interface CardEditorProps {
   templateId: string;
@@ -42,6 +44,14 @@ export const CardEditor: React.FC<CardEditorProps> = ({
   const [selectedElementId, setSelectedElementId] = useState<string | null>(null);
   const [isPropertiesOpen, setIsPropertiesOpen] = useState(false);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [isPrintPreviewOpen, setIsPrintPreviewOpen] = useState(false);
+  const [isStickerModalOpen, setIsStickerModalOpen] = useState(false);
+  const [sidebarTab, setSidebarTab] = useState<TabType>('quick');
+  const [showGrid, setShowGrid] = useState<boolean>(false);
+  const [snapToGrid, setSnapToGrid] = useState<boolean>(true);
+  const [gridSize, setGridSize] = useState<number>(5);
+  const [showCenterGuides, setShowCenterGuides] = useState<boolean>(true);
+  const [showSafeMargin, setShowSafeMargin] = useState<boolean>(true);
   const [autosaveStatus, setAutosaveStatus] = useState<AutosaveStatus>('saved');
 
   // Pages state
@@ -303,16 +313,22 @@ export const CardEditor: React.FC<CardEditorProps> = ({
     svg?: string,
     emoji?: string,
     color?: string,
-    name?: string
+    name?: string,
+    sizePercent?: number
   ) => {
     const id = `stk_${Date.now()}`;
+    const size = sizePercent || 22;
+    // Stagger slightly so multiple stickers added in succession don't stack directly on top of each other
+    const existingStickerCount = activePageDefinition.elements.filter((e) => e.type === 'sticker').length;
+    const offset = (existingStickerCount % 4) * 4 - 6;
+
     const newSticker: StickerElement = {
       id,
       type: 'sticker',
-      x: 50,
-      y: 50,
-      width: 22,
-      height: 22,
+      x: 50 + offset,
+      y: 50 + offset,
+      width: size,
+      height: size,
       rotation: 0,
       zIndex: activePageDefinition.elements.length + 1,
       stickerId,
@@ -493,6 +509,20 @@ export const CardEditor: React.FC<CardEditorProps> = ({
         zoom={zoom}
         onZoomChange={handleZoomChange}
         onPreview={() => setIsPreviewOpen(true)}
+        onPrint={() => setIsPrintPreviewOpen(true)}
+        onOpenStickers={() => {
+          setSidebarTab('elements');
+        }}
+        showGrid={showGrid}
+        snapToGrid={snapToGrid}
+        gridSize={gridSize}
+        showCenterGuides={showCenterGuides}
+        showSafeMargin={showSafeMargin}
+        onToggleGrid={() => setShowGrid((prev) => !prev)}
+        onToggleSnap={() => setSnapToGrid((prev) => !prev)}
+        onGridSizeChange={setGridSize}
+        onToggleCenterGuides={() => setShowCenterGuides((prev) => !prev)}
+        onToggleSafeMargin={() => setShowSafeMargin((prev) => !prev)}
         onSave={handleManualSave}
         onAddToBasket={handleAddToBasket}
         onBack={onBack}
@@ -513,6 +543,8 @@ export const CardEditor: React.FC<CardEditorProps> = ({
             onBackgroundChange={handleBackgroundChange}
             quickFields={quickFields}
             onQuickFieldChange={handleQuickFieldChange}
+            activeTab={sidebarTab}
+            onTabChange={setSidebarTab}
           />
         </div>
 
@@ -525,6 +557,14 @@ export const CardEditor: React.FC<CardEditorProps> = ({
             onSelectElement={setSelectedElementId}
             onUpdateElement={handleUpdateElement}
             onDeleteSelected={() => selectedElementId && handleDeleteElement(selectedElementId)}
+            showGrid={showGrid}
+            snapToGrid={snapToGrid}
+            gridSize={gridSize}
+            showCenterGuides={showCenterGuides}
+            showSafeMargin={showSafeMargin}
+            onToggleGrid={() => setShowGrid((prev) => !prev)}
+            onToggleSnap={() => setSnapToGrid((prev) => !prev)}
+            onGridSizeChange={setGridSize}
           />
         </div>
 
@@ -601,7 +641,61 @@ export const CardEditor: React.FC<CardEditorProps> = ({
           setIsPreviewOpen(false);
           handleAddToBasket();
         }}
+        onOpenPrintPreview={() => {
+          setIsPreviewOpen(false);
+          setIsPrintPreviewOpen(true);
+        }}
       />
+
+      {/* Standard Paper Size Print Studio & Preview */}
+      <PrintPreview
+        isOpen={isPrintPreviewOpen}
+        onClose={() => setIsPrintPreviewOpen(false)}
+        title={title}
+        templateId={templateId}
+        designId={designId}
+        pages={pages}
+      />
+
+      {/* Expanded Full-Screen Sticker Library Modal */}
+      {isStickerModalOpen && (
+        <div className="fixed inset-0 z-70 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl shadow-2xl max-w-4xl w-full max-h-[88vh] flex flex-col overflow-hidden border border-slate-200 animate-in fade-in zoom-in-95 duration-200">
+            <div className="p-4 px-6 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-rose-100 text-rose-600 flex items-center justify-center">
+                  <Sparkles className="w-4 h-4" />
+                </div>
+                <div>
+                  <h2 className="text-base font-bold text-slate-900">
+                    Sticker & Decorative Element Library
+                  </h2>
+                  <p className="text-xs text-slate-500">
+                    Select and place SVG-based decorative elements (hearts, stars, party hats) onto your card
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsStickerModalOpen(false)}
+                className="p-1.5 rounded-xl hover:bg-slate-200 text-slate-500 hover:text-slate-800 transition cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-6 flex-1 overflow-y-auto">
+              <StickerLibraryPanel
+                onAddSticker={(id, svg, emoji, col, name, size) => {
+                  handleAddSticker(id, svg, emoji, col, name, size);
+                }}
+                isModal={true}
+                onCloseModal={() => setIsStickerModalOpen(false)}
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

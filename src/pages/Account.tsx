@@ -15,7 +15,8 @@ import {
   Plus,
   Eye,
   ExternalLink,
-  RotateCcw
+  RotateCcw,
+  Printer
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { UserDesign } from '../types/design';
@@ -29,6 +30,7 @@ import {
 } from '../services/cardStorage';
 import { getTemplateById } from '../data/templates';
 import { PreviewModal } from '../components/PreviewModal';
+import { PrintPreview } from '../components/PrintPreview';
 
 interface AccountProps {
   initialTab?: 'designs' | 'orders' | 'addresses';
@@ -49,6 +51,7 @@ export const Account: React.FC<AccountProps> = ({
   const [addresses, setAddresses] = useState<DeliveryAddress[]>(user?.savedAddresses || []);
   const [isLoading, setIsLoading] = useState(true);
   const [previewModalDesign, setPreviewModalDesign] = useState<UserDesign | null>(null);
+  const [printModalDesign, setPrintModalDesign] = useState<UserDesign | null>(null);
 
   // Address add form modal state
   const [showAddressForm, setShowAddressForm] = useState(false);
@@ -302,6 +305,13 @@ export const Account: React.FC<AccountProps> = ({
                     </div>
 
                     <div className="flex items-center space-x-1">
+                      <button
+                        onClick={() => setPrintModalDesign(design)}
+                        className="p-1.5 hover:bg-slate-200 rounded-lg text-slate-500 hover:text-slate-900"
+                        title="Print Preview (5x7 & Standard Sizes)"
+                      >
+                        <Printer className="w-4 h-4" />
+                      </button>
                       <button
                         onClick={() => handleDuplicateDesign(design)}
                         className="p-1.5 hover:bg-slate-200 rounded-lg text-slate-500"
@@ -632,6 +642,23 @@ export const Account: React.FC<AccountProps> = ({
             setPreviewModalDesign(null);
             onEditDesign(d);
           }}
+          onOpenPrintPreview={() => {
+            const d = previewModalDesign;
+            setPreviewModalDesign(null);
+            setPrintModalDesign(d);
+          }}
+        />
+      )}
+
+      {/* Standard Paper Size Print Studio & Preview */}
+      {printModalDesign && (
+        <PrintPreview
+          isOpen={Boolean(printModalDesign)}
+          onClose={() => setPrintModalDesign(null)}
+          title={printModalDesign.title}
+          templateId={printModalDesign.templateId}
+          designId={printModalDesign.id}
+          pages={printModalDesign.pages}
         />
       )}
     </div>

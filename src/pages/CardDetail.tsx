@@ -22,6 +22,7 @@ import { recordRecentlyViewed } from '../services/cardStorage';
 import { getRecommendationsForTemplate } from '../utils/recommendations';
 import { CardTile } from '../components/CardTile';
 import { PreviewModal } from '../components/PreviewModal';
+import { PrintPreview } from '../components/PrintPreview';
 
 interface CardDetailProps {
   templateId: string;
@@ -44,6 +45,7 @@ export const CardDetail: React.FC<CardDetailProps> = ({
   const [selectedEnvelope, setSelectedEnvelope] = useState(ENVELOPE_COLORS[0].id);
   const [activeTab, setActiveTab] = useState<'front' | 'inside' | 'back'>('front');
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [isPrintPreviewOpen, setIsPrintPreviewOpen] = useState(false);
 
   useEffect(() => {
     if (templateId) {
@@ -383,6 +385,24 @@ export const CardDetail: React.FC<CardDetailProps> = ({
         onProceedToCart={() => {
           setIsPreviewOpen(false);
           handleQuickAddToCart();
+        }}
+        onOpenPrintPreview={() => {
+          setIsPreviewOpen(false);
+          setIsPrintPreviewOpen(true);
+        }}
+      />
+
+      {/* Standard Paper Size Print Studio & Preview */}
+      <PrintPreview
+        isOpen={isPrintPreviewOpen}
+        onClose={() => setIsPrintPreviewOpen(false)}
+        title={template.title}
+        templateId={template.id}
+        pages={{
+          front: template.defaultPages.front,
+          insideLeft: template.defaultPages.insideLeft,
+          insideRight: template.defaultPages.insideRight,
+          back: template.defaultPages.back,
         }}
       />
     </div>

@@ -13,8 +13,8 @@ import {
   X
 } from 'lucide-react';
 import { CardPageType } from '../../types/template';
-import { STICKER_CATALOG, STICKER_CATEGORIES } from '../../data/elements';
 import { PRESET_COLORS } from '../../data/fonts';
+import { StickerLibraryPanel } from './StickerLibraryPanel';
 
 interface EditorSidebarProps {
   currentPage: CardPageType;
@@ -26,7 +26,8 @@ interface EditorSidebarProps {
     svg?: string,
     emoji?: string,
     color?: string,
-    name?: string
+    name?: string,
+    sizePercent?: number
   ) => void;
   onBackgroundChange: (bg: string, gradient?: string) => void;
   quickFields: {
@@ -34,9 +35,11 @@ interface EditorSidebarProps {
     message: string;
   };
   onQuickFieldChange: (field: 'name' | 'message', val: string) => void;
+  activeTab?: TabType;
+  onTabChange?: (tab: TabType) => void;
 }
 
-type TabType = 'quick' | 'text' | 'photos' | 'elements' | 'background' | 'pages';
+export type TabType = 'quick' | 'text' | 'photos' | 'elements' | 'background' | 'pages';
 
 export const EditorSidebar: React.FC<EditorSidebarProps> = ({
   currentPage,
@@ -47,26 +50,23 @@ export const EditorSidebar: React.FC<EditorSidebarProps> = ({
   onBackgroundChange,
   quickFields,
   onQuickFieldChange,
+  activeTab: controlledTab,
+  onTabChange,
 }) => {
-  const [activeTab, setActiveTab] = useState<TabType>('quick');
+  const [internalTab, setInternalTab] = useState<TabType>('quick');
+  const activeTab = controlledTab !== undefined ? controlledTab : internalTab;
+
   const [isUploading, setIsUploading] = useState(false);
-  const [stickerCategory, setStickerCategory] = useState<string>('all');
-  const [stickerSearch, setStickerSearch] = useState<string>('');
   // Mobile: tab content stays collapsed until a tab is tapped (desktop always shows it)
   const [mobileOpen, setMobileOpen] = useState(false);
   const selectTab = (tab: TabType) => {
-    setActiveTab(tab);
+    if (onTabChange) {
+      onTabChange(tab);
+    } else {
+      setInternalTab(tab);
+    }
     setMobileOpen(activeTab === tab ? !mobileOpen : true);
   };
-
-  const filteredStickers = STICKER_CATALOG.filter((stk) => {
-    const matchesCategory = stickerCategory === 'all' || stk.category === stickerCategory;
-    const matchesSearch =
-      !stickerSearch.trim() ||
-      stk.name.toLowerCase().includes(stickerSearch.toLowerCase()) ||
-      Boolean(stk.tags && stk.tags.some((t) => t.toLowerCase().includes(stickerSearch.toLowerCase())));
-    return matchesCategory && matchesSearch;
-  });
 
   const samplePhotos = [
     'https://images.unsplash.com/photo-1513151233558-d860c5398176?w=600&auto=format&fit=crop&q=80',
@@ -236,36 +236,64 @@ export const EditorSidebar: React.FC<EditorSidebarProps> = ({
               <p className="text-xs text-slate-500 mt-0.5">Click to place text onto the card canvas.</p>
             </div>
 
-            <div className="space-y-2">
+            <div className="space-y-2.5">
               <button
                 onClick={() => onAddText('heading')}
-                className="w-full p-3 border border-slate-200 hover:border-rose-400 hover:bg-rose-50 rounded-xl text-left transition group"
+                className="w-full p-3 border border-slate-200 hover:border-rose-400 hover:bg-rose-50 rounded-xl text-left transition group cursor-pointer"
               >
-                <div className="font-extrabold text-base text-slate-900 group-hover:text-rose-600">
-                  Add Big Headline
+                <div
+                  style={{ fontFamily: "'Playfair Display', serif" }}
+                  className="font-bold text-lg text-slate-900 group-hover:text-rose-600 leading-tight"
+                >
+                  Add Headline
                 </div>
-                <div className="text-[11px] text-slate-500">Bold statement for card covers</div>
+                <div className="text-[11px] text-slate-500 mt-0.5 flex items-center justify-between">
+                  <span>Playfair Display (Serif)</span>
+                  <span className="text-[10px] font-mono text-slate-400">Card Cover</span>
+                </div>
               </button>
 
               <button
                 onClick={() => onAddText('subheading')}
-                className="w-full p-3 border border-slate-200 hover:border-rose-400 hover:bg-rose-50 rounded-xl text-left transition group"
+                className="w-full p-3 border border-slate-200 hover:border-rose-400 hover:bg-rose-50 rounded-xl text-left transition group cursor-pointer"
               >
-                <div className="font-semibold text-sm text-slate-800 group-hover:text-rose-600">
+                <div
+                  style={{ fontFamily: "'Montserrat', sans-serif" }}
+                  className="font-semibold text-base text-slate-800 group-hover:text-rose-600 leading-tight"
+                >
                   Add Subtitle / Name
                 </div>
-                <div className="text-[11px] text-slate-500">Great for names and dates</div>
+                <div className="text-[11px] text-slate-500 mt-0.5 flex items-center justify-between">
+                  <span>Montserrat (Sans)</span>
+                  <span className="text-[10px] font-mono text-slate-400">Names & Dates</span>
+                </div>
               </button>
 
               <button
                 onClick={() => onAddText('body')}
-                className="w-full p-3 border border-slate-200 hover:border-rose-400 hover:bg-rose-50 rounded-xl text-left transition group"
+                className="w-full p-3 border border-slate-200 hover:border-rose-400 hover:bg-rose-50 rounded-xl text-left transition group cursor-pointer"
               >
-                <div className="font-normal text-xs text-slate-700 font-serif italic group-hover:text-rose-600">
+                <div
+                  style={{ fontFamily: "'Caveat', cursive" }}
+                  className="font-normal text-xl text-slate-800 group-hover:text-rose-600 leading-tight"
+                >
                   Add Handwritten Message
                 </div>
-                <div className="text-[11px] text-slate-500">Perfect for the inside greeting</div>
+                <div className="text-[11px] text-slate-500 mt-0.5 flex items-center justify-between">
+                  <span>Caveat (Handwritten)</span>
+                  <span className="text-[10px] font-mono text-slate-400">Inside Greeting</span>
+                </div>
               </button>
+            </div>
+
+            <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-slate-600 text-xs space-y-1">
+              <div className="font-semibold text-slate-800 flex items-center gap-1.5 text-[11px]">
+                <Sparkles className="w-3.5 h-3.5 text-rose-500" />
+                <span>Live Font Typography Picker</span>
+              </div>
+              <p className="text-[11px] text-slate-500 leading-relaxed">
+                Click any text on the card canvas to open the live font preview menu and test all 15 typography styles in real-time.
+              </p>
             </div>
           </div>
         )}
@@ -313,91 +341,7 @@ export const EditorSidebar: React.FC<EditorSidebarProps> = ({
 
         {/* Stickers & Elements Tab */}
         {activeTab === 'elements' && (
-          <div className="space-y-3">
-            <div>
-              <div className="flex items-center justify-between">
-                <h3 className="font-bold text-slate-900 text-sm">Stickers & Decors</h3>
-                <span className="text-[10px] font-bold px-2 py-0.5 bg-rose-100 text-rose-700 rounded-full">
-                  {filteredStickers.length} stickers
-                </span>
-              </div>
-              <p className="text-xs text-slate-500 mt-0.5">Click any sticker to place onto the card.</p>
-            </div>
-
-            {/* Sticker search bar */}
-            <div className="relative">
-              <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
-              <input
-                type="text"
-                value={stickerSearch}
-                onChange={(e) => setStickerSearch(e.target.value)}
-                placeholder="Search stickers (e.g. cake, heart)..."
-                className="w-full pl-8 pr-7 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs placeholder:text-slate-400 focus:outline-rose-500 focus:bg-white"
-              />
-              {stickerSearch && (
-                <button
-                  onClick={() => setStickerSearch('')}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                >
-                  <X className="w-3 h-3" />
-                </button>
-              )}
-            </div>
-
-            {/* Category pills */}
-            <div className="flex items-center gap-1 overflow-x-auto pb-1.5 scrollbar-thin">
-              {STICKER_CATEGORIES.map((cat) => (
-                <button
-                  key={cat.id}
-                  onClick={() => setStickerCategory(cat.id)}
-                  className={`px-2.5 py-1 text-[11px] rounded-full whitespace-nowrap font-medium transition ${
-                    stickerCategory === cat.id
-                      ? 'bg-rose-500 text-white shadow-xs font-semibold'
-                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                  }`}
-                >
-                  {cat.name}
-                </button>
-              ))}
-            </div>
-
-            {/* Stickers grid */}
-            {filteredStickers.length === 0 ? (
-              <div className="p-6 text-center text-xs text-slate-400 bg-slate-50 rounded-xl">
-                No stickers found matching &ldquo;{stickerSearch}&rdquo;
-              </div>
-            ) : (
-              <div className="grid grid-cols-3 gap-2 max-h-[460px] overflow-y-auto pr-1">
-                {filteredStickers.map((stk) => (
-                  <button
-                    key={stk.id}
-                    onClick={() =>
-                      onAddSticker(stk.id, stk.svg, stk.emoji, stk.defaultColor, stk.name)
-                    }
-                    className="p-2.5 bg-slate-50 hover:bg-rose-50/80 border border-slate-200 hover:border-rose-300 rounded-xl flex flex-col items-center justify-center transition group hover:shadow-xs"
-                    title={stk.name}
-                  >
-                    <div className="w-8 h-8 flex items-center justify-center">
-                      {stk.svg ? (
-                        <div
-                          className="w-7 h-7 text-slate-700 group-hover:scale-110 transition-transform [&>svg]:w-full [&>svg]:h-full"
-                          style={{ color: stk.defaultColor || '#e11d48' }}
-                          dangerouslySetInnerHTML={{ __html: stk.svg }}
-                        />
-                      ) : (
-                        <span className="text-2xl group-hover:scale-125 transition-transform select-none">
-                          {stk.emoji}
-                        </span>
-                      )}
-                    </div>
-                    <span className="text-[10px] font-medium text-slate-600 mt-1 truncate max-w-full text-center group-hover:text-rose-700">
-                      {stk.name}
-                    </span>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
+          <StickerLibraryPanel onAddSticker={onAddSticker} />
         )}
 
         {/* Background Tab */}

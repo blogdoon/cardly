@@ -11,9 +11,12 @@ import {
   ZoomIn,
   ZoomOut,
   Smartphone,
-  Monitor
+  Monitor,
+  Printer,
+  Sparkles
 } from 'lucide-react';
 import { AutosaveStatus } from '../../types/design';
+import { GridSettingsMenu } from './GridSettingsMenu';
 
 interface EditorToolbarProps {
   title: string;
@@ -26,9 +29,21 @@ interface EditorToolbarProps {
   zoom: number;
   onZoomChange: (delta: number) => void;
   onPreview: () => void;
+  onPrint?: () => void;
+  onOpenStickers?: () => void;
   onSave: () => void;
   onAddToBasket: () => void;
   onBack: () => void;
+  showGrid?: boolean;
+  snapToGrid?: boolean;
+  gridSize?: number;
+  showCenterGuides?: boolean;
+  showSafeMargin?: boolean;
+  onToggleGrid?: () => void;
+  onToggleSnap?: () => void;
+  onGridSizeChange?: (size: number) => void;
+  onToggleCenterGuides?: () => void;
+  onToggleSafeMargin?: () => void;
 }
 
 export const EditorToolbar: React.FC<EditorToolbarProps> = ({
@@ -42,9 +57,21 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
   zoom,
   onZoomChange,
   onPreview,
+  onPrint,
+  onOpenStickers,
   onSave,
   onAddToBasket,
   onBack,
+  showGrid = false,
+  snapToGrid = true,
+  gridSize = 5,
+  showCenterGuides = true,
+  showSafeMargin = true,
+  onToggleGrid,
+  onToggleSnap,
+  onGridSizeChange,
+  onToggleCenterGuides,
+  onToggleSafeMargin,
 }) => {
   return (
     <header className="h-14 sm:h-16 bg-white border-b border-slate-200 px-2 sm:px-4 flex items-center justify-between shrink-0 shadow-xs z-30">
@@ -140,6 +167,33 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
 
       {/* Right: Preview, Save, Add to Basket */}
       <div className="flex items-center space-x-1.5 sm:space-x-2">
+        {onToggleGrid && onToggleSnap && (
+          <GridSettingsMenu
+            showGrid={Boolean(showGrid)}
+            snapToGrid={Boolean(snapToGrid)}
+            gridSize={gridSize || 5}
+            onToggleGrid={onToggleGrid}
+            onToggleSnap={onToggleSnap}
+            onGridSizeChange={onGridSizeChange || (() => {})}
+            showCenterGuides={showCenterGuides}
+            onToggleCenterGuides={onToggleCenterGuides}
+            showSafeMargin={showSafeMargin}
+            onToggleSafeMargin={onToggleSafeMargin}
+          />
+        )}
+
+        {onOpenStickers && (
+          <button
+            onClick={onOpenStickers}
+            className="p-2 sm:px-3 sm:py-2 min-w-[38px] min-h-[38px] bg-rose-50 hover:bg-rose-100/90 text-rose-700 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition active:scale-95 cursor-pointer"
+            title="Open Sticker & Decor Library"
+            aria-label="Stickers"
+          >
+            <Sparkles className="w-4 h-4 text-rose-600" />
+            <span className="hidden md:inline">Stickers</span>
+          </button>
+        )}
+
         <button
           onClick={onPreview}
           className="p-2 sm:px-3 sm:py-2 min-w-[38px] min-h-[38px] bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition active:scale-95"
@@ -149,6 +203,18 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
           <Eye className="w-4 h-4 text-slate-700" />
           <span className="hidden sm:inline">Preview</span>
         </button>
+
+        {onPrint && (
+          <button
+            onClick={onPrint}
+            className="p-2 sm:px-3 sm:py-2 min-w-[38px] min-h-[38px] bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition active:scale-95"
+            title="Print Preview (5x7 & Standard Sizes)"
+            aria-label="Print Preview"
+          >
+            <Printer className="w-4 h-4 text-slate-700" />
+            <span className="hidden md:inline">Print</span>
+          </button>
+        )}
 
         <button
           onClick={onSave}

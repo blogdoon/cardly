@@ -1,6 +1,6 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { CardElement, CardPageDefinition, TextElement, PhotoElement, StickerElement } from '../../types/template';
-import { RotateCw } from 'lucide-react';
+import { RotateCw, Grid3X3, Magnet } from 'lucide-react';
 
 interface CardCanvasProps {
   page: CardPageDefinition;
@@ -9,6 +9,14 @@ interface CardCanvasProps {
   onSelectElement: (id: string | null) => void;
   onUpdateElement: (updated: CardElement) => void;
   onDeleteSelected: () => void;
+  showGrid?: boolean;
+  snapToGrid?: boolean;
+  gridSize?: number;
+  showCenterGuides?: boolean;
+  showSafeMargin?: boolean;
+  onToggleGrid?: () => void;
+  onToggleSnap?: () => void;
+  onGridSizeChange?: (size: number) => void;
 }
 
 const formatStickerSvg = (svg: string) => {
@@ -26,12 +34,22 @@ export const CardCanvas: React.FC<CardCanvasProps> = ({
   onSelectElement,
   onUpdateElement,
   onDeleteSelected,
+  showGrid = false,
+  snapToGrid = true,
+  gridSize = 5,
+  showCenterGuides = true,
+  showSafeMargin = true,
+  onToggleGrid,
+  onToggleSnap,
+  onGridSizeChange,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
   const [resizeHandle, setResizeHandle] = useState<'se' | 'sw' | 'ne' | 'nw' | null>(null);
   const [isRotating, setIsRotating] = useState(false);
+  const [snappedX, setSnappedX] = useState<number | null>(null);
+  const [snappedY, setSnappedY] = useState<number | null>(null);
   const [dragStart, setDragStart] = useState({ mouseX: 0, mouseY: 0, elX: 0, elY: 0 });
   const [resizeStart, setResizeStart] = useState({
     mouseX: 0,
@@ -73,6 +91,8 @@ export const CardCanvas: React.FC<CardCanvasProps> = ({
       setIsResizing(false);
       setIsRotating(false);
       setResizeHandle(null);
+      setSnappedX(null);
+      setSnappedY(null);
     };
     window.addEventListener('pointerup', handleGlobalPointerUp);
     // Mobile: the browser cancels the pointer when it claims the gesture as a scroll
@@ -83,25 +103,34 @@ export const CardCanvas: React.FC<CardCanvasProps> = ({
     };
   }, []);
 
-  // Handle global keyboard shortcuts: Delete, Backspace, Esc
+  // Handle global keyboard shortcuts: Delete, Backspace, Esc, G (Grid), S (Snap)
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
-      if (
-        (e.key === 'Delete' || e.key === 'Backspace') &&
-        selectedElementId &&
-        !(document.activeElement instanceof HTMLInputElement) &&
-        !(document.activeElement instanceof HTMLTextAreaElement)
-      ) {
+      const isInput =
+        document.activeElement instanceof HTMLInputElement ||
+        document.activeElement instanceof HTMLTextAreaElement;
+
+      if ((e.key === 'Delete' || e.key === 'Backspace') && selectedElementId && !isInput) {
         e.preventDefault();
         onDeleteSelected();
       }
       if (e.key === 'Escape') {
         onSelectElement(null);
       }
+      // Press 'G' to toggle grid lines
+      if ((e.key === 'g' || e.key === 'G') && !isInput && !e.ctrlKey && !e.metaKey) {
+        e.preventDefault();
+        onToggleGrid?.();
+      }
+      // Press 'S' to toggle snap-to-grid
+      if ((e.key === 's' || e.key === 'S') && !isInput && !e.ctrlKey && !e.metaKey) {
+        e.preventDefault();
+        onToggleSnap?.();
+      }
     }
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedElementId, onDeleteSelected, onSelectElement]);
+  }, [selectedElementId, onDeleteSelected, onSelectElement, onToggleGrid, onToggleSnap]);
 
   const handlePointerDownElement = (e: React.PointerEvent, element: CardElement) => {
     if (e.button !== 0) return;
@@ -158,14 +187,59 @@ export const CardCanvas: React.FC<CardCanvasProps> = ({
       const deltaX = ((e.clientX - dragStart.mouseX) / (380 * zoom)) * 100;
       const deltaY = ((e.clientY - dragStart.mouseY) / (532 * zoom)) * 100;
 
-      let newX = Math.round((dragStart.elX + deltaX) * 10) / 10;
-      let newY = Math.round((dragStart.elY + deltaY) * 10) / 10;
+      const rawX = dragStart.elX + deltaX;
+      const rawY = dragStart.elY + deltaY;
 
-      // Snap to horizontal and vertical center (50%)
-      if (Math.abs(newX - 50) < 2) newX = 50;
-      if (Math.abs(newY - 50) < 2) newY = 50;
+      let newX = rawX;
+      let newY = rawY;
+      let snapXVal: number | null = null;
+      let snapYVal: number | null = null;
 
-      onUpdateElement({ ...element, x: Math.max(5, Math.min(95, newX)), y: Math.max(5, Math.min(95, newY)) });
+      if (snapToGrid) {
+        const step = gridSize || 5;
+        const nearestGridX = Math.round(rawX / step) * step;
+        const nearestGridY = Math.round(rawY / step) * step;
+        const threshold = Math.max(1.8, step * 0.35);
+
+        // Center 50% snap takes priority
+        if (Math.abs(rawX - 50) < threshold * 1.5) {
+          newX = 50;
+          snapXVal = 50;
+        } else if (Math.abs(rawX - nearestGridX) < threshold) {
+          newX = nearestGridX;
+          snapXVal = nearestGridX;
+        }
+
+        if (Math.abs(rawY - 50) < threshold * 1.5) {
+          newY = 50;
+          snapYVal = 50;
+        } else if (Math.abs(rawY - nearestGridY) < threshold) {
+          newY = nearestGridY;
+          snapYVal = nearestGridY;
+        }
+      } else {
+        // Soft snap only to 50% center when snap-to-grid is disabled
+        if (Math.abs(rawX - 50) < 1.4) {
+          newX = 50;
+          snapXVal = 50;
+        }
+        if (Math.abs(rawY - 50) < 1.4) {
+          newY = 50;
+          snapYVal = 50;
+        }
+      }
+
+      newX = Math.round(newX * 10) / 10;
+      newY = Math.round(newY * 10) / 10;
+
+      setSnappedX(snapXVal);
+      setSnappedY(snapYVal);
+
+      onUpdateElement({
+        ...element,
+        x: Math.max(5, Math.min(95, newX)),
+        y: Math.max(5, Math.min(95, newY)),
+      });
     } else if (isResizing && resizeHandle) {
       const deltaX = ((e.clientX - resizeStart.mouseX) / (380 * zoom)) * 100;
       const deltaY = ((e.clientY - resizeStart.mouseY) / (532 * zoom)) * 100;
@@ -269,14 +343,74 @@ export const CardCanvas: React.FC<CardCanvasProps> = ({
           height: '532px',
           transform: `scale(${zoom})`,
           transformOrigin: 'center center',
-          background: page.backgroundGradient || page.backgroundColor || '#ffffff',
+          background: page.backgroundImage
+            ? `url("${page.backgroundImage}") center/cover no-repeat`
+            : (page.backgroundGradient || page.backgroundColor || '#ffffff'),
         }}
       >
-        {/* Snap Guide lines (appear when element is near center) */}
+        {/* Visual Grid Lines Overlay */}
+        {showGrid && (
+          <div
+            className="absolute inset-0 pointer-events-none z-20"
+            style={{
+              backgroundImage: `
+                linear-gradient(to right, rgba(148, 163, 184, 0.24) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(148, 163, 184, 0.24) 1px, transparent 1px)
+              `,
+              backgroundSize: `${gridSize}% ${gridSize}%`,
+            }}
+          >
+            {/* Center axes guide lines */}
+            {showCenterGuides && (
+              <>
+                <div className="absolute top-0 bottom-0 left-1/2 w-px bg-rose-500/40 -translate-x-1/2 border-r border-dashed border-rose-400" />
+                <div className="absolute left-0 right-0 top-1/2 h-px bg-rose-500/40 -translate-y-1/2 border-b border-dashed border-rose-400" />
+              </>
+            )}
+
+            {/* Print Safe Margin (6% border) */}
+            {showSafeMargin && (
+              <div className="absolute inset-[6%] border border-dashed border-amber-400/45 rounded-lg pointer-events-none">
+                <span className="absolute top-1 left-1.5 text-[8px] font-mono text-amber-600/80 font-semibold uppercase tracking-wider">
+                  Safe Margin
+                </span>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Dynamic Snap Guide lines while dragging */}
         {isDragging && (
           <>
-            <div className="absolute top-0 bottom-0 left-1/2 w-px bg-rose-400/40 pointer-events-none z-40 border-r border-dashed" />
-            <div className="absolute left-0 right-0 top-1/2 h-px bg-rose-400/40 pointer-events-none z-40 border-b border-dashed" />
+            {snappedX !== null ? (
+              <div
+                style={{ left: `${snappedX}%` }}
+                className="absolute top-0 bottom-0 w-px bg-rose-500 pointer-events-none z-45 -translate-x-1/2 shadow-[0_0_8px_rgba(244,63,94,0.6)]"
+              >
+                <div className="absolute top-2 left-1 bg-rose-600 text-white text-[9px] font-mono px-1 py-0.2 rounded shadow-xs whitespace-nowrap">
+                  {snappedX === 50 ? 'Center (50%)' : `X: ${snappedX}%`}
+                </div>
+              </div>
+            ) : (
+              showCenterGuides && (
+                <div className="absolute top-0 bottom-0 left-1/2 w-px bg-rose-400/30 pointer-events-none z-40 border-r border-dashed" />
+              )
+            )}
+
+            {snappedY !== null ? (
+              <div
+                style={{ top: `${snappedY}%` }}
+                className="absolute left-0 right-0 h-px bg-rose-500 pointer-events-none z-45 -translate-y-1/2 shadow-[0_0_8px_rgba(244,63,94,0.6)]"
+              >
+                <div className="absolute left-2 top-1 bg-rose-600 text-white text-[9px] font-mono px-1 py-0.2 rounded shadow-xs whitespace-nowrap">
+                  {snappedY === 50 ? 'Center (50%)' : `Y: ${snappedY}%`}
+                </div>
+              </div>
+            ) : (
+              showCenterGuides && (
+                <div className="absolute left-0 right-0 top-1/2 h-px bg-rose-400/30 pointer-events-none z-40 border-b border-dashed" />
+              )
+            )}
           </>
         )}
 
@@ -532,6 +666,60 @@ export const CardCanvas: React.FC<CardCanvasProps> = ({
 
           return null;
         })}
+      </div>
+
+      {/* Floating Canvas Quick Controls (Grid & Snap) */}
+      <div className="absolute bottom-4 left-4 z-40 flex items-center gap-1.5 bg-white/95 backdrop-blur-md px-2.5 py-1.5 rounded-2xl shadow-lg border border-slate-200/90 text-xs select-none">
+        {/* Toggle Grid Lines */}
+        <button
+          type="button"
+          onClick={onToggleGrid}
+          className={`flex items-center gap-1.5 px-2.5 py-1 rounded-xl font-medium transition cursor-pointer ${
+            showGrid
+              ? 'bg-rose-50 text-rose-700 border border-rose-200 font-bold shadow-2xs'
+              : 'text-slate-600 hover:bg-slate-100 border border-transparent'
+          }`}
+          title="Toggle Visible Grid Lines (Hotkey: G)"
+        >
+          <Grid3X3 className="w-3.5 h-3.5 text-rose-500" />
+          <span>Grid</span>
+          {showGrid && <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />}
+        </button>
+
+        <div className="w-px h-3.5 bg-slate-200" />
+
+        {/* Toggle Snap to Grid */}
+        <button
+          type="button"
+          onClick={onToggleSnap}
+          className={`flex items-center gap-1.5 px-2.5 py-1 rounded-xl font-medium transition cursor-pointer ${
+            snapToGrid
+              ? 'bg-indigo-50 text-indigo-700 border border-indigo-200 font-bold shadow-2xs'
+              : 'text-slate-600 hover:bg-slate-100 border border-transparent'
+          }`}
+          title="Toggle Magnetic Snap to Grid (Hotkey: S)"
+        >
+          <Magnet className="w-3.5 h-3.5 text-indigo-500" />
+          <span>Snap</span>
+          {snapToGrid && <span className="w-1.5 h-1.5 rounded-full bg-indigo-500" />}
+        </button>
+
+        {/* Grid size quick selector */}
+        {snapToGrid && onGridSizeChange && (
+          <>
+            <div className="w-px h-3.5 bg-slate-200" />
+            <select
+              value={gridSize}
+              onChange={(e) => onGridSizeChange(Number(e.target.value))}
+              className="bg-transparent text-[10px] font-mono font-semibold text-slate-700 focus:outline-hidden cursor-pointer"
+              title="Grid Cell Size (% of canvas)"
+            >
+              <option value={5}>5% (Fine)</option>
+              <option value={10}>10% (Medium)</option>
+              <option value={15}>15% (Coarse)</option>
+            </select>
+          </>
+        )}
       </div>
     </div>
   );

@@ -15,10 +15,12 @@ import {
   RotateCw,
   Palette,
   Sliders,
-  Type
+  Type,
+  Magnet
 } from 'lucide-react';
 import { CardElement, TextElement, PhotoElement, StickerElement } from '../../types/template';
 import { AVAILABLE_FONTS, PRESET_COLORS } from '../../data/fonts';
+import { FontPickerMenu, findFontByFamily } from './FontPickerMenu';
 
 interface PropertyPanelProps {
   selectedElement: CardElement | null;
@@ -108,20 +110,55 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
           />
         </div>
 
-        {/* Font Family Selector */}
+        {/* Font Family Selector with Live Typography Preview */}
         <div>
-          <label className="block text-[11px] font-semibold text-slate-700 mb-1">Font Family</label>
-          <select
-            value={textEl.fontFamily}
-            onChange={(e) => onUpdateElement({ ...textEl, fontFamily: e.target.value })}
-            className="w-full p-2 border border-slate-300 rounded-xl text-xs font-medium focus:outline-rose-500 bg-white"
+          <div className="flex items-center justify-between mb-1">
+            <label className="text-[11px] font-semibold text-slate-700 flex items-center gap-1">
+              <Type className="w-3 h-3 text-rose-500" />
+              <span>Font Typography</span>
+            </label>
+            <span className="text-[10px] text-slate-400 font-mono">Live Preview</span>
+          </div>
+
+          <FontPickerMenu
+            currentFontFamily={textEl.fontFamily}
+            onSelectFont={(fontFamily) => onUpdateElement({ ...textEl, fontFamily })}
+            previewSampleText={textEl.text}
+            fontWeight={textEl.fontWeight}
+            fontStyle={textEl.fontStyle}
+            color={textEl.color}
+          />
+        </div>
+
+        {/* Live Typography Preview Summary Card */}
+        <div className="bg-slate-50 border border-slate-200/90 rounded-xl p-2.5 space-y-1 shadow-2xs">
+          <div className="flex items-center justify-between text-[10px] font-mono text-slate-400">
+            <span className="font-bold text-slate-700 flex items-center gap-1">
+              <span>{findFontByFamily(textEl.fontFamily).name}</span>
+            </span>
+            <span className="bg-white px-1.5 py-0.5 rounded border border-slate-200 text-slate-500 text-[9px]">
+              {findFontByFamily(textEl.fontFamily).category}
+            </span>
+          </div>
+          <div
+            style={{
+              fontFamily: textEl.fontFamily,
+              fontWeight: textEl.fontWeight || 'normal',
+              fontStyle: textEl.fontStyle || 'normal',
+              color: textEl.color,
+              textAlign: textEl.textAlign,
+            }}
+            className="text-base leading-snug line-clamp-2 select-none overflow-hidden"
           >
-            {AVAILABLE_FONTS.map((f) => (
-              <option key={f.id} value={f.family}>
-                {f.name} ({f.category})
-              </option>
-            ))}
-          </select>
+            {textEl.text || findFontByFamily(textEl.fontFamily).name}
+          </div>
+          <div className="text-[9px] font-mono text-slate-400 flex items-center justify-between border-t border-slate-200/60 pt-1">
+            <span>
+              {textEl.fontSize}px • {textEl.fontWeight === 'bold' ? 'Bold' : 'Regular'}
+              {textEl.fontStyle === 'italic' ? ' • Italic' : ''}
+            </span>
+            <span className="capitalize">{textEl.textAlign}</span>
+          </div>
         </div>
 
         {/* Font Size & Weight */}
@@ -233,6 +270,46 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
               className="w-7 h-7 rounded border border-slate-300 cursor-pointer"
             />
             <span className="font-mono text-slate-600">{textEl.color}</span>
+          </div>
+        </div>
+
+        {/* Canvas Position & Precision Alignment */}
+        <div>
+          <div className="flex items-center justify-between mb-1">
+            <label className="text-[11px] font-semibold text-slate-700">Canvas Position</label>
+            <span className="text-[10px] font-mono text-slate-500">
+              X: {Math.round(textEl.x)}% • Y: {Math.round(textEl.y)}%
+            </span>
+          </div>
+          <div className="grid grid-cols-3 gap-1">
+            <button
+              onClick={() => onUpdateElement({ ...textEl, x: 50 })}
+              className="py-1 px-1.5 bg-slate-50 hover:bg-rose-50 hover:text-rose-600 border border-slate-200 rounded-lg text-[10px] font-medium text-slate-700 text-center transition cursor-pointer"
+              title="Center Horizontally (50%)"
+            >
+              Center X
+            </button>
+            <button
+              onClick={() => onUpdateElement({ ...textEl, y: 50 })}
+              className="py-1 px-1.5 bg-slate-50 hover:bg-rose-50 hover:text-rose-600 border border-slate-200 rounded-lg text-[10px] font-medium text-slate-700 text-center transition cursor-pointer"
+              title="Center Vertically (50%)"
+            >
+              Center Y
+            </button>
+            <button
+              onClick={() =>
+                onUpdateElement({
+                  ...textEl,
+                  x: Math.round(textEl.x / 5) * 5,
+                  y: Math.round(textEl.y / 5) * 5,
+                })
+              }
+              className="py-1 px-1.5 bg-slate-50 hover:bg-indigo-50 hover:text-indigo-600 border border-slate-200 rounded-lg text-[10px] font-medium text-slate-700 text-center transition cursor-pointer flex items-center justify-center gap-1"
+              title="Snap to nearest 5% grid coordinate"
+            >
+              <Magnet className="w-2.5 h-2.5 text-indigo-500" />
+              <span>Snap 5%</span>
+            </button>
           </div>
         </div>
 
@@ -503,6 +580,46 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
           />
         </div>
 
+        {/* Canvas Position & Precision Alignment */}
+        <div>
+          <div className="flex items-center justify-between mb-1">
+            <label className="text-[11px] font-semibold text-slate-700">Canvas Position</label>
+            <span className="text-[10px] font-mono text-slate-500">
+              X: {Math.round(photoEl.x)}% • Y: {Math.round(photoEl.y)}%
+            </span>
+          </div>
+          <div className="grid grid-cols-3 gap-1">
+            <button
+              onClick={() => onUpdateElement({ ...photoEl, x: 50 })}
+              className="py-1 px-1.5 bg-slate-50 hover:bg-rose-50 hover:text-rose-600 border border-slate-200 rounded-lg text-[10px] font-medium text-slate-700 text-center transition cursor-pointer"
+              title="Center Horizontally (50%)"
+            >
+              Center X
+            </button>
+            <button
+              onClick={() => onUpdateElement({ ...photoEl, y: 50 })}
+              className="py-1 px-1.5 bg-slate-50 hover:bg-rose-50 hover:text-rose-600 border border-slate-200 rounded-lg text-[10px] font-medium text-slate-700 text-center transition cursor-pointer"
+              title="Center Vertically (50%)"
+            >
+              Center Y
+            </button>
+            <button
+              onClick={() =>
+                onUpdateElement({
+                  ...photoEl,
+                  x: Math.round(photoEl.x / 5) * 5,
+                  y: Math.round(photoEl.y / 5) * 5,
+                })
+              }
+              className="py-1 px-1.5 bg-slate-50 hover:bg-indigo-50 hover:text-indigo-600 border border-slate-200 rounded-lg text-[10px] font-medium text-slate-700 text-center transition cursor-pointer flex items-center justify-center gap-1"
+              title="Snap to nearest 5% grid coordinate"
+            >
+              <Magnet className="w-2.5 h-2.5 text-indigo-500" />
+              <span>Snap 5%</span>
+            </button>
+          </div>
+        </div>
+
         {/* Layer Ordering */}
         <div>
           <label className="block text-[11px] font-semibold text-slate-700 mb-1">Layer Ordering</label>
@@ -657,6 +774,46 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
           onChange={(e) => onUpdateElement({ ...stickerEl, rotation: Number(e.target.value) })}
           className="w-full accent-rose-500"
         />
+      </div>
+
+      {/* Canvas Position & Precision Alignment */}
+      <div>
+        <div className="flex items-center justify-between mb-1">
+          <label className="text-[11px] font-semibold text-slate-700">Canvas Position</label>
+          <span className="text-[10px] font-mono text-slate-500">
+            X: {Math.round(stickerEl.x)}% • Y: {Math.round(stickerEl.y)}%
+          </span>
+        </div>
+        <div className="grid grid-cols-3 gap-1">
+          <button
+            onClick={() => onUpdateElement({ ...stickerEl, x: 50 })}
+            className="py-1 px-1.5 bg-slate-50 hover:bg-rose-50 hover:text-rose-600 border border-slate-200 rounded-lg text-[10px] font-medium text-slate-700 text-center transition cursor-pointer"
+            title="Center Horizontally (50%)"
+          >
+            Center X
+          </button>
+          <button
+            onClick={() => onUpdateElement({ ...stickerEl, y: 50 })}
+            className="py-1 px-1.5 bg-slate-50 hover:bg-rose-50 hover:text-rose-600 border border-slate-200 rounded-lg text-[10px] font-medium text-slate-700 text-center transition cursor-pointer"
+            title="Center Vertically (50%)"
+          >
+            Center Y
+          </button>
+          <button
+            onClick={() =>
+              onUpdateElement({
+                ...stickerEl,
+                x: Math.round(stickerEl.x / 5) * 5,
+                y: Math.round(stickerEl.y / 5) * 5,
+              })
+            }
+            className="py-1 px-1.5 bg-slate-50 hover:bg-indigo-50 hover:text-indigo-600 border border-slate-200 rounded-lg text-[10px] font-medium text-slate-700 text-center transition cursor-pointer flex items-center justify-center gap-1"
+            title="Snap to nearest 5% grid coordinate"
+          >
+            <Magnet className="w-2.5 h-2.5 text-indigo-500" />
+            <span>Snap 5%</span>
+          </button>
+        </div>
       </div>
 
       {/* Layer Ordering */}

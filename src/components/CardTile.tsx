@@ -35,6 +35,7 @@ export const CardTile: React.FC<CardTileProps> = ({ template, onSelect, onPerson
           src={template.thumbnail}
           alt={template.title}
           loading="lazy"
+          referrerPolicy="no-referrer"
           className="w-full h-full object-contain rounded-lg shadow-sm group-hover:scale-[1.02] transition-transform duration-300 select-none"
         />
 
@@ -52,25 +53,27 @@ export const CardTile: React.FC<CardTileProps> = ({ template, onSelect, onPerson
           />
         </button>
 
-        {/* Badges */}
-        <div className="absolute top-3 left-3 flex flex-col gap-1 z-10">
-          {template.isBestSeller && (
-            <span className="px-2 py-0.5 bg-amber-500 text-white font-extrabold text-[10px] uppercase tracking-wide rounded-md shadow-xs">
-              Best Seller
+        {/* Single subtle tag */}
+        {template.isBestSeller ? (
+          <div className="absolute top-3 left-3 z-10">
+            <span className="px-2 py-0.5 bg-slate-900/85 backdrop-blur-xs text-white text-[10px] font-medium tracking-wider uppercase rounded-md shadow-xs">
+              Bestseller
             </span>
-          )}
-          {template.isPhotoCard && (
-            <span className="px-2 py-0.5 bg-purple-600 text-white font-bold text-[10px] tracking-wide rounded-md shadow-xs flex items-center gap-1">
+          </div>
+        ) : template.isPhotoCard ? (
+          <div className="absolute top-3 left-3 z-10">
+            <span className="px-2 py-0.5 bg-rose-600/90 backdrop-blur-xs text-white text-[10px] font-medium tracking-wide rounded-md shadow-xs flex items-center gap-1">
               <Camera className="w-2.5 h-2.5" />
               Photo Card
             </span>
-          )}
-          {template.milestoneAge && (
-            <span className="px-2 py-0.5 bg-rose-500 text-white font-bold text-[10px] tracking-wide rounded-md shadow-xs">
-              {template.milestoneAge}th
+          </div>
+        ) : template.milestoneAge ? (
+          <div className="absolute top-3 left-3 z-10">
+            <span className="px-2 py-0.5 bg-amber-600/90 backdrop-blur-xs text-white text-[10px] font-medium tracking-wide rounded-md shadow-xs">
+              {template.milestoneAge}th Milestone
             </span>
-          )}
-        </div>
+          </div>
+        ) : null}
 
         {/* Quick Personalize overlay button on desktop hover */}
         <div className="absolute inset-x-3 bottom-3 opacity-0 group-hover:opacity-100 transition-opacity duration-200 hidden sm:block">
@@ -109,8 +112,8 @@ export const CardTile: React.FC<CardTileProps> = ({ template, onSelect, onPerson
 
         <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between">
           <div>
-            <span className="text-xs text-slate-400 block font-normal">from</span>
-            <span className="text-base font-extrabold text-slate-900">
+            <span className="text-[11px] text-slate-400 block font-normal">from</span>
+            <span className="text-base font-bold text-slate-900 tabular-nums">
               £{template.price.toFixed(2)}
             </span>
           </div>

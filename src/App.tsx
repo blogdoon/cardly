@@ -33,6 +33,44 @@ export default function App() {
   const [routeParam, setRouteParam] = useState<string | undefined>(undefined);
   const [activeDesign, setActiveDesign] = useState<UserDesign | null>(null);
 
+  // Deep-link handling: when a recipient scans the printed QR code, load their digital card/design
+  React.useEffect(() => {
+    try {
+      if (typeof window === 'undefined') return;
+      const searchParams = new URLSearchParams(window.location.search);
+      const designId = searchParams.get('design');
+      const cardId = searchParams.get('card') || searchParams.get('template');
+      const editId = searchParams.get('edit');
+
+      if (designId) {
+        const local = localStorage.getItem('cardly_user_designs');
+        if (local) {
+          const list: UserDesign[] = JSON.parse(local);
+          const found = list.find((d) => d.id === designId);
+          if (found) {
+            setActiveDesign(found);
+            setRouteParam(found.templateId);
+            setCurrentRoute('editor');
+            return;
+          }
+        }
+      }
+
+      if (editId) {
+        setRouteParam(editId);
+        setCurrentRoute('editor');
+        return;
+      }
+
+      if (cardId) {
+        setRouteParam(cardId);
+        setCurrentRoute('card');
+      }
+    } catch (e) {
+      console.error('Error parsing route params:', e);
+    }
+  }, []);
+
   const handleNavigate = (route: string, param?: string) => {
     setCurrentRoute(route as RouteType);
     setRouteParam(param);
