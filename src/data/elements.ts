@@ -375,3 +375,8 @@ export const STICKER_CATALOG: StickerItem[] = [
   { id: 'emoji-present', name: 'Ribbon Box', category: 'Celebration', emoji: '🎁', tags: ['present', 'gift'] },
   { id: 'emoji-tada', name: 'Party Horn', category: 'Celebration', emoji: '🎉', tags: ['tada', 'party'] },
 ];
+
+// Templates store only `stickerId` on default sticker elements, so renderers must
+// resolve the art from the catalog. Undefined for unknown ids.
+export const getStickerById = (id?: string): StickerItem | undefined =>
+  id ? STICKER_CATALOG.find((s) => s.id === id) : undefined;

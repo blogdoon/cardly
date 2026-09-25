@@ -1,6 +1,7 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { CardElement, CardPageDefinition, TextElement, PhotoElement, StickerElement } from '../../types/template';
 import { RotateCw, Grid3X3, Magnet } from 'lucide-react';
+import { getStickerById } from '../../data/elements';
 
 interface CardCanvasProps {
   page: CardPageDefinition;
@@ -581,6 +582,11 @@ export const CardCanvas: React.FC<CardCanvasProps> = ({
 
           if (el.type === 'sticker') {
             const stickerEl = el as StickerElement;
+            // Default template stickers only store `stickerId` — resolve the art
+            // from the catalog so the canvas shows the template's image.
+            const catalogSticker = getStickerById(stickerEl.stickerId);
+            const stickerSvg = stickerEl.svg || catalogSticker?.svg;
+            const stickerEmoji = stickerEl.emoji || catalogSticker?.emoji;
 
             return (
               <div
@@ -605,13 +611,13 @@ export const CardCanvas: React.FC<CardCanvasProps> = ({
                     : 'hover:outline-dashed hover:outline-1 hover:outline-rose-300'
                 }`}
               >
-                {stickerEl.svg ? (
+                {stickerSvg ? (
                   <div
                     className="sticker-svg-wrapper w-full h-full flex items-center justify-center pointer-events-none drop-shadow-xs"
-                    style={{ color: stickerEl.color || '#e11d48' }}
-                    dangerouslySetInnerHTML={{ __html: formatStickerSvg(stickerEl.svg) }}
+                    style={{ color: stickerEl.color || catalogSticker?.defaultColor || '#e11d48' }}
+                    dangerouslySetInnerHTML={{ __html: formatStickerSvg(stickerSvg) }}
                   />
-                ) : stickerEl.emoji ? (
+                ) : stickerEmoji ? (
                   <div
                     className="w-full h-full flex items-center justify-center select-none pointer-events-none drop-shadow-xs leading-none text-center"
                     style={{
@@ -619,7 +625,7 @@ export const CardCanvas: React.FC<CardCanvasProps> = ({
                       lineHeight: 1,
                     }}
                   >
-                    {stickerEl.emoji}
+                    {stickerEmoji}
                   </div>
                 ) : (
                   <div

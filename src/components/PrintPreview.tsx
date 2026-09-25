@@ -26,6 +26,7 @@ import {
   Link as LinkIcon
 } from 'lucide-react';
 import { CardPageDefinition, CardElement, StickerElement, ShapeElement } from '../types/template';
+import { getStickerById } from '../data/elements';
 
 export interface PrintPreviewProps {
   isOpen: boolean;
@@ -356,6 +357,11 @@ export const PrintPreview: React.FC<PrintPreviewProps> = ({
 
           if (el.type === 'sticker') {
             const stickerEl = el as StickerElement;
+            // Default template stickers only store `stickerId` — resolve the art
+            // from the catalog so the print sheet shows the template's image.
+            const catalogSticker = getStickerById(stickerEl.stickerId);
+            const stickerSvg = stickerEl.svg || catalogSticker?.svg;
+            const stickerEmoji = stickerEl.emoji || catalogSticker?.emoji;
             return (
               <div
                 key={stickerEl.id}
@@ -370,13 +376,13 @@ export const PrintPreview: React.FC<PrintPreviewProps> = ({
                 }}
                 className="flex items-center justify-center pointer-events-none"
               >
-                {stickerEl.svg ? (
+                {stickerSvg ? (
                   <div
                     className="sticker-svg-wrapper w-full h-full flex items-center justify-center pointer-events-none"
-                    style={{ color: stickerEl.color || '#e11d48' }}
-                    dangerouslySetInnerHTML={{ __html: formatStickerSvg(stickerEl.svg) }}
+                    style={{ color: stickerEl.color || catalogSticker?.defaultColor || '#e11d48' }}
+                    dangerouslySetInnerHTML={{ __html: formatStickerSvg(stickerSvg) }}
                   />
-                ) : stickerEl.emoji ? (
+                ) : stickerEmoji ? (
                   <div
                     className="w-full h-full flex items-center justify-center leading-none text-center"
                     style={{
@@ -384,7 +390,7 @@ export const PrintPreview: React.FC<PrintPreviewProps> = ({
                       lineHeight: 1,
                     }}
                   >
-                    {stickerEl.emoji}
+                    {stickerEmoji}
                   </div>
                 ) : (
                   <div className="w-full h-full rounded-full bg-rose-100 flex items-center justify-center font-bold">
@@ -566,6 +572,8 @@ export const PrintPreview: React.FC<PrintPreviewProps> = ({
           }
           #cardly-print-area, #cardly-print-area * {
             visibility: visible !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
           }
           #cardly-print-area {
             position: absolute !important;
@@ -580,8 +588,6 @@ export const PrintPreview: React.FC<PrintPreviewProps> = ({
           #cardly-print-area.is-grayscale,
           #cardly-print-area.is-grayscale * {
             filter: grayscale(100%) contrast(108%) !important;
-            -webkit-print-color-adjust: exact !important;
-            print-color-adjust: exact !important;
           }
           .no-print {
             display: none !important;
