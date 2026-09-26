@@ -126,8 +126,8 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
         <button
           onClick={onUndo}
           disabled={!canUndo}
-          className="p-1.5 sm:p-1.5 min-w-[34px] min-h-[34px] sm:min-w-0 sm:min-h-0 flex items-center justify-center rounded-lg hover:bg-white text-slate-700 disabled:opacity-25 disabled:hover:bg-transparent transition active:scale-95"
-          title="Undo (Ctrl+Z)"
+          className="p-1.5 sm:p-1.5 min-w-[34px] min-h-[34px] sm:min-w-0 sm:min-h-0 flex items-center justify-center rounded-lg hover:bg-white text-slate-700 disabled:opacity-25 disabled:hover:bg-transparent transition active:scale-95 cursor-pointer disabled:cursor-not-allowed"
+          title="Undo (Ctrl+Z or ⌘Z)"
           aria-label="Undo"
         >
           <Undo2 className="w-4 h-4" />
@@ -136,8 +136,8 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
         <button
           onClick={onRedo}
           disabled={!canRedo}
-          className="p-1.5 sm:p-1.5 min-w-[34px] min-h-[34px] sm:min-w-0 sm:min-h-0 flex items-center justify-center rounded-lg hover:bg-white text-slate-700 disabled:opacity-25 disabled:hover:bg-transparent transition active:scale-95"
-          title="Redo (Ctrl+Y)"
+          className="p-1.5 sm:p-1.5 min-w-[34px] min-h-[34px] sm:min-w-0 sm:min-h-0 flex items-center justify-center rounded-lg hover:bg-white text-slate-700 disabled:opacity-25 disabled:hover:bg-transparent transition active:scale-95 cursor-pointer disabled:cursor-not-allowed"
+          title="Redo (Ctrl+Y, Ctrl+Shift+Z, or ⌘Shift+Z)"
           aria-label="Redo"
         >
           <Redo2 className="w-4 h-4" />

@@ -19,7 +19,7 @@ import {
 import { auth } from '../services/firebase';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
-import { X, Sparkles } from 'lucide-react';
+import { X, Sparkles, Undo2, Redo2 } from 'lucide-react';
 
 interface CardEditorProps {
   templateId: string;
@@ -134,9 +134,11 @@ export const CardEditor: React.FC<CardEditorProps> = ({
   const lastSavedTitleRef = useRef<string>(title);
   const isSavingRef = useRef<boolean>(false);
 
-  // Undo / Redo history
+  // Undo / Redo history state (up to 50 snapshots)
   const [history, setHistory] = useState<Array<typeof pages>>([pages]);
   const [historyIndex, setHistoryIndex] = useState(0);
+  const [undoToast, setUndoToast] = useState<{ message: string; action: 'undo' | 'redo' } | null>(null);
+  const historyDebounceTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Quick fill fields
   const [quickFields, setQuickFields] = useState({
@@ -189,7 +191,7 @@ export const CardEditor: React.FC<CardEditorProps> = ({
           const remoteDoc = await getDesignById(designId, effectiveUserId);
           if (isMounted && remoteDoc && remoteDoc.pages?.front) {
             if (historyIndex === 0) {
-              setPages({
+              const loadedPages = {
                 front: remoteDoc.pages.front,
                 insideLeft: remoteDoc.pages.insideLeft || {
                   pageType: 'inside-left',
@@ -198,9 +200,12 @@ export const CardEditor: React.FC<CardEditorProps> = ({
                 },
                 insideRight: remoteDoc.pages.insideRight,
                 back: remoteDoc.pages.back,
-              });
+              };
+              setPages(loadedPages);
+              setHistory([loadedPages]);
+              setHistoryIndex(0);
               if (remoteDoc.title) setTitle(remoteDoc.title);
-              lastSavedPagesRef.current = JSON.stringify(remoteDoc.pages);
+              lastSavedPagesRef.current = JSON.stringify(loadedPages);
               lastSavedTitleRef.current = remoteDoc.title;
             }
           }
@@ -215,14 +220,60 @@ export const CardEditor: React.FC<CardEditorProps> = ({
   }, [designId, user, initialDesign, historyIndex]);
 
   // Push new state to history & mark autosave
-  const pushState = (newPages: typeof pages) => {
-    const nextHistory = history.slice(0, historyIndex + 1);
-    nextHistory.push(newPages);
-    setHistory(nextHistory);
-    setHistoryIndex(nextHistory.length - 1);
-    setPages(newPages);
-    setAutosaveStatus('unsaved');
-  };
+  const pushState = useCallback(
+    (newPages: typeof pages, mode: 'commit' | 'debounce' | 'live' = 'commit') => {
+      // 1. Live mode: update canvas display state without creating a history step (e.g. while dragging)
+      if (mode === 'live') {
+        setPages(newPages);
+        setAutosaveStatus('unsaved');
+        return;
+      }
+
+      // 2. Debounce mode: batch rapid edits (e.g. typing text or sliding sliders) so 1 history step is created per pause
+      if (mode === 'debounce') {
+        setPages(newPages);
+        setAutosaveStatus('unsaved');
+
+        if (historyDebounceTimerRef.current) {
+          clearTimeout(historyDebounceTimerRef.current);
+        }
+
+        historyDebounceTimerRef.current = setTimeout(() => {
+          setHistory((prevHistory) => {
+            const nextHistory = prevHistory.slice(0, historyIndex + 1);
+            if (nextHistory.length >= 50) {
+              nextHistory.shift();
+            }
+            nextHistory.push(newPages);
+            setHistoryIndex(nextHistory.length - 1);
+            return nextHistory;
+          });
+          historyDebounceTimerRef.current = null;
+        }, 500);
+        return;
+      }
+
+      // 3. Commit mode: immediate discrete snapshot
+      if (historyDebounceTimerRef.current) {
+        clearTimeout(historyDebounceTimerRef.current);
+        historyDebounceTimerRef.current = null;
+      }
+
+      setHistory((prevHistory) => {
+        const nextHistory = prevHistory.slice(0, historyIndex + 1);
+        if (nextHistory.length >= 50) {
+          nextHistory.shift();
+        }
+        nextHistory.push(newPages);
+        setHistoryIndex(nextHistory.length - 1);
+        return nextHistory;
+      });
+
+      setPages(newPages);
+      setAutosaveStatus('unsaved');
+    },
+    [historyIndex]
+  );
 
   // Central save function (persists to Firestore and localStorage)
   const performSave = useCallback(
@@ -345,48 +396,165 @@ export const CardEditor: React.FC<CardEditorProps> = ({
     };
   }, [pages, title, designId, templateId, user, template, initialDesign, performSave]);
 
-  const handleUndo = () => {
-    if (historyIndex > 0) {
-      setHistoryIndex(historyIndex - 1);
-      setPages(history[historyIndex - 1]);
+  const handleUndo = useCallback(() => {
+    if (historyDebounceTimerRef.current) {
+      clearTimeout(historyDebounceTimerRef.current);
+      historyDebounceTimerRef.current = null;
     }
-  };
 
-  const handleRedo = () => {
-    if (historyIndex < history.length - 1) {
-      setHistoryIndex(historyIndex + 1);
-      setPages(history[historyIndex + 1]);
+    if (historyIndex > 0) {
+      const nextIndex = historyIndex - 1;
+      const targetPages = history[nextIndex];
+      setHistoryIndex(nextIndex);
+      setPages(targetPages);
+      setAutosaveStatus('unsaved');
+
+      const pageElements =
+        currentPage === 'front'
+          ? targetPages.front.elements
+          : currentPage === 'inside-left'
+          ? targetPages.insideLeft?.elements || []
+          : currentPage === 'inside-right'
+          ? targetPages.insideRight.elements
+          : targetPages.back.elements;
+
+      if (selectedElementId && !pageElements.some((el) => el.id === selectedElementId)) {
+        setSelectedElementId(null);
+      }
+
+      setUndoToast({ message: 'Action undone', action: 'undo' });
+      setTimeout(() => setUndoToast(null), 1200);
     }
-  };
+  }, [historyIndex, history, currentPage, selectedElementId]);
+
+  const handleRedo = useCallback(() => {
+    if (historyDebounceTimerRef.current) {
+      clearTimeout(historyDebounceTimerRef.current);
+      historyDebounceTimerRef.current = null;
+    }
+
+    if (historyIndex < history.length - 1) {
+      const nextIndex = historyIndex + 1;
+      const targetPages = history[nextIndex];
+      setHistoryIndex(nextIndex);
+      setPages(targetPages);
+      setAutosaveStatus('unsaved');
+
+      const pageElements =
+        currentPage === 'front'
+          ? targetPages.front.elements
+          : currentPage === 'inside-left'
+          ? targetPages.insideLeft?.elements || []
+          : currentPage === 'inside-right'
+          ? targetPages.insideRight.elements
+          : targetPages.back.elements;
+
+      if (selectedElementId && !pageElements.some((el) => el.id === selectedElementId)) {
+        setSelectedElementId(null);
+      }
+
+      setUndoToast({ message: 'Action redone', action: 'redo' });
+      setTimeout(() => setUndoToast(null), 1200);
+    }
+  }, [historyIndex, history, currentPage, selectedElementId]);
+
+  // Global Keyboard Shortcuts for Undo & Redo (Cmd/Ctrl+Z and Cmd/Ctrl+Shift+Z / Cmd/Ctrl+Y)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      const isInput =
+        target &&
+        (target.tagName === 'INPUT' ||
+          target.tagName === 'TEXTAREA' ||
+          target.isContentEditable);
+
+      if (isInput) return;
+
+      const isMac = typeof navigator !== 'undefined' && /Mac|iPod|iPhone|iPad/.test(navigator.platform);
+      const isCtrlOrCmd = isMac ? e.metaKey : e.ctrlKey;
+
+      if (isCtrlOrCmd && e.key.toLowerCase() === 'z' && !e.shiftKey) {
+        e.preventDefault();
+        handleUndo();
+      } else if (
+        (isCtrlOrCmd && e.shiftKey && e.key.toLowerCase() === 'z') ||
+        (isCtrlOrCmd && e.key.toLowerCase() === 'y')
+      ) {
+        e.preventDefault();
+        handleRedo();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [handleUndo, handleRedo]);
 
   const handleZoomChange = (delta: number) => {
     setZoom((prev) => Math.min(1.5, Math.max(0.6, Math.round((prev + delta) * 10) / 10)));
   };
 
   // Update elements inside current page
-  const updateCurrentPageElements = (elements: CardElement[]) => {
-    const updated = {
-      ...pages,
-      [currentPage === 'front'
-        ? 'front'
-        : currentPage === 'inside-left'
-        ? 'insideLeft'
-        : currentPage === 'inside-right'
-        ? 'insideRight'
-        : 'back']: {
-        ...activePageDefinition,
-        elements,
-      },
-    };
-    pushState(updated);
-  };
+  const updateCurrentPageElements = useCallback(
+    (elements: CardElement[], mode: 'commit' | 'debounce' | 'live' = 'commit') => {
+      const updated = {
+        ...pages,
+        [currentPage === 'front'
+          ? 'front'
+          : currentPage === 'inside-left'
+          ? 'insideLeft'
+          : currentPage === 'inside-right'
+          ? 'insideRight'
+          : 'back']: {
+          ...activePageDefinition,
+          elements,
+        },
+      };
+      pushState(updated, mode);
+    },
+    [pages, currentPage, activePageDefinition, pushState]
+  );
 
-  const handleUpdateElement = (updated: CardElement) => {
-    const nextElements = activePageDefinition.elements.map((el) =>
-      el.id === updated.id ? updated : el
-    );
-    updateCurrentPageElements(nextElements);
-  };
+  const handleUpdateElement = useCallback(
+    (updated: CardElement, commitMode: boolean | 'commit' | 'debounce' | 'live' = 'commit') => {
+      const currentElements = activePageDefinition.elements;
+      const prevElement = currentElements.find((el) => el.id === updated.id);
+
+      const nextElements = currentElements.map((el) =>
+        el.id === updated.id ? updated : el
+      );
+
+      let mode: 'commit' | 'debounce' | 'live' = 'commit';
+      if (typeof commitMode === 'boolean') {
+        mode = commitMode ? 'commit' : 'live';
+      } else {
+        mode = commitMode;
+      }
+
+      if (mode === 'commit' && prevElement) {
+        if (prevElement.type === 'text' && updated.type === 'text') {
+          if (prevElement.text !== updated.text) {
+            mode = 'debounce';
+          }
+        } else if (prevElement.type === 'photo' && updated.type === 'photo') {
+          if (
+            prevElement.brightness !== updated.brightness ||
+            prevElement.contrast !== updated.contrast ||
+            prevElement.blur !== updated.blur ||
+            prevElement.overlayOpacity !== updated.overlayOpacity
+          ) {
+            mode = 'debounce';
+          }
+        } else if (prevElement.type === 'sticker' && updated.type === 'sticker') {
+          if (prevElement.width !== updated.width) {
+            mode = 'debounce';
+          }
+        }
+      }
+
+      updateCurrentPageElements(nextElements, mode);
+    },
+    [activePageDefinition, updateCurrentPageElements]
+  );
 
   const handleDeleteElement = (id: string) => {
     const nextElements = activePageDefinition.elements.filter((el) => el.id !== id);
@@ -573,10 +741,13 @@ export const CardEditor: React.FC<CardEditorProps> = ({
       );
       if (nameIndex >= 0) {
         (frontElements[nameIndex] as TextElement).text = val;
-        pushState({
-          ...pages,
-          front: { ...pages.front, elements: frontElements },
-        });
+        pushState(
+          {
+            ...pages,
+            front: { ...pages.front, elements: frontElements },
+          },
+          'debounce'
+        );
       }
     } else if (field === 'message') {
       // Update inside right message
@@ -601,10 +772,13 @@ export const CardEditor: React.FC<CardEditorProps> = ({
           textAlign: 'center',
         });
       }
-      pushState({
-        ...pages,
-        insideRight: { ...pages.insideRight, elements: insideElements },
-      });
+      pushState(
+        {
+          ...pages,
+          insideRight: { ...pages.insideRight, elements: insideElements },
+        },
+        'debounce'
+      );
     }
   };
 
@@ -675,6 +849,20 @@ export const CardEditor: React.FC<CardEditorProps> = ({
           }`}
         >
           <span>{saveToast.message}</span>
+        </div>
+      )}
+
+      {/* Undo / Redo Floating Toast */}
+      {undoToast && (
+        <div
+          className="absolute top-16 left-1/2 -translate-x-1/2 z-50 px-3.5 py-1.5 rounded-full shadow-lg bg-slate-900/90 text-white text-xs font-semibold flex items-center gap-1.5 backdrop-blur-sm animate-in fade-in zoom-in-95 duration-150"
+        >
+          {undoToast.action === 'undo' ? (
+            <Undo2 className="w-3.5 h-3.5 text-rose-400" />
+          ) : (
+            <Redo2 className="w-3.5 h-3.5 text-emerald-400" />
+          )}
+          <span>{undoToast.message}</span>
         </div>
       )}
 

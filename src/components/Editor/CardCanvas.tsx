@@ -10,7 +10,7 @@ interface CardCanvasProps {
   zoom: number;
   selectedElementId: string | null;
   onSelectElement: (id: string | null) => void;
-  onUpdateElement: (updated: CardElement) => void;
+  onUpdateElement: (updated: CardElement, commitToHistory?: boolean) => void;
   onDeleteSelected: () => void;
   showGrid?: boolean;
   snapToGrid?: boolean;
@@ -47,6 +47,7 @@ export const CardCanvas: React.FC<CardCanvasProps> = ({
   onGridSizeChange,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
+  const canvasCardRef = useRef<HTMLDivElement>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
   const [resizeHandle, setResizeHandle] = useState<'se' | 'sw' | 'ne' | 'nw' | null>(null);
@@ -62,7 +63,15 @@ export const CardCanvas: React.FC<CardCanvasProps> = ({
     x: 0,
     y: 0,
   });
-  const [rotateStart, setRotateStart] = useState({ initialAngle: 0, currentAngle: 0 });
+
+  const initialElementRef = useRef<CardElement | null>(null);
+  const currentElementRef = useRef<CardElement | null>(null);
+  const rotateStartRef = useRef<{
+    centerX: number;
+    centerY: number;
+    startAngle: number;
+    initialRotation: number;
+  } | null>(null);
 
   // Tap vs drag: movement under this many px counts as a tap (deselect), never as a drag end
   const downPosRef = useRef({ x: 0, y: 0 });
@@ -72,15 +81,39 @@ export const CardCanvas: React.FC<CardCanvasProps> = ({
   const isTap = (e: { clientX: number; clientY: number }) =>
     Math.abs(e.clientX - downPosRef.current.x) + Math.abs(e.clientY - downPosRef.current.y) < 6;
 
+  const endGesture = () => {
+    if (isDragging || isResizing || isRotating) {
+      if (initialElementRef.current && currentElementRef.current) {
+        const init = initialElementRef.current;
+        const curr = currentElementRef.current;
+        const hasChanged =
+          init.x !== curr.x ||
+          init.y !== curr.y ||
+          init.width !== curr.width ||
+          init.height !== curr.height ||
+          (init.rotation || 0) !== (curr.rotation || 0);
+
+        if (hasChanged) {
+          // Commit final state to undo/redo history!
+          onUpdateElement(curr, true);
+        }
+      }
+    }
+    initialElementRef.current = null;
+    currentElementRef.current = null;
+    rotateStartRef.current = null;
+    setIsDragging(false);
+    setIsResizing(false);
+    setIsRotating(false);
+    setResizeHandle(null);
+    setSnappedX(null);
+    setSnappedY(null);
+  };
+
   // Global pointerup to ensure smooth drag/resize release anywhere
   useEffect(() => {
     const handleGlobalPointerUp = () => {
-      setIsDragging(false);
-      setIsResizing(false);
-      setIsRotating(false);
-      setResizeHandle(null);
-      setSnappedX(null);
-      setSnappedY(null);
+      endGesture();
     };
     window.addEventListener('pointerup', handleGlobalPointerUp);
     // Mobile: the browser cancels the pointer when it claims the gesture as a scroll
@@ -89,7 +122,7 @@ export const CardCanvas: React.FC<CardCanvasProps> = ({
       window.removeEventListener('pointerup', handleGlobalPointerUp);
       window.removeEventListener('pointercancel', handleGlobalPointerUp);
     };
-  }, []);
+  }, [isDragging, isResizing, isRotating]);
 
   // Handle global keyboard shortcuts: Delete, Backspace, Esc, G (Grid), S (Snap)
   useEffect(() => {
@@ -126,6 +159,8 @@ export const CardCanvas: React.FC<CardCanvasProps> = ({
     recordDown(e);
     onSelectElement(element.id);
 
+    initialElementRef.current = JSON.parse(JSON.stringify(element));
+    currentElementRef.current = { ...element };
     setIsDragging(true);
     setDragStart({
       mouseX: e.clientX,
@@ -143,6 +178,8 @@ export const CardCanvas: React.FC<CardCanvasProps> = ({
     if (e.button !== 0) return;
     e.stopPropagation();
     recordDown(e);
+    initialElementRef.current = JSON.parse(JSON.stringify(element));
+    currentElementRef.current = { ...element };
     setIsResizing(true);
     setResizeHandle(handle);
     setResizeStart({
@@ -159,11 +196,23 @@ export const CardCanvas: React.FC<CardCanvasProps> = ({
     if (e.button !== 0) return;
     e.stopPropagation();
     recordDown(e);
+    initialElementRef.current = JSON.parse(JSON.stringify(element));
+    currentElementRef.current = { ...element };
     setIsRotating(true);
-    setRotateStart({
-      initialAngle: element.rotation || 0,
-      currentAngle: 0,
-    });
+
+    const canvas = canvasCardRef.current;
+    if (canvas) {
+      const rect = canvas.getBoundingClientRect();
+      const elCenterX = rect.left + (element.x / 100) * rect.width;
+      const elCenterY = rect.top + (element.y / 100) * rect.height;
+      const startAngle = Math.atan2(e.clientY - elCenterY, e.clientX - elCenterX) * (180 / Math.PI);
+      rotateStartRef.current = {
+        centerX: elCenterX,
+        centerY: elCenterY,
+        startAngle,
+        initialRotation: element.rotation || 0,
+      };
+    }
   };
 
   const handlePointerMove = (e: React.PointerEvent) => {
@@ -223,11 +272,13 @@ export const CardCanvas: React.FC<CardCanvasProps> = ({
       setSnappedX(snapXVal);
       setSnappedY(snapYVal);
 
-      onUpdateElement({
+      const updated = {
         ...element,
         x: Math.max(5, Math.min(95, newX)),
         y: Math.max(5, Math.min(95, newY)),
-      });
+      };
+      currentElementRef.current = updated;
+      onUpdateElement(updated, false);
     } else if (isResizing && resizeHandle) {
       const deltaX = ((e.clientX - resizeStart.mouseX) / (380 * zoom)) * 100;
       const deltaY = ((e.clientY - resizeStart.mouseY) / (532 * zoom)) * 100;
@@ -245,11 +296,13 @@ export const CardCanvas: React.FC<CardCanvasProps> = ({
         else if (resizeHandle === 'nw') sizeDelta = Math.abs(-deltaX) > Math.abs(-deltaY) ? -deltaX : -deltaY;
 
         const newSize = Math.max(minW, Math.min(maxW, Math.round(resizeStart.width + sizeDelta)));
-        onUpdateElement({
+        const updated = {
           ...element,
           width: newSize,
           height: newSize,
-        });
+        };
+        currentElementRef.current = updated;
+        onUpdateElement(updated, false);
         return;
       }
 
@@ -288,21 +341,40 @@ export const CardCanvas: React.FC<CardCanvasProps> = ({
         newY = resizeStart.y - diffH / 2;
       }
 
-      onUpdateElement({
+      const updated = {
         ...element,
         width: Math.round(targetW),
         height: Math.round(targetH),
         x: Math.max(5, Math.min(95, Math.round(newX * 10) / 10)),
         y: Math.max(5, Math.min(95, Math.round(newY * 10) / 10)),
-      });
+      };
+      currentElementRef.current = updated;
+      onUpdateElement(updated, false);
+    } else if (isRotating && rotateStartRef.current) {
+      const { centerX, centerY, startAngle, initialRotation } = rotateStartRef.current;
+      const currentAngle = Math.atan2(e.clientY - centerY, e.clientX - centerX) * (180 / Math.PI);
+      const angleDiff = currentAngle - startAngle;
+      let newRotation = Math.round(initialRotation + angleDiff);
+
+      // Snap to 0, 90, 180, 270 if close
+      for (const snapDeg of [-360, -270, -180, -90, 0, 90, 180, 270, 360]) {
+        if (Math.abs(newRotation - snapDeg) < 4) {
+          newRotation = snapDeg;
+          break;
+        }
+      }
+
+      const updated = {
+        ...element,
+        rotation: newRotation,
+      };
+      currentElementRef.current = updated;
+      onUpdateElement(updated, false);
     }
   };
 
   const handlePointerUp = () => {
-    setIsDragging(false);
-    setIsResizing(false);
-    setIsRotating(false);
-    setResizeHandle(null);
+    endGesture();
   };
 
   return (
@@ -326,6 +398,7 @@ export const CardCanvas: React.FC<CardCanvasProps> = ({
           }
         }}
         className="m-auto relative rounded-2xl shadow-2xl transition-transform border border-slate-300 overflow-hidden bg-white"
+        ref={canvasCardRef}
         style={{
           width: '380px',
           height: '532px',
@@ -636,6 +709,14 @@ export const CardCanvas: React.FC<CardCanvasProps> = ({
                 {/* 4 corner resize handles for stickers */}
                 {isSelected && (
                   <>
+                    <div
+                      onClick={(e) => e.stopPropagation()}
+                      onPointerDown={(e) => handlePointerDownRotate(e, stickerEl)}
+                      className="absolute -top-6 left-1/2 -translate-x-1/2 w-4 h-4 bg-white border border-rose-500 rounded-full flex items-center justify-center cursor-grab shadow-md z-30"
+                      title="Rotate sticker"
+                    >
+                      <RotateCw className="w-2.5 h-2.5 text-rose-600" />
+                    </div>
                     <div
                       onClick={(e) => e.stopPropagation()}
                       onPointerDown={(e) => handlePointerDownResize(e, stickerEl, 'nw')}
