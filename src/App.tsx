@@ -16,7 +16,7 @@ import { Favorites } from './pages/Favorites';
 import { Account } from './pages/Account';
 import { Admin } from './pages/Admin';
 import { UserDesign } from './types/design';
-import { getUserDesigns } from './services/cardStorage';
+import { getUserDesigns, getDesignById, getActiveDraftId } from './services/cardStorage';
 import { getTemplateById } from './data/templates';
 
 type RouteType =
@@ -66,11 +66,19 @@ function AppRoutes() {
         deepLinkHandled.current = true;
 
         if (designId) {
-          const designs = await getUserDesigns(user?.uid);
-          const found = designs.find((d) => d.id === designId);
+          const found = await getDesignById(designId, user?.uid);
           if (found) {
             setActiveDesign(found);
             setRouteParam(found.templateId);
+            setCurrentRoute('editor');
+            return;
+          }
+          // If not found by full ID, try finding in user designs list
+          const designs = await getUserDesigns(user?.uid);
+          const matched = designs.find((d) => d.id === designId);
+          if (matched) {
+            setActiveDesign(matched);
+            setRouteParam(matched.templateId);
             setCurrentRoute('editor');
             return;
           }
@@ -85,6 +93,16 @@ function AppRoutes() {
         }
 
         if (editId) {
+          const draftId = getActiveDraftId(editId);
+          if (draftId) {
+            const foundDraft = await getDesignById(draftId, user?.uid);
+            if (foundDraft) {
+              setActiveDesign(foundDraft);
+              setRouteParam(editId);
+              setCurrentRoute('editor');
+              return;
+            }
+          }
           setRouteParam(editId);
           setCurrentRoute('editor');
           return;

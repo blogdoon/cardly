@@ -1,4 +1,4 @@
-import { doc, setDoc, deleteDoc, collection, getDocs } from 'firebase/firestore';
+import { doc, setDoc, getDoc, deleteDoc, collection, getDocs } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, storage, auth, isFirebaseConfigured } from './firebase';
 import { UserDesign } from '../types/design';
@@ -26,6 +26,12 @@ function isAuthUser(userId?: string): boolean {
 // ======================== DESIGNS ========================
 
 export async function saveUserDesign(design: UserDesign): Promise<void> {
+  // If currentUser is logged in, ensure design.userId matches auth UID
+  const currentAuthUid = auth?.currentUser?.uid;
+  if (currentAuthUid && design.userId !== currentAuthUid && (!design.userId || design.userId === 'guest_user')) {
+    design = { ...design, userId: currentAuthUid };
+  }
+
   // Always persist locally first so user never loses edits
   const existing = getLocalDesigns();
   const index = existing.findIndex((d) => d.id === design.id);
@@ -35,6 +41,9 @@ export async function saveUserDesign(design: UserDesign): Promise<void> {
     existing.unshift(design);
   }
   localStorage.setItem(LOCAL_DESIGNS_KEY, JSON.stringify(existing));
+
+  // Also remember this active draft for the template
+  saveActiveDraftId(design.templateId, design.id);
 
   // Sync to Firestore if authenticated & authorized
   if (isAuthUser(design.userId)) {
@@ -57,6 +66,62 @@ export async function saveUserDesign(design: UserDesign): Promise<void> {
       }
       console.warn('Firestore design save warning:', e);
     }
+  }
+}
+
+export async function getDesignById(designId: string, userId?: string): Promise<UserDesign | null> {
+  const effectiveUserId = userId || auth?.currentUser?.uid;
+
+  // Try Firestore first if authenticated
+  if (isAuthUser(effectiveUserId) && effectiveUserId) {
+    const designPath = `users/${effectiveUserId}/designs/${designId}`;
+    try {
+      const designRef = doc(db, 'users', effectiveUserId, 'designs', designId);
+      const snap = await getDoc(designRef);
+      if (snap.exists()) {
+        const remoteData = snap.data() as UserDesign;
+        // Merge into local cache
+        const local = getLocalDesigns();
+        const idx = local.findIndex((d) => d.id === designId);
+        if (idx >= 0) local[idx] = remoteData;
+        else local.unshift(remoteData);
+        localStorage.setItem(LOCAL_DESIGNS_KEY, JSON.stringify(local));
+        return remoteData;
+      }
+    } catch (e: any) {
+      if (e?.code === 'permission-denied') {
+        handleFirestoreError(e, OperationType.GET, designPath);
+      }
+      console.warn('Firestore getDesignById warning:', e);
+    }
+  }
+
+  // Fallback to local storage
+  const localList = getLocalDesigns();
+  return localList.find((d) => d.id === designId) || null;
+}
+
+export function saveActiveDraftId(templateId: string, designId: string): void {
+  try {
+    localStorage.setItem(`cardly_active_draft_${templateId}`, designId);
+  } catch (e) {
+    console.warn(e);
+  }
+}
+
+export function getActiveDraftId(templateId: string): string | null {
+  try {
+    return localStorage.getItem(`cardly_active_draft_${templateId}`);
+  } catch {
+    return null;
+  }
+}
+
+export function clearActiveDraftId(templateId: string): void {
+  try {
+    localStorage.removeItem(`cardly_active_draft_${templateId}`);
+  } catch (e) {
+    console.warn(e);
   }
 }
 

@@ -26,6 +26,7 @@ interface EditorToolbarProps {
   onUndo: () => void;
   onRedo: () => void;
   autosaveStatus: AutosaveStatus;
+  lastSavedAt?: Date | null;
   zoom: number;
   onZoomChange: (delta: number) => void;
   onPreview: () => void;
@@ -54,6 +55,7 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
   onUndo,
   onRedo,
   autosaveStatus,
+  lastSavedAt,
   zoom,
   onZoomChange,
   onPreview,
@@ -96,21 +98,23 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
           />
           <div className="flex items-center space-x-1 sm:space-x-2 text-[10px] sm:text-[11px]">
             {autosaveStatus === 'saving' && (
-              <span className="text-amber-600 flex items-center gap-1 font-medium truncate">
+              <span className="text-amber-600 flex items-center gap-1 font-medium truncate" title="Saving changes to cloud...">
                 <RefreshCw className="w-2.5 h-2.5 animate-spin shrink-0" />
-                <span className="hidden xs:inline">Saving...</span>
+                <span className="hidden xs:inline">Saving to Cloud...</span>
               </span>
             )}
             {autosaveStatus === 'saved' && (
-              <span className="text-emerald-600 flex items-center gap-1 font-medium truncate">
+              <span className="text-emerald-600 flex items-center gap-1 font-medium truncate" title="Saved automatically to Firestore and local storage">
                 <Check className="w-2.5 h-2.5 shrink-0" />
-                <span className="hidden xs:inline">Saved</span>
+                <span className="hidden xs:inline">
+                  {lastSavedAt ? `Saved ${lastSavedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : 'Saved to Cloud'}
+                </span>
               </span>
             )}
             {autosaveStatus === 'unsaved' && (
-              <span className="text-slate-400 truncate">
-                <span className="w-1.5 h-1.5 rounded-full bg-amber-400 inline-block mr-1" />
-                <span className="hidden xs:inline">Unsaved</span>
+              <span className="text-slate-400 truncate flex items-center gap-1" title="Unsaved changes pending auto-save...">
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-400 inline-block shrink-0 animate-pulse" />
+                <span className="hidden xs:inline">Unsaved edits</span>
               </span>
             )}
           </div>

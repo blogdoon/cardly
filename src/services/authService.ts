@@ -1,4 +1,4 @@
-import { signInWithPopup, signOut as fbSignOut, onAuthStateChanged, User as FbUser } from 'firebase/auth';
+import { signInWithPopup, signOut as fbSignOut, onAuthStateChanged, User as FbUser, signInAnonymously } from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { auth, googleProvider, db, isFirebaseConfigured } from './firebase';
 import { UserProfile } from '../types/user';
@@ -129,7 +129,7 @@ export function subscribeToAuth(callback: (user: UserProfile | null) => void): (
         const profile: UserProfile = {
           uid: fbUser.uid,
           email: fbUser.email,
-          displayName: fbUser.displayName || 'Cardly Member',
+          displayName: fbUser.displayName || (fbUser.isAnonymous ? 'Guest Member' : 'Cardly Member'),
           photoURL: fbUser.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${fbUser.uid}`,
           role: fbUser.email === 'blogdoontv@gmail.com' ? 'admin' : 'customer',
           createdAt: new Date().toISOString(),
@@ -137,7 +137,16 @@ export function subscribeToAuth(callback: (user: UserProfile | null) => void): (
         callback(profile);
       } else {
         const demoUser = getStoredDemoUser();
-        callback(demoUser);
+        if (demoUser) {
+          callback(demoUser);
+        } else {
+          // Attempt seamless anonymous session so Firestore writes work out-of-the-box
+          try {
+            await signInAnonymously(auth);
+          } catch {
+            callback(null);
+          }
+        }
       }
     });
     return unsubscribe;

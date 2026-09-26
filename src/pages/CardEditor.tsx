@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { EditorToolbar } from '../components/Editor/EditorToolbar';
 import { EditorSidebar, TabType } from '../components/Editor/EditorSidebar';
 import { CardCanvas } from '../components/Editor/CardCanvas';
@@ -9,7 +9,14 @@ import { StickerLibraryPanel } from '../components/Editor/StickerLibraryPanel';
 import { CardTemplate, CardPageType, CardPageDefinition, CardElement, TextElement, PhotoElement, StickerElement } from '../types/template';
 import { UserDesign, AutosaveStatus } from '../types/design';
 import { getTemplateById } from '../data/templates';
-import { saveUserDesign } from '../services/cardStorage';
+import {
+  saveUserDesign,
+  getDesignById,
+  saveActiveDraftId,
+  getActiveDraftId,
+  getLocalDesigns,
+} from '../services/cardStorage';
+import { auth } from '../services/firebase';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import { X, Sparkles } from 'lucide-react';
@@ -31,9 +38,20 @@ export const CardEditor: React.FC<CardEditorProps> = ({
   const { user } = useAuth();
   const { addItem } = useCart();
 
-  const [designId] = useState<string>(
-    () => initialDesign?.id || `design_${templateId}_${Date.now()}`
-  );
+  const [designId] = useState<string>(() => {
+    if (initialDesign?.id) return initialDesign.id;
+    try {
+      const urlParams = new URLSearchParams(window.location.search);
+      const urlDesign = urlParams.get('design');
+      if (urlDesign) return urlDesign;
+      const activeDraft = getActiveDraftId(templateId);
+      if (activeDraft) return activeDraft;
+    } catch (e) {
+      console.warn(e);
+    }
+    return `design_${templateId}_${Date.now()}`;
+  });
+
   const [saveToast, setSaveToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
   const [title, setTitle] = useState<string>(
@@ -53,8 +71,9 @@ export const CardEditor: React.FC<CardEditorProps> = ({
   const [showCenterGuides, setShowCenterGuides] = useState<boolean>(true);
   const [showSafeMargin, setShowSafeMargin] = useState<boolean>(true);
   const [autosaveStatus, setAutosaveStatus] = useState<AutosaveStatus>('saved');
+  const [lastSavedAt, setLastSavedAt] = useState<Date | null>(new Date());
 
-  // Pages state
+  // Pages state — restores cached draft if user reloaded the page
   const [pages, setPages] = useState<{
     front: CardPageDefinition;
     insideLeft: CardPageDefinition;
@@ -68,6 +87,27 @@ export const CardEditor: React.FC<CardEditorProps> = ({
         insideRight: initialDesign.pages.insideRight,
         back: initialDesign.pages.back,
       };
+    }
+
+    try {
+      const activeDraftId =
+        new URLSearchParams(window.location.search).get('design') || getActiveDraftId(templateId);
+      if (activeDraftId) {
+        const localDesigns = getLocalDesigns();
+        const cached = localDesigns.find(
+          (d) => d.id === activeDraftId || d.templateId === templateId
+        );
+        if (cached?.pages?.front) {
+          return {
+            front: cached.pages.front,
+            insideLeft: cached.pages.insideLeft || { pageType: 'inside-left', backgroundColor: '#ffffff', elements: [] },
+            insideRight: cached.pages.insideRight,
+            back: cached.pages.back,
+          };
+        }
+      }
+    } catch (e) {
+      console.warn(e);
     }
 
     if (template) {
@@ -88,6 +128,11 @@ export const CardEditor: React.FC<CardEditorProps> = ({
       back: { pageType: 'back', backgroundColor: '#ffffff', elements: [] },
     };
   });
+
+  // Track last saved snapshot to prevent redundant writes
+  const lastSavedPagesRef = useRef<string>(JSON.stringify(pages));
+  const lastSavedTitleRef = useRef<string>(title);
+  const isSavingRef = useRef<boolean>(false);
 
   // Undo / Redo history
   const [history, setHistory] = useState<Array<typeof pages>>([pages]);
@@ -116,6 +161,59 @@ export const CardEditor: React.FC<CardEditorProps> = ({
     if (!selectedElementId) setIsPropertiesOpen(false);
   }, [selectedElementId]);
 
+  // Synchronize designId & templateId with browser URL so that pressing Reload preserves this exact design
+  useEffect(() => {
+    try {
+      const currentUrl = new URL(window.location.href);
+      if (
+        currentUrl.searchParams.get('design') !== designId ||
+        currentUrl.searchParams.get('template') !== templateId
+      ) {
+        currentUrl.searchParams.set('template', templateId);
+        currentUrl.searchParams.set('design', designId);
+        window.history.replaceState({}, '', currentUrl.toString());
+      }
+      saveActiveDraftId(templateId, designId);
+    } catch (e) {
+      console.warn(e);
+    }
+  }, [designId, templateId]);
+
+  // Query Firestore asynchronously upon initial load if opening existing design
+  useEffect(() => {
+    let isMounted = true;
+    (async () => {
+      const effectiveUserId = user?.uid || auth?.currentUser?.uid;
+      if (effectiveUserId && designId && !initialDesign) {
+        try {
+          const remoteDoc = await getDesignById(designId, effectiveUserId);
+          if (isMounted && remoteDoc && remoteDoc.pages?.front) {
+            if (historyIndex === 0) {
+              setPages({
+                front: remoteDoc.pages.front,
+                insideLeft: remoteDoc.pages.insideLeft || {
+                  pageType: 'inside-left',
+                  backgroundColor: '#ffffff',
+                  elements: [],
+                },
+                insideRight: remoteDoc.pages.insideRight,
+                back: remoteDoc.pages.back,
+              });
+              if (remoteDoc.title) setTitle(remoteDoc.title);
+              lastSavedPagesRef.current = JSON.stringify(remoteDoc.pages);
+              lastSavedTitleRef.current = remoteDoc.title;
+            }
+          }
+        } catch (e) {
+          console.warn('Could not sync remote design:', e);
+        }
+      }
+    })();
+    return () => {
+      isMounted = false;
+    };
+  }, [designId, user, initialDesign, historyIndex]);
+
   // Push new state to history & mark autosave
   const pushState = (newPages: typeof pages) => {
     const nextHistory = history.slice(0, historyIndex + 1);
@@ -126,33 +224,126 @@ export const CardEditor: React.FC<CardEditorProps> = ({
     setAutosaveStatus('unsaved');
   };
 
-  // Autosave effect (debounced 1.5 seconds)
-  useEffect(() => {
-    if (autosaveStatus !== 'unsaved') return;
+  // Central save function (persists to Firestore and localStorage)
+  const performSave = useCallback(
+    async (isManual: boolean = false): Promise<void> => {
+      if (isSavingRef.current) return;
 
-    setAutosaveStatus('saving');
-    const timer = setTimeout(async () => {
+      const currentPagesStr = JSON.stringify(pages);
+      const hasChanges =
+        currentPagesStr !== lastSavedPagesRef.current ||
+        title !== lastSavedTitleRef.current;
+
+      if (!hasChanges && !isManual) {
+        return;
+      }
+
+      isSavingRef.current = true;
+      setAutosaveStatus('saving');
+
       try {
+        const effectiveUserId = user?.uid || auth?.currentUser?.uid || 'guest_user';
         const designToSave: UserDesign = {
           id: designId,
           templateId,
-          userId: user?.uid || 'guest_user',
-          title,
+          userId: effectiveUserId,
+          title: title.trim() || template?.title || 'Personalized Greeting Card',
           pages,
           previewThumbnail: template?.thumbnail || '',
           createdAt: initialDesign?.createdAt || new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         };
+
         await saveUserDesign(designToSave);
+
+        lastSavedPagesRef.current = currentPagesStr;
+        lastSavedTitleRef.current = title;
         setAutosaveStatus('saved');
+        setLastSavedAt(new Date());
+
+        if (isManual) {
+          setSaveToast({ message: 'Customized design saved to cloud & device!', type: 'success' });
+          setTimeout(() => setSaveToast(null), 3000);
+        }
       } catch (err) {
-        console.warn('Autosave warning:', err);
+        console.warn('Auto-save error:', err);
         setAutosaveStatus('unsaved');
+        if (isManual) {
+          setSaveToast({
+            message: 'Saved to local device. Will sync to cloud once connected.',
+            type: 'error',
+          });
+          setTimeout(() => setSaveToast(null), 3500);
+        }
+      } finally {
+        isSavingRef.current = false;
       }
+    },
+    [pages, title, designId, templateId, user, template, initialDesign]
+  );
+
+  // Debounced auto-save (1.5 seconds after user stops typing/dragging)
+  useEffect(() => {
+    if (autosaveStatus !== 'unsaved') return;
+
+    const timer = setTimeout(() => {
+      performSave(false);
     }, 1500);
 
     return () => clearTimeout(timer);
-  }, [pages, title, autosaveStatus, initialDesign, templateId, user, template, designId]);
+  }, [autosaveStatus, performSave]);
+
+  // Periodic Auto-Save Interval (runs every 15 seconds to ensure changes are synced to Firestore)
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const currentPagesStr = JSON.stringify(pages);
+      if (
+        currentPagesStr !== lastSavedPagesRef.current ||
+        title !== lastSavedTitleRef.current ||
+        autosaveStatus === 'unsaved'
+      ) {
+        performSave(false);
+      }
+    }, 15000);
+
+    return () => clearInterval(interval);
+  }, [pages, title, autosaveStatus, performSave]);
+
+  // Immediate synchronous flush before reload/unload or when tab is hidden
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      try {
+        const effectiveUserId = user?.uid || auth?.currentUser?.uid || 'guest_user';
+        const designToSave: UserDesign = {
+          id: designId,
+          templateId,
+          userId: effectiveUserId,
+          title: title.trim() || template?.title || 'Personalized Greeting Card',
+          pages,
+          previewThumbnail: template?.thumbnail || '',
+          createdAt: initialDesign?.createdAt || new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+        saveUserDesign(designToSave);
+      } catch (e) {
+        console.warn('Beforeunload auto-save error:', e);
+      }
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        performSave(false);
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [pages, title, designId, templateId, user, template, initialDesign, performSave]);
 
   const handleUndo = () => {
     if (historyIndex > 0) {
@@ -418,28 +609,7 @@ export const CardEditor: React.FC<CardEditorProps> = ({
   };
 
   const handleManualSave = async () => {
-    try {
-      setAutosaveStatus('saving');
-      const designToSave: UserDesign = {
-        id: designId,
-        templateId,
-        userId: user?.uid || 'guest_user',
-        title,
-        pages,
-        previewThumbnail: template?.thumbnail || '',
-        createdAt: initialDesign?.createdAt || new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
-      await saveUserDesign(designToSave);
-      setAutosaveStatus('saved');
-      setSaveToast({ message: 'Customized design saved successfully!', type: 'success' });
-      setTimeout(() => setSaveToast(null), 3000);
-    } catch (err) {
-      console.error('Save design error:', err);
-      setAutosaveStatus('unsaved');
-      setSaveToast({ message: 'Could not save design. Please try again.', type: 'error' });
-      setTimeout(() => setSaveToast(null), 3500);
-    }
+    await performSave(true);
   };
 
   const handleAddToBasket = async () => {
@@ -517,6 +687,7 @@ export const CardEditor: React.FC<CardEditorProps> = ({
         onUndo={handleUndo}
         onRedo={handleRedo}
         autosaveStatus={autosaveStatus}
+        lastSavedAt={lastSavedAt}
         zoom={zoom}
         onZoomChange={handleZoomChange}
         onPreview={() => setIsPreviewOpen(true)}
