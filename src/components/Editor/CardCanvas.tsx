@@ -3,6 +3,7 @@ import { CardElement, CardPageDefinition, TextElement, PhotoElement, StickerElem
 import { RotateCw, Grid3X3, Magnet } from 'lucide-react';
 import { getStickerById } from '../../data/elements';
 import { computeTextReadabilityStyle } from '../../utils/textStyle';
+import { getPhotoFilterCss, getPhotoOverlayColor } from '../../utils/photoFilter';
 
 interface CardCanvasProps {
   page: CardPageDefinition;
@@ -70,21 +71,6 @@ export const CardCanvas: React.FC<CardCanvasProps> = ({
   };
   const isTap = (e: { clientX: number; clientY: number }) =>
     Math.abs(e.clientX - downPosRef.current.x) + Math.abs(e.clientY - downPosRef.current.y) < 6;
-
-  const getFilterCss = (filter?: string) => {
-    switch (filter) {
-      case 'warm':
-        return 'sepia(0.25) saturate(1.3) brightness(1.05)';
-      case 'vintage':
-        return 'sepia(0.65) contrast(1.1)';
-      case 'grayscale':
-        return 'grayscale(1) contrast(1.05)';
-      case 'vivid':
-        return 'saturate(1.6) contrast(1.1)';
-      default:
-        return 'none';
-    }
-  };
 
   // Global pointerup to ensure smooth drag/resize release anywhere
   useEffect(() => {
@@ -481,6 +467,8 @@ export const CardCanvas: React.FC<CardCanvasProps> = ({
 
           if (el.type === 'photo') {
             const photoEl = el as PhotoElement;
+            const photoFilter = getPhotoFilterCss(photoEl);
+            const overlayColor = getPhotoOverlayColor(photoEl.overlayTint, photoEl.overlayOpacity);
 
             return (
               <div
@@ -505,9 +493,9 @@ export const CardCanvas: React.FC<CardCanvasProps> = ({
                     : 'hover:outline-dashed hover:outline-1 hover:outline-rose-300'
                 }`}
               >
-                {/* Image display with rounded corners and filter */}
+                {/* Image display with rounded corners, filters, and wash overlay */}
                 <div
-                  className="w-full h-full overflow-hidden border border-slate-200/80 shadow-sm"
+                  className="w-full h-full overflow-hidden border border-slate-200/80 shadow-sm relative"
                   style={{
                     borderRadius: photoEl.borderRadius ? `${photoEl.borderRadius}px` : '8px',
                   }}
@@ -515,9 +503,15 @@ export const CardCanvas: React.FC<CardCanvasProps> = ({
                   <img
                     src={photoEl.imageUrl}
                     alt="card photo"
-                    style={{ filter: getFilterCss(photoEl.filter) }}
-                    className="w-full h-full object-cover select-none pointer-events-none"
+                    style={{ filter: photoFilter }}
+                    className="w-full h-full object-cover select-none pointer-events-none transition-all duration-150"
                   />
+                  {overlayColor && (
+                    <div
+                      className="absolute inset-0 pointer-events-none transition-colors duration-150"
+                      style={{ backgroundColor: overlayColor }}
+                    />
+                  )}
                 </div>
 
                 {/* Visible 4-corner interactive resize handles */}

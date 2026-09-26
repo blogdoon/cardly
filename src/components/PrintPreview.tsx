@@ -25,9 +25,10 @@ import {
   Smartphone,
   Link as LinkIcon
 } from 'lucide-react';
-import { CardPageDefinition, CardElement, TextElement, StickerElement, ShapeElement } from '../types/template';
+import { CardPageDefinition, CardElement, TextElement, PhotoElement, StickerElement, ShapeElement } from '../types/template';
 import { getStickerById } from '../data/elements';
 import { computeTextReadabilityStyle } from '../utils/textStyle';
+import { getPhotoFilterCss, getPhotoOverlayColor } from '../utils/photoFilter';
 
 export interface PrintPreviewProps {
   isOpen: boolean;
@@ -111,21 +112,6 @@ const formatStickerSvg = (svg: string) => {
     );
   }
   return svg;
-};
-
-const getFilterCss = (filter?: string) => {
-  switch (filter) {
-    case 'warm':
-      return 'sepia(0.25) saturate(1.3) brightness(1.05)';
-    case 'vintage':
-      return 'sepia(0.65) contrast(1.1)';
-    case 'grayscale':
-      return 'grayscale(1) contrast(1.05)';
-    case 'vivid':
-      return 'saturate(1.6) contrast(1.1)';
-    default:
-      return 'none';
-  }
 };
 
 export const PrintPreview: React.FC<PrintPreviewProps> = ({
@@ -334,6 +320,10 @@ export const PrintPreview: React.FC<PrintPreviewProps> = ({
           }
 
           if (el.type === 'photo') {
+            const photoEl = el as PhotoElement;
+            const photoFilter = getPhotoFilterCss(photoEl);
+            const overlayColor = getPhotoOverlayColor(photoEl.overlayTint, photoEl.overlayOpacity);
+
             return (
               <div
                 key={el.id}
@@ -348,13 +338,20 @@ export const PrintPreview: React.FC<PrintPreviewProps> = ({
                   overflow: 'hidden',
                   zIndex: el.zIndex,
                 }}
+                className="relative"
               >
                 <img
                   src={el.imageUrl}
                   alt="Print element"
-                  style={{ filter: getFilterCss(el.filter) }}
+                  style={{ filter: photoFilter }}
                   className="w-full h-full object-cover"
                 />
+                {overlayColor && (
+                  <div
+                    className="absolute inset-0 pointer-events-none"
+                    style={{ backgroundColor: overlayColor }}
+                  />
+                )}
               </div>
             );
           }

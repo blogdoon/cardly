@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { X, ZoomIn, ZoomOut, RotateCw, Eye, BookOpen, Layers, Check, Printer } from 'lucide-react';
-import { CardPageDefinition, CardPageType, StickerElement, TextElement } from '../types/template';
+import { CardPageDefinition, CardPageType, StickerElement, TextElement, PhotoElement } from '../types/template';
 import { getStickerById } from '../data/elements';
 import { computeTextReadabilityStyle } from '../utils/textStyle';
+import { getPhotoFilterCss, getPhotoOverlayColor } from '../utils/photoFilter';
 
 interface PreviewModalProps {
   isOpen: boolean;
@@ -102,6 +103,10 @@ export const PreviewModal: React.FC<PreviewModalProps> = ({
           }
 
           if (el.type === 'photo') {
+            const photoEl = el as PhotoElement;
+            const photoFilter = getPhotoFilterCss(photoEl);
+            const overlayColor = getPhotoOverlayColor(photoEl.overlayTint, photoEl.overlayOpacity);
+
             return (
               <div
                 key={el.id}
@@ -116,25 +121,20 @@ export const PreviewModal: React.FC<PreviewModalProps> = ({
                   overflow: 'hidden',
                   zIndex: el.zIndex,
                 }}
-                className="shadow-sm border border-slate-200"
+                className="shadow-sm border border-slate-200 relative"
               >
                 <img
                   src={el.imageUrl}
                   alt="Personalized Photo"
-                  style={{
-                    filter:
-                      el.filter === 'warm'
-                        ? 'sepia(0.25) saturate(1.3) brightness(1.05)'
-                        : el.filter === 'vintage'
-                        ? 'sepia(0.65) contrast(1.1)'
-                        : el.filter === 'grayscale'
-                        ? 'grayscale(1) contrast(1.05)'
-                        : el.filter === 'vivid'
-                        ? 'saturate(1.6) contrast(1.1)'
-                        : 'none',
-                  }}
+                  style={{ filter: photoFilter }}
                   className="w-full h-full object-cover"
                 />
+                {overlayColor && (
+                  <div
+                    className="absolute inset-0 pointer-events-none"
+                    style={{ backgroundColor: overlayColor }}
+                  />
+                )}
               </div>
             );
           }

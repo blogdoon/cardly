@@ -18,11 +18,15 @@ import {
   Type,
   Magnet,
   Eye,
-  Sparkles
+  Sparkles,
+  Sun,
+  Contrast,
+  Wand2
 } from 'lucide-react';
 import { CardElement, TextElement, PhotoElement, StickerElement } from '../../types/template';
 import { AVAILABLE_FONTS, PRESET_COLORS } from '../../data/fonts';
 import { FontPickerMenu, findFontByFamily } from './FontPickerMenu';
+import { PHOTO_FILTER_PRESETS, getPhotoFilterCss, getPhotoOverlayColor } from '../../utils/photoFilter';
 
 interface PropertyPanelProps {
   selectedElement: CardElement | null;
@@ -771,20 +775,17 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
           <img
             src={photoEl.imageUrl}
             alt="element"
-            className="w-full h-full object-cover"
+            className="w-full h-full object-cover transition-all"
             style={{
-              filter:
-                photoEl.filter === 'warm'
-                  ? 'sepia(0.25) saturate(1.3)'
-                  : photoEl.filter === 'vintage'
-                  ? 'sepia(0.65)'
-                  : photoEl.filter === 'grayscale'
-                  ? 'grayscale(1)'
-                  : photoEl.filter === 'vivid'
-                  ? 'saturate(1.6)'
-                  : 'none',
+              filter: getPhotoFilterCss(photoEl),
             }}
           />
+          {getPhotoOverlayColor(photoEl.overlayTint, photoEl.overlayOpacity) && (
+            <div
+              className="absolute inset-0 pointer-events-none transition-colors"
+              style={{ backgroundColor: getPhotoOverlayColor(photoEl.overlayTint, photoEl.overlayOpacity)! }}
+            />
+          )}
         </div>
 
         {/* Proportional Size / Scale */}
@@ -885,29 +886,327 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
           </div>
         </div>
 
-        {/* Photo Filters */}
-        <div>
-          <label className="text-[11px] font-semibold text-slate-700 block mb-1.5">Photo Filter</label>
-          <div className="grid grid-cols-5 gap-1">
-            {[
-              { id: 'none', label: 'Normal' },
-              { id: 'warm', label: 'Warm' },
-              { id: 'vintage', label: 'Vintage' },
-              { id: 'grayscale', label: 'B&W' },
-              { id: 'vivid', label: 'Vivid' },
-            ].map((f) => (
+        {/* Image Processing & Text Contrast Filters */}
+        <div className="border border-rose-100 bg-rose-50/30 rounded-xl p-3 space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1.5">
+              <Wand2 className="w-3.5 h-3.5 text-rose-500" />
+              <label className="text-[11px] font-bold text-slate-900">
+                Filters & Text Contrast
+              </label>
+            </div>
+            <span className="text-[9px] uppercase tracking-wider font-semibold text-rose-600 bg-rose-100/70 px-1.5 py-0.5 rounded">
+              Image FX
+            </span>
+          </div>
+
+          <p className="text-[10px] text-slate-500 leading-tight">
+            Apply B&W, sepia, or adjust brightness to help card text stand out against photo backgrounds.
+          </p>
+
+          {/* Quick Standout Helpers */}
+          <div>
+            <span className="block text-[10px] font-semibold text-slate-600 mb-1">
+              Text Contrast Presets
+            </span>
+            <div className="grid grid-cols-3 gap-1">
               <button
-                key={f.id}
-                onClick={() => onUpdateElement({ ...photoEl, filter: f.id })}
-                className={`py-1 text-[10px] font-medium rounded-lg border transition ${
-                  (photoEl.filter || 'none') === f.id
-                    ? 'bg-rose-500 text-white border-rose-500 font-semibold'
-                    : 'bg-slate-50 hover:bg-slate-100 text-slate-600 border-slate-200'
-                }`}
+                type="button"
+                onClick={() =>
+                  onUpdateElement({
+                    ...photoEl,
+                    filter: 'dim',
+                    brightness: 70,
+                    contrast: 95,
+                    overlayTint: 'dark-wash',
+                    overlayOpacity: 35,
+                  })
+                }
+                className="p-1.5 rounded-lg border border-slate-200 bg-white hover:border-rose-300 text-[10px] font-medium text-slate-700 flex flex-col items-center text-center transition cursor-pointer shadow-2xs"
+                title="Darkens photo to make white/light text pop"
               >
-                {f.label}
+                <span className="text-xs mb-0.5">🌙</span>
+                <span className="font-semibold text-[10px]">Dim for Text</span>
+                <span className="text-[8px] text-slate-400">For light text</span>
               </button>
-            ))}
+
+              <button
+                type="button"
+                onClick={() =>
+                  onUpdateElement({
+                    ...photoEl,
+                    filter: 'lighten',
+                    brightness: 135,
+                    contrast: 90,
+                    overlayTint: 'light-wash',
+                    overlayOpacity: 35,
+                  })
+                }
+                className="p-1.5 rounded-lg border border-slate-200 bg-white hover:border-rose-300 text-[10px] font-medium text-slate-700 flex flex-col items-center text-center transition cursor-pointer shadow-2xs"
+                title="Lightens & softens photo to make dark text pop"
+              >
+                <span className="text-xs mb-0.5">☀️</span>
+                <span className="font-semibold text-[10px]">Soft Wash</span>
+                <span className="text-[8px] text-slate-400">For dark text</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() =>
+                  onUpdateElement({
+                    ...photoEl,
+                    filter: 'soft',
+                    blur: 2,
+                    contrast: 88,
+                  })
+                }
+                className="p-1.5 rounded-lg border border-slate-200 bg-white hover:border-rose-300 text-[10px] font-medium text-slate-700 flex flex-col items-center text-center transition cursor-pointer shadow-2xs"
+                title="Softens textures so detailed photos don't clash with text"
+              >
+                <span className="text-xs mb-0.5">🌫️</span>
+                <span className="font-semibold text-[10px]">Soft Focus</span>
+                <span className="text-[8px] text-slate-400">Smooth details</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() =>
+                  onUpdateElement({
+                    ...photoEl,
+                    filter: 'grayscale',
+                  })
+                }
+                className="p-1.5 rounded-lg border border-slate-200 bg-white hover:border-rose-300 text-[10px] font-medium text-slate-700 flex flex-col items-center text-center transition cursor-pointer shadow-2xs"
+                title="Classic Black & White photo"
+              >
+                <span className="text-xs mb-0.5">🖤</span>
+                <span className="font-semibold text-[10px]">B&W</span>
+                <span className="text-[8px] text-slate-400">Grayscale</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() =>
+                  onUpdateElement({
+                    ...photoEl,
+                    filter: 'sepia',
+                  })
+                }
+                className="p-1.5 rounded-lg border border-slate-200 bg-white hover:border-rose-300 text-[10px] font-medium text-slate-700 flex flex-col items-center text-center transition cursor-pointer shadow-2xs"
+                title="Warm antique sepia filter"
+              >
+                <span className="text-xs mb-0.5">📜</span>
+                <span className="font-semibold text-[10px]">Sepia</span>
+                <span className="text-[8px] text-slate-400">Vintage tone</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() =>
+                  onUpdateElement({
+                    ...photoEl,
+                    filter: 'none',
+                    brightness: 100,
+                    contrast: 100,
+                    blur: 0,
+                    overlayTint: 'none',
+                    overlayOpacity: 0,
+                  })
+                }
+                className="p-1.5 rounded-lg border border-slate-200 bg-white hover:border-slate-300 text-[10px] font-medium text-slate-500 flex flex-col items-center text-center transition cursor-pointer shadow-2xs"
+                title="Reset all filters, brightness, and washes to normal"
+              >
+                <span className="text-xs mb-0.5">🔄</span>
+                <span className="font-semibold text-[10px]">Reset All</span>
+                <span className="text-[8px] text-slate-400">Original</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Filter Preset Buttons */}
+          <div>
+            <label className="text-[10px] font-semibold text-slate-700 block mb-1">
+              Filter Style
+            </label>
+            <div className="grid grid-cols-3 gap-1">
+              {PHOTO_FILTER_PRESETS.map((f) => (
+                <button
+                  key={f.id}
+                  type="button"
+                  onClick={() => onUpdateElement({ ...photoEl, filter: f.id })}
+                  className={`py-1.5 px-1 text-[10px] rounded-lg border transition text-center cursor-pointer ${
+                    (photoEl.filter || 'none') === f.id
+                      ? 'bg-rose-500 text-white border-rose-500 font-bold shadow-2xs'
+                      : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200'
+                  }`}
+                  title={f.description}
+                >
+                  {f.name}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Fine Adjustments (Brightness, Contrast, Blur) */}
+          <div className="pt-2 border-t border-rose-100 space-y-2.5">
+            {/* Brightness Adjustment */}
+            <div>
+              <div className="flex justify-between items-center mb-1">
+                <div className="flex items-center gap-1">
+                  <Sun className="w-3 h-3 text-amber-500" />
+                  <label className="text-[10px] font-semibold text-slate-700">Brightness</label>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="font-mono text-[10px] text-slate-600 font-semibold">
+                    {photoEl.brightness ?? 100}%
+                  </span>
+                  {(photoEl.brightness ?? 100) !== 100 && (
+                    <button
+                      type="button"
+                      onClick={() => onUpdateElement({ ...photoEl, brightness: 100 })}
+                      className="text-[9px] text-rose-500 hover:underline"
+                    >
+                      Reset
+                    </button>
+                  )}
+                </div>
+              </div>
+              <input
+                type="range"
+                min={40}
+                max={160}
+                step={2}
+                value={photoEl.brightness ?? 100}
+                onChange={(e) =>
+                  onUpdateElement({ ...photoEl, brightness: Number(e.target.value) })
+                }
+                className="w-full accent-rose-500"
+              />
+            </div>
+
+            {/* Contrast Adjustment */}
+            <div>
+              <div className="flex justify-between items-center mb-1">
+                <div className="flex items-center gap-1">
+                  <Contrast className="w-3 h-3 text-slate-600" />
+                  <label className="text-[10px] font-semibold text-slate-700">Contrast</label>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="font-mono text-[10px] text-slate-600 font-semibold">
+                    {photoEl.contrast ?? 100}%
+                  </span>
+                  {(photoEl.contrast ?? 100) !== 100 && (
+                    <button
+                      type="button"
+                      onClick={() => onUpdateElement({ ...photoEl, contrast: 100 })}
+                      className="text-[9px] text-rose-500 hover:underline"
+                    >
+                      Reset
+                    </button>
+                  )}
+                </div>
+              </div>
+              <input
+                type="range"
+                min={50}
+                max={160}
+                step={2}
+                value={photoEl.contrast ?? 100}
+                onChange={(e) =>
+                  onUpdateElement({ ...photoEl, contrast: Number(e.target.value) })
+                }
+                className="w-full accent-rose-500"
+              />
+            </div>
+
+            {/* Soft Focus / Blur Adjustment */}
+            <div>
+              <div className="flex justify-between items-center mb-1">
+                <label className="text-[10px] font-semibold text-slate-700">Soft Focus Blur</label>
+                <div className="flex items-center gap-1.5">
+                  <span className="font-mono text-[10px] text-slate-600 font-semibold">
+                    {photoEl.blur || 0}px
+                  </span>
+                  {(photoEl.blur || 0) > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => onUpdateElement({ ...photoEl, blur: 0 })}
+                      className="text-[9px] text-rose-500 hover:underline"
+                    >
+                      Reset
+                    </button>
+                  )}
+                </div>
+              </div>
+              <input
+                type="range"
+                min={0}
+                max={8}
+                step={0.5}
+                value={photoEl.blur || 0}
+                onChange={(e) =>
+                  onUpdateElement({ ...photoEl, blur: Number(e.target.value) })
+                }
+                className="w-full accent-rose-500"
+              />
+            </div>
+
+            {/* Color Wash Overlay Tint */}
+            <div className="pt-2 border-t border-rose-100/70">
+              <label className="text-[10px] font-semibold text-slate-700 block mb-1">
+                Background Contrast Wash
+              </label>
+              <div className="grid grid-cols-5 gap-1 mb-2">
+                {[
+                  { id: 'none', label: 'None' },
+                  { id: 'dark-wash', label: 'Dark' },
+                  { id: 'light-wash', label: 'Light' },
+                  { id: 'warm-wash', label: 'Gold' },
+                  { id: 'rose-wash', label: 'Rose' },
+                ].map((wash) => (
+                  <button
+                    key={wash.id}
+                    type="button"
+                    onClick={() =>
+                      onUpdateElement({
+                        ...photoEl,
+                        overlayTint: wash.id as PhotoElement['overlayTint'],
+                        overlayOpacity: photoEl.overlayOpacity || 35,
+                      })
+                    }
+                    className={`py-1 text-[9px] font-medium rounded-md border text-center transition cursor-pointer ${
+                      (photoEl.overlayTint || 'none') === wash.id
+                        ? 'bg-rose-500 text-white border-rose-500 font-bold'
+                        : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200'
+                    }`}
+                  >
+                    {wash.label}
+                  </button>
+                ))}
+              </div>
+
+              {photoEl.overlayTint && photoEl.overlayTint !== 'none' && (
+                <div>
+                  <div className="flex justify-between items-center mb-1">
+                    <span className="text-[10px] text-slate-600">Wash Opacity</span>
+                    <span className="font-mono text-[10px] text-slate-500 font-semibold">
+                      {photoEl.overlayOpacity ?? 35}%
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    min={10}
+                    max={80}
+                    step={5}
+                    value={photoEl.overlayOpacity ?? 35}
+                    onChange={(e) =>
+                      onUpdateElement({ ...photoEl, overlayOpacity: Number(e.target.value) })
+                    }
+                    className="w-full accent-rose-500"
+                  />
+                </div>
+              )}
+            </div>
           </div>
         </div>
 

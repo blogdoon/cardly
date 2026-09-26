@@ -49,7 +49,12 @@ export interface PhotoElement extends BaseElement {
   scale?: number;
   aspectRatio?: number;
   placeholder?: boolean;
-  filter?: string; // e.g., 'none', 'sepia', 'grayscale', 'warm'
+  filter?: string; // e.g. 'none', 'grayscale', 'sepia', 'warm', 'vintage', 'vivid', 'dim', 'lighten', 'soft'
+  brightness?: number; // 40 to 180 percentage (100 = normal)
+  contrast?: number; // 50 to 160 percentage (100 = normal)
+  blur?: number; // 0 to 10 px soft focus
+  overlayTint?: 'none' | 'dark-wash' | 'light-wash' | 'warm-wash' | 'rose-wash';
+  overlayOpacity?: number; // 0 to 80 percentage
   borderRadius?: number;
 }
 
