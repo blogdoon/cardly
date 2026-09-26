@@ -7,7 +7,8 @@ export type RouteType =
   | 'checkout'
   | 'favorites'
   | 'account'
-  | 'admin';
+  | 'admin'
+  | 'notFound';
 
 // URL <-> route mapping. Real paths so crawlers (and the back button) see one URL per page.
 // Legacy QR links (/?design=…, /?card=…) are rewritten to these in App's deep-link effect.
@@ -32,7 +33,9 @@ export function parsePath(pathname: string, search: string): { route: RouteType;
     case 'admin':
       return { route: 'admin' };
     default:
-      return { route: 'home' };
+      // Bare root stays home (legacy QR links carry their payload in the query string);
+      // any other unknown path is a real 404.
+      return { route: seg.length === 0 ? 'home' : 'notFound' };
   }
 }
 
@@ -50,6 +53,8 @@ export function routePath(route: RouteType, param?: string): string {
       return `/edit/${encodeURIComponent(param ?? '')}/`;
     case 'account':
       return param && param !== 'designs' ? `/account/?tab=${encodeURIComponent(param)}` : '/account/';
+    case 'notFound':
+      return '/';
     default:
       return `/${route}/`;
   }
@@ -71,4 +76,8 @@ export const ROUTE_META: Record<RouteType, { title: string; desc: string }> = {
   favorites: { title: 'Your Favourite Cards | Cardly', desc: DEFAULT_DESCRIPTION },
   account: { title: 'My Account | Cardly', desc: DEFAULT_DESCRIPTION },
   admin: { title: 'Admin | Cardly', desc: DEFAULT_DESCRIPTION },
+  notFound: {
+    title: 'Page Not Found | Cardly',
+    desc: 'This page could not be found. Browse personalised greeting cards instead.',
+  },
 };

@@ -19,6 +19,7 @@ import { UserDesign } from './types/design';
 import { getUserDesigns, getDesignById, getActiveDraftId } from './services/cardStorage';
 import { getTemplateById } from './data/templates';
 import { RouteType, parsePath, routePath, ROUTE_META } from './utils/routes';
+import { initAnalytics, trackPageview } from './utils/analytics';
 
 function setPageMeta(title: string, desc: string) {
   const upsertMeta = (attr: 'name' | 'property', key: string, value: string) => {
@@ -179,6 +180,8 @@ function AppRoutes() {
         : `Editing ${template.title} | Cardly`
       : base.title;
     setPageMeta(title, template ? template.description : base.desc);
+    initAnalytics();
+    trackPageview(window.location.pathname + window.location.search);
   }, [currentRoute, routeParam]);
 
   const navigate = (route: RouteType, param?: string) => {
@@ -278,6 +281,33 @@ function AppRoutes() {
 
             {currentRoute === 'admin' && (
               <Admin onNavigate={handleNavigate} />
+            )}
+
+            {currentRoute === 'notFound' && (
+              <div className="max-w-xl mx-auto px-6 py-24 text-center space-y-4">
+                <p className="text-6xl font-black text-rose-500">404</p>
+                <h1 className="text-2xl font-bold text-slate-900">Page not found</h1>
+                <p className="text-sm text-slate-600">
+                  That address doesn't match any card or page. It may have been removed, or the
+                  link is out of date.
+                </p>
+                <div className="flex justify-center gap-2 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => handleNavigate('home')}
+                    className="px-4 py-2 rounded-xl bg-rose-600 text-white text-sm font-semibold hover:bg-rose-700 cursor-pointer"
+                  >
+                    Back home
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleNavigate('browse')}
+                    className="px-4 py-2 rounded-xl border border-slate-200 text-slate-700 text-sm font-semibold hover:bg-slate-50 cursor-pointer"
+                  >
+                    Browse cards
+                  </button>
+                </div>
+              </div>
             )}
           </main>
 

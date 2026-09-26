@@ -8,7 +8,11 @@ import { createServer } from 'vite';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const dist = path.join(root, 'dist');
-const ORIGIN = process.env.SITE_ORIGIN || 'https://cardly.app';
+// Absolute origin for canonical/og URLs, robots.txt and the sitemap (see .env.example).
+const ORIGIN = (process.env.SITE_ORIGIN || process.env.APP_URL || 'https://cardly.app').replace(
+  /\/+$/,
+  ''
+);
 
 const shell = fs.readFileSync(path.join(dist, 'index.html'), 'utf8');
 const builtAssets = fs.readdirSync(path.join(dist, 'assets'));
@@ -98,4 +102,22 @@ for (const t of ALL_TEMPLATES) {
 if (written !== ALL_TEMPLATES.length || written === 0) {
   throw new Error(`prerender: wrote ${written} of ${ALL_TEMPLATES.length} template pages`);
 }
-console.log(`prerender: ${written} template pages -> dist/card/<id>/index.html`);
+
+// robots.txt + sitemap for the prerendered catalogue (root paths only; /edit/, /cart/
+// and friends are app-internal and excluded).
+fs.writeFileSync(
+  path.join(dist, 'robots.txt'),
+  `User-agent: *\nAllow: /\nDisallow: /account/\nDisallow: /admin/\n\nSitemap: ${ORIGIN}/sitemap.xml\n`
+);
+
+const sitemapUrls = ['/', '/browse/', ...ALL_TEMPLATES.map((t) => `/card/${t.id}/`)]
+  .map((u) => `  <url><loc>${ORIGIN}${u}</loc></url>`)
+  .join('\n');
+fs.writeFileSync(
+  path.join(dist, 'sitemap.xml'),
+  `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${sitemapUrls}\n</urlset>\n`
+);
+
+console.log(
+  `prerender: ${written} template pages -> dist/card/<id>/index.html, plus robots.txt + sitemap.xml (${sitemapUrls.split('\n').length} urls, origin ${ORIGIN})`
+);

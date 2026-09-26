@@ -11,10 +11,14 @@ const eq = (label: string, actual: unknown, expected: unknown) => {
   }
 };
 
-// Unknown / empty paths land on home.
+// Unknown / empty paths: bare root stays home (legacy QR links carry data in the query),
+// anything else unknown is a 404.
 eq('root', parsePath('/', ''), { route: 'home' });
-eq('unknown', parsePath('/nope/x', ''), { route: 'home' });
+eq('root with legacy query', parsePath('/', '?design=card-001_1'), { route: 'home' });
+eq('unknown path', parsePath('/nope/x', ''), { route: 'notFound' });
+eq('unknown card id', parsePath('/card/does-not-exist', ''), { route: 'card', param: 'does-not-exist' });
 eq('edit without id', parsePath('/edit', ''), { route: 'home' });
+eq('404 path not navigable', routePath('notFound'), '/');
 
 // Every route round-trips: state -> path -> state.
 const cases: Array<[RouteType, string | undefined]> = [
