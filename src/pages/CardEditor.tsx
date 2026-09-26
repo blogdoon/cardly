@@ -13,7 +13,6 @@ import {
   saveUserDesign,
   getDesignById,
   saveActiveDraftId,
-  getActiveDraftId,
   getLocalDesigns,
 } from '../services/cardStorage';
 import { auth } from '../services/firebase';
@@ -41,11 +40,10 @@ export const CardEditor: React.FC<CardEditorProps> = ({
   const [designId] = useState<string>(() => {
     if (initialDesign?.id) return initialDesign.id;
     try {
-      const urlParams = new URLSearchParams(window.location.search);
-      const urlDesign = urlParams.get('design');
+      // Only the URL's design id identifies an in-progress/existing design. A stale
+      // active-draft id would silently reopen the card the user saved last time.
+      const urlDesign = new URLSearchParams(window.location.search).get('design');
       if (urlDesign) return urlDesign;
-      const activeDraft = getActiveDraftId(templateId);
-      if (activeDraft) return activeDraft;
     } catch (e) {
       console.warn(e);
     }
@@ -90,12 +88,13 @@ export const CardEditor: React.FC<CardEditorProps> = ({
     }
 
     try {
-      const activeDraftId =
-        new URLSearchParams(window.location.search).get('design') || getActiveDraftId(templateId);
+      const activeDraftId = new URLSearchParams(window.location.search).get('design');
       if (activeDraftId) {
         const localDesigns = getLocalDesigns();
+        // Match by id AND template: never fall back to "any design of this template",
+        // which restored the previously saved card instead of the template defaults.
         const cached = localDesigns.find(
-          (d) => d.id === activeDraftId || d.templateId === templateId
+          (d) => d.id === activeDraftId && d.templateId === templateId
         );
         if (cached?.pages?.front) {
           return {

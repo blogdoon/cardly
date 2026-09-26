@@ -18,17 +18,32 @@ import { Admin } from './pages/Admin';
 import { UserDesign } from './types/design';
 import { getUserDesigns, getDesignById, getActiveDraftId } from './services/cardStorage';
 import { getTemplateById } from './data/templates';
+import { RouteType, parsePath, routePath, ROUTE_META } from './utils/routes';
 
-type RouteType =
-  | 'home'
-  | 'browse'
-  | 'card'
-  | 'editor'
-  | 'cart'
-  | 'checkout'
-  | 'favorites'
-  | 'account'
-  | 'admin';
+function setPageMeta(title: string, desc: string) {
+  const upsertMeta = (attr: 'name' | 'property', key: string, value: string) => {
+    let el = document.head.querySelector<HTMLMetaElement>(`meta[${attr}="${key}"]`);
+    if (!el) {
+      el = document.createElement('meta');
+      el.setAttribute(attr, key);
+      document.head.appendChild(el);
+    }
+    el.setAttribute('content', value);
+  };
+  const url = window.location.origin + window.location.pathname + window.location.search;
+  document.title = title;
+  upsertMeta('name', 'description', desc);
+  upsertMeta('property', 'og:title', title);
+  upsertMeta('property', 'og:description', desc);
+  upsertMeta('property', 'og:url', url);
+  let canonical = document.head.querySelector<HTMLLinkElement>('link[rel="canonical"]');
+  if (!canonical) {
+    canonical = document.createElement('link');
+    canonical.rel = 'canonical';
+    document.head.appendChild(canonical);
+  }
+  canonical.href = url;
+}
 
 export default function App() {
   return (
@@ -43,17 +58,32 @@ export default function App() {
 }
 
 function AppRoutes() {
-  const [currentRoute, setCurrentRoute] = useState<RouteType>('home');
-  const [routeParam, setRouteParam] = useState<string | undefined>(undefined);
+  const [currentRoute, setCurrentRoute] = useState<RouteType>(
+    () => parsePath(window.location.pathname, window.location.search).route
+  );
+  const [routeParam, setRouteParam] = useState<string | undefined>(
+    () => parsePath(window.location.pathname, window.location.search).param
+  );
   const [activeDesign, setActiveDesign] = useState<UserDesign | null>(null);
   const { user, loading } = useAuth();
   const deepLinkHandled = useRef(false);
 
   // Deep-link handling: when a recipient scans the printed QR code, load their digital card/design.
+  // Legacy links are query params on the root path (/?design=…, /?card=…, /?edit=…) and get
+  // rewritten to their canonical path here; path-based links are parsed by parsePath above.
   // Runs once, after auth settles: the design may live in Firestore for a signed-in user, and a
   // recipient on their own device has no copy at all — then fall back to the template it was made from.
   React.useEffect(() => {
     if (loading || deepLinkHandled.current) return;
+    if (window.location.pathname !== '/') return;
+
+    const openEditor = (templateId: string, design?: string) => {
+      setActiveDesign(null);
+      setRouteParam(templateId);
+      setCurrentRoute('editor');
+      const query = design ? `?design=${encodeURIComponent(design)}` : '';
+      window.history.replaceState({}, '', routePath('editor', templateId) + query);
+    };
 
     (async () => {
       try {
@@ -71,6 +101,11 @@ function AppRoutes() {
             setActiveDesign(found);
             setRouteParam(found.templateId);
             setCurrentRoute('editor');
+            window.history.replaceState(
+              {},
+              '',
+              routePath('editor', found.templateId) + `?design=${encodeURIComponent(found.id)}`
+            );
             return;
           }
           // If not found by full ID, try finding in user designs list
@@ -80,14 +115,17 @@ function AppRoutes() {
             setActiveDesign(matched);
             setRouteParam(matched.templateId);
             setCurrentRoute('editor');
+            window.history.replaceState(
+              {},
+              '',
+              routePath('editor', matched.templateId) + `?design=${encodeURIComponent(matched.id)}`
+            );
             return;
           }
           // Not on this device: ids are `design_<templateId>_<timestamp>`
           const templateId = designId.match(/^design_(.+)_\d+$/)?.[1];
           if (templateId && getTemplateById(templateId)) {
-            setActiveDesign(null);
-            setRouteParam(templateId);
-            setCurrentRoute('editor');
+            openEditor(templateId);
           }
           return;
         }
@@ -97,20 +135,18 @@ function AppRoutes() {
           if (draftId) {
             const foundDraft = await getDesignById(draftId, user?.uid);
             if (foundDraft) {
-              setActiveDesign(foundDraft);
-              setRouteParam(editId);
-              setCurrentRoute('editor');
+              openEditor(editId, foundDraft.id);
               return;
             }
           }
-          setRouteParam(editId);
-          setCurrentRoute('editor');
+          openEditor(editId);
           return;
         }
 
         if (cardId) {
           setRouteParam(cardId);
           setCurrentRoute('card');
+          window.history.replaceState({}, '', routePath('card', cardId));
         }
       } catch (e) {
         console.error('Error parsing route params:', e);
@@ -118,20 +154,61 @@ function AppRoutes() {
     })();
   }, [loading, user]);
 
-  const handleNavigate = (route: string, param?: string) => {
-    setCurrentRoute(route as RouteType);
+  // Keep UI state in sync with the back/forward buttons.
+  React.useEffect(() => {
+    const onPopState = () => {
+      const { route, param } = parsePath(window.location.pathname, window.location.search);
+      setActiveDesign(null);
+      setCurrentRoute(route);
+      setRouteParam(param);
+    };
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+  }, []);
+
+  // Per-route <title>/description/canonical/og for SEO.
+  React.useEffect(() => {
+    const template =
+      (currentRoute === 'card' || currentRoute === 'editor') && routeParam
+        ? getTemplateById(routeParam)
+        : undefined;
+    const base = ROUTE_META[currentRoute];
+    const title = template
+      ? currentRoute === 'card'
+        ? `${template.title} | Cardly ${template.category} Cards`
+        : `Editing ${template.title} | Cardly`
+      : base.title;
+    setPageMeta(title, template ? template.description : base.desc);
+  }, [currentRoute, routeParam]);
+
+  const navigate = (route: RouteType, param?: string) => {
+    // A pushed URL replaces any previous editor session's ?design=, so a fresh
+    // "Personalize" never resumes the card that was saved last time.
+    try {
+      window.history.pushState({}, '', routePath(route, param));
+    } catch (e) {
+      console.warn(e);
+    }
+    setCurrentRoute(route);
     setRouteParam(param);
     setActiveDesign(null);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  const handleNavigate = (route: string, param?: string) => {
+    navigate(route as RouteType, param);
+  };
+
   const handlePersonalize = (templateId: string) => {
-    setRouteParam(templateId);
-    setActiveDesign(null);
-    setCurrentRoute('editor');
+    navigate('editor', templateId);
   };
 
   const handleEditDesign = (design: UserDesign) => {
+    try {
+      window.history.pushState({}, '', routePath('editor', design.templateId));
+    } catch (e) {
+      console.warn(e);
+    }
     setActiveDesign(design);
     setRouteParam(design.templateId);
     setCurrentRoute('editor');
