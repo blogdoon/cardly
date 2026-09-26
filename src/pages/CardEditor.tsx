@@ -264,6 +264,11 @@ export const CardEditor: React.FC<CardEditorProps> = ({
   // Adding new elements
   const handleAddText = (type: 'heading' | 'subheading' | 'body') => {
     const id = `txt_${Date.now()}`;
+    const hasPhotoOrBg = Boolean(
+      activePageDefinition.backgroundImage ||
+      activePageDefinition.elements.some((el) => el.type === 'photo')
+    );
+
     const newText: TextElement = {
       id,
       type: 'text',
@@ -284,6 +289,12 @@ export const CardEditor: React.FC<CardEditorProps> = ({
       color: '#1e293b',
       textAlign: 'center',
       fontWeight: type === 'heading' ? 'bold' : 'normal',
+      hasBackground: hasPhotoOrBg,
+      backgroundColor: '#ffffff',
+      backgroundOpacity: 0.85,
+      borderRadius: 10,
+      backgroundPadding: 8,
+      textShadow: hasPhotoOrBg ? 'soft-dark' : 'none',
     };
     updateCurrentPageElements([...activePageDefinition.elements, newText]);
     setSelectedElementId(id);

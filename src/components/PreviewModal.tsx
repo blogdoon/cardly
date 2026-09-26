@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { X, ZoomIn, ZoomOut, RotateCw, Eye, BookOpen, Layers, Check, Printer } from 'lucide-react';
-import { CardPageDefinition, CardPageType, StickerElement } from '../types/template';
+import { CardPageDefinition, CardPageType, StickerElement, TextElement } from '../types/template';
 import { getStickerById } from '../data/elements';
+import { computeTextReadabilityStyle } from '../utils/textStyle';
 
 interface PreviewModalProps {
   isOpen: boolean;
@@ -71,10 +72,13 @@ export const PreviewModal: React.FC<PreviewModalProps> = ({
         {/* Page elements */}
         {page.elements.map((el) => {
           if (el.type === 'text') {
+            const textEl = el as TextElement;
+            const readabilityStyle = computeTextReadabilityStyle(textEl, 340 / 800);
             return (
               <div
                 key={el.id}
                 style={{
+                  ...readabilityStyle,
                   position: 'absolute',
                   left: `${el.x}%`,
                   top: `${el.y}%`,

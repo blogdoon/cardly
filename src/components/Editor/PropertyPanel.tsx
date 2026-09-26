@@ -16,7 +16,9 @@ import {
   Palette,
   Sliders,
   Type,
-  Magnet
+  Magnet,
+  Eye,
+  Sparkles
 } from 'lucide-react';
 import { CardElement, TextElement, PhotoElement, StickerElement } from '../../types/template';
 import { AVAILABLE_FONTS, PRESET_COLORS } from '../../data/fonts';
@@ -270,6 +272,367 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
               className="w-7 h-7 rounded border border-slate-300 cursor-pointer"
             />
             <span className="font-mono text-slate-600">{textEl.color}</span>
+          </div>
+        </div>
+
+        {/* Readability & Contrast over Pictures */}
+        <div className="border border-indigo-100 bg-indigo-50/40 rounded-xl p-3 space-y-2.5">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1.5">
+              <Eye className="w-3.5 h-3.5 text-indigo-600" />
+              <label className="text-[11px] font-bold text-slate-900">
+                Readability over Pictures
+              </label>
+            </div>
+            <span className="text-[9px] uppercase tracking-wider font-semibold text-indigo-600 bg-indigo-100/70 px-1.5 py-0.5 rounded">
+              Contrast
+            </span>
+          </div>
+
+          <p className="text-[10px] text-slate-500 leading-tight">
+            Make text easily readable over busy photos, dark covers, and patterned backgrounds.
+          </p>
+
+          {/* Quick 1-Click Magic Presets */}
+          <div>
+            <span className="block text-[10px] font-semibold text-slate-600 mb-1">
+              Quick Presets
+            </span>
+            <div className="grid grid-cols-3 gap-1">
+              <button
+                type="button"
+                onClick={() =>
+                  onUpdateElement({
+                    ...textEl,
+                    hasBackground: true,
+                    backgroundColor: '#ffffff',
+                    backgroundOpacity: 0.85,
+                    borderRadius: 10,
+                    backgroundPadding: 8,
+                    textShadow: 'none',
+                    color: '#0f172a',
+                  })
+                }
+                className="p-1.5 rounded-lg border border-slate-200 bg-white hover:border-indigo-300 text-[10px] font-medium text-slate-700 flex flex-col items-center text-center transition cursor-pointer shadow-2xs"
+                title="Frosted White Glass banner with dark text"
+              >
+                <span className="w-4 h-2.5 rounded bg-white border border-slate-300 shadow-2xs mb-0.5" />
+                <span>White Glass</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() =>
+                  onUpdateElement({
+                    ...textEl,
+                    hasBackground: true,
+                    backgroundColor: '#000000',
+                    backgroundOpacity: 0.70,
+                    borderRadius: 10,
+                    backgroundPadding: 8,
+                    textShadow: 'none',
+                    color: '#ffffff',
+                  })
+                }
+                className="p-1.5 rounded-lg border border-slate-200 bg-white hover:border-indigo-300 text-[10px] font-medium text-slate-700 flex flex-col items-center text-center transition cursor-pointer shadow-2xs"
+                title="Dark tinted glass banner with white text"
+              >
+                <span className="w-4 h-2.5 rounded bg-slate-900 border border-slate-700 shadow-2xs mb-0.5" />
+                <span>Dark Glass</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() =>
+                  onUpdateElement({
+                    ...textEl,
+                    hasBackground: true,
+                    backgroundColor: '#ffffff',
+                    backgroundOpacity: 0.92,
+                    borderRadius: 9999,
+                    backgroundPadding: 10,
+                    textShadow: 'none',
+                    color: '#881337',
+                  })
+                }
+                className="p-1.5 rounded-lg border border-slate-200 bg-white hover:border-indigo-300 text-[10px] font-medium text-slate-700 flex flex-col items-center text-center transition cursor-pointer shadow-2xs"
+                title="Full Pill Banner"
+              >
+                <span className="w-4 h-2.5 rounded-full bg-rose-100 border border-rose-300 shadow-2xs mb-0.5" />
+                <span>Pill Banner</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() =>
+                  onUpdateElement({
+                    ...textEl,
+                    hasBackground: false,
+                    textShadow: 'strong-dark',
+                    color: '#ffffff',
+                  })
+                }
+                className="p-1.5 rounded-lg border border-slate-200 bg-white hover:border-indigo-300 text-[10px] font-medium text-slate-700 flex flex-col items-center text-center transition cursor-pointer shadow-2xs"
+                title="Strong Drop Shadow for white text over dark or busy photos"
+              >
+                <span className="text-[10px] font-black text-white bg-slate-800 px-1 rounded mb-0.5">
+                  Aa
+                </span>
+                <span>Drop Shadow</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() =>
+                  onUpdateElement({
+                    ...textEl,
+                    hasBackground: false,
+                    textShadow: 'outline-dark',
+                    color: '#ffffff',
+                  })
+                }
+                className="p-1.5 rounded-lg border border-slate-200 bg-white hover:border-indigo-300 text-[10px] font-medium text-slate-700 flex flex-col items-center text-center transition cursor-pointer shadow-2xs"
+                title="Dark Outline around letters"
+              >
+                <span className="text-[10px] font-bold text-white [text-shadow:_0_0_2px_#000] mb-0.5">
+                  Stroke
+                </span>
+                <span>Outline</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() =>
+                  onUpdateElement({
+                    ...textEl,
+                    hasBackground: false,
+                    textShadow: 'none',
+                  })
+                }
+                className="p-1.5 rounded-lg border border-slate-200 bg-white hover:border-slate-300 text-[10px] font-medium text-slate-500 flex flex-col items-center text-center transition cursor-pointer shadow-2xs"
+                title="Reset to clean text without background or shadow"
+              >
+                <span className="text-[10px] text-slate-400 mb-0.5">✕</span>
+                <span>Clear</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Semi-transparent Background Box Toggle & Customizer */}
+          <div className="pt-2 border-t border-indigo-100/80 space-y-2">
+            <div className="flex items-center justify-between">
+              <label
+                htmlFor="toggle-text-bg"
+                className="text-[11px] font-semibold text-slate-800 cursor-pointer flex items-center gap-1.5"
+              >
+                <span>Semi-Transparent Background</span>
+              </label>
+
+              <button
+                id="toggle-text-bg"
+                type="button"
+                role="switch"
+                aria-checked={Boolean(textEl.hasBackground)}
+                onClick={() =>
+                  onUpdateElement({
+                    ...textEl,
+                    hasBackground: !textEl.hasBackground,
+                    backgroundColor: textEl.backgroundColor || '#ffffff',
+                    backgroundOpacity: textEl.backgroundOpacity ?? 0.82,
+                    borderRadius: textEl.borderRadius ?? 8,
+                    backgroundPadding: textEl.backgroundPadding ?? 8,
+                  })
+                }
+                className={`w-9 h-5 rounded-full transition-colors relative cursor-pointer shrink-0 ${
+                  textEl.hasBackground ? 'bg-indigo-600' : 'bg-slate-300'
+                }`}
+              >
+                <span
+                  className={`block w-3.5 h-3.5 bg-white rounded-full shadow-xs transition-transform duration-150 absolute top-0.75 ${
+                    textEl.hasBackground ? 'left-4.5' : 'left-0.75'
+                  }`}
+                />
+              </button>
+            </div>
+
+            {textEl.hasBackground && (
+              <div className="space-y-2.5 pt-1 pl-1">
+                {/* Background Swatches */}
+                <div>
+                  <label className="block text-[10px] font-semibold text-slate-600 mb-1">
+                    Background Color
+                  </label>
+                  <div className="flex flex-wrap gap-1.5 mb-1.5">
+                    {[
+                      { hex: '#ffffff', label: 'White' },
+                      { hex: '#000000', label: 'Black' },
+                      { hex: '#fef3c7', label: 'Cream' },
+                      { hex: '#ffe4e6', label: 'Rose' },
+                      { hex: '#0f172a', label: 'Slate' },
+                      { hex: '#d1fae5', label: 'Mint' },
+                    ].map((swatch) => (
+                      <button
+                        key={swatch.hex}
+                        type="button"
+                        onClick={() =>
+                          onUpdateElement({
+                            ...textEl,
+                            backgroundColor: swatch.hex,
+                          })
+                        }
+                        style={{ backgroundColor: swatch.hex }}
+                        className={`w-5 h-5 rounded-full border shadow-2xs transition-transform ${
+                          (textEl.backgroundColor || '#ffffff').toLowerCase() === swatch.hex.toLowerCase()
+                            ? 'scale-125 border-indigo-600 ring-2 ring-indigo-200'
+                            : 'border-slate-300 hover:scale-110'
+                        }`}
+                        title={swatch.label}
+                      />
+                    ))}
+                    <input
+                      type="color"
+                      value={textEl.backgroundColor || '#ffffff'}
+                      onChange={(e) =>
+                        onUpdateElement({
+                          ...textEl,
+                          backgroundColor: e.target.value,
+                        })
+                      }
+                      className="w-5 h-5 rounded border border-slate-300 cursor-pointer p-0"
+                      title="Custom Background Color"
+                    />
+                  </div>
+                </div>
+
+                {/* Opacity Slider */}
+                <div>
+                  <div className="flex justify-between items-center mb-1">
+                    <label className="text-[10px] font-semibold text-slate-600">
+                      Transparency / Opacity
+                    </label>
+                    <span className="font-mono text-[10px] text-slate-500 font-semibold">
+                      {Math.round((textEl.backgroundOpacity ?? 0.82) * 100)}%
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    min={15}
+                    max={100}
+                    step={5}
+                    value={Math.round((textEl.backgroundOpacity ?? 0.82) * 100)}
+                    onChange={(e) =>
+                      onUpdateElement({
+                        ...textEl,
+                        backgroundOpacity: Number(e.target.value) / 100,
+                      })
+                    }
+                    className="w-full accent-indigo-600"
+                  />
+                </div>
+
+                {/* Corner Radius & Padding */}
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-[10px] font-semibold text-slate-600 mb-1">
+                      Corner Style
+                    </label>
+                    <div className="grid grid-cols-3 gap-0.5">
+                      {[
+                        { r: 0, label: 'Sharp' },
+                        { r: 8, label: 'Round' },
+                        { r: 9999, label: 'Pill' },
+                      ].map((corner) => (
+                        <button
+                          key={corner.r}
+                          type="button"
+                          onClick={() =>
+                            onUpdateElement({
+                              ...textEl,
+                              borderRadius: corner.r,
+                            })
+                          }
+                          className={`py-1 text-[9px] font-medium border rounded text-center transition cursor-pointer ${
+                            (textEl.borderRadius ?? 8) === corner.r
+                              ? 'bg-indigo-600 text-white border-indigo-600'
+                              : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                          }`}
+                        >
+                          {corner.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-semibold text-slate-600 mb-1">
+                      Padding
+                    </label>
+                    <div className="grid grid-cols-3 gap-0.5">
+                      {[
+                        { p: 4, label: 'Slim' },
+                        { p: 8, label: 'Med' },
+                        { p: 14, label: 'Wide' },
+                      ].map((pad) => (
+                        <button
+                          key={pad.p}
+                          type="button"
+                          onClick={() =>
+                            onUpdateElement({
+                              ...textEl,
+                              backgroundPadding: pad.p,
+                            })
+                          }
+                          className={`py-1 text-[9px] font-medium border rounded text-center transition cursor-pointer ${
+                            (textEl.backgroundPadding ?? 8) === pad.p
+                              ? 'bg-indigo-600 text-white border-indigo-600'
+                              : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                          }`}
+                        >
+                          {pad.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Text Shadow & Letter Glow Options */}
+          <div className="pt-2 border-t border-indigo-100/80 space-y-1.5">
+            <div className="flex items-center justify-between">
+              <label className="text-[10px] font-semibold text-slate-700">
+                Text Shadow & Outline
+              </label>
+            </div>
+            <div className="grid grid-cols-3 gap-1">
+              {[
+                { id: 'none', label: 'None' },
+                { id: 'soft-dark', label: 'Soft Shadow' },
+                { id: 'strong-dark', label: 'Strong Shadow' },
+                { id: 'soft-light', label: 'Light Glow' },
+                { id: 'outline-dark', label: 'Dark Outline' },
+                { id: 'outline-light', label: 'Light Outline' },
+              ].map((shadow) => (
+                <button
+                  key={shadow.id}
+                  type="button"
+                  onClick={() =>
+                    onUpdateElement({
+                      ...textEl,
+                      textShadow: shadow.id as TextElement['textShadow'],
+                    })
+                  }
+                  className={`py-1 px-1 text-[9px] font-medium rounded-md border text-center transition cursor-pointer ${
+                    (textEl.textShadow || 'none') === shadow.id
+                      ? 'bg-indigo-600 text-white border-indigo-600 font-bold'
+                      : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                  }`}
+                >
+                  {shadow.label}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 

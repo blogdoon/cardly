@@ -25,8 +25,9 @@ import {
   Smartphone,
   Link as LinkIcon
 } from 'lucide-react';
-import { CardPageDefinition, CardElement, StickerElement, ShapeElement } from '../types/template';
+import { CardPageDefinition, CardElement, TextElement, StickerElement, ShapeElement } from '../types/template';
 import { getStickerById } from '../data/elements';
+import { computeTextReadabilityStyle } from '../utils/textStyle';
 
 export interface PrintPreviewProps {
   isOpen: boolean;
@@ -302,10 +303,13 @@ export const PrintPreview: React.FC<PrintPreviewProps> = ({
         {/* Card elements */}
         {page.elements.map((el: CardElement) => {
           if (el.type === 'text') {
+            const textEl = el as TextElement;
+            const readabilityStyle = computeTextReadabilityStyle(textEl, 380 / 800);
             return (
               <div
                 key={el.id}
                 style={{
+                  ...readabilityStyle,
                   position: 'absolute',
                   left: `${el.x}%`,
                   top: `${el.y}%`,

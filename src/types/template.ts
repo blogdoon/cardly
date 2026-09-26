@@ -29,6 +29,15 @@ export interface TextElement extends BaseElement {
   letterSpacing?: number;
   placeholder?: string;
   personalizationField?: 'name' | 'age' | 'message' | 'senderName' | 'custom';
+
+  // Readability & contrast over pictures/backgrounds
+  hasBackground?: boolean;
+  backgroundColor?: string; // hex or rgb
+  backgroundOpacity?: number; // 0 to 1 (e.g. 0.75 for semi-transparent)
+  backgroundPadding?: number; // px (e.g. 6 to 16)
+  borderRadius?: number; // px (0 = sharp, 8 = rounded, 16 = curved, 9999 = pill)
+  backdropBlur?: boolean; // frosted glass blur
+  textShadow?: 'none' | 'soft-dark' | 'strong-dark' | 'soft-light' | 'outline-dark' | 'outline-light';
 }
 
 export interface PhotoElement extends BaseElement {

@@ -2,6 +2,7 @@ import React, { useRef, useState, useEffect } from 'react';
 import { CardElement, CardPageDefinition, TextElement, PhotoElement, StickerElement } from '../../types/template';
 import { RotateCw, Grid3X3, Magnet } from 'lucide-react';
 import { getStickerById } from '../../data/elements';
+import { computeTextReadabilityStyle } from '../../utils/textStyle';
 
 interface CardCanvasProps {
   page: CardPageDefinition;
@@ -421,6 +422,7 @@ export const CardCanvas: React.FC<CardCanvasProps> = ({
 
           if (el.type === 'text') {
             const textEl = el as TextElement;
+            const readabilityStyle = computeTextReadabilityStyle(textEl, 380 / 800);
 
             return (
               <div
@@ -431,6 +433,7 @@ export const CardCanvas: React.FC<CardCanvasProps> = ({
                 }}
                 onPointerDown={(e) => handlePointerDownElement(e, textEl)}
                 style={{
+                  ...readabilityStyle,
                   position: 'absolute',
                   left: `${textEl.x}%`,
                   top: `${textEl.y}%`,

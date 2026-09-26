@@ -1185,7 +1185,13 @@ function buildDefaultPages(
       color: textColor,
       textAlign: 'center',
       fontWeight: 'bold',
-      personalizationField: 'message'
+      personalizationField: 'message',
+      hasBackground: Boolean(coverImage),
+      backgroundColor: '#ffffff',
+      backgroundOpacity: 0.85,
+      borderRadius: 12,
+      backgroundPadding: 8,
+      textShadow: coverImage ? 'soft-dark' : 'none',
     },
     {
       id: 'subtext-1',
@@ -1202,7 +1208,13 @@ function buildDefaultPages(
       color: textColor,
       textAlign: 'center',
       fontWeight: '600',
-      personalizationField: 'name'
+      personalizationField: 'name',
+      hasBackground: Boolean(coverImage),
+      backgroundColor: '#ffffff',
+      backgroundOpacity: 0.85,
+      borderRadius: 9999,
+      backgroundPadding: 6,
+      textShadow: coverImage ? 'soft-dark' : 'none',
     }
   ];
 
