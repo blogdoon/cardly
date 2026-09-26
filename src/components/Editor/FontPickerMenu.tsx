@@ -176,8 +176,7 @@ export const FontPickerMenu: React.FC<FontPickerMenuProps> = ({
       {isOpen && (
         <div
           role="listbox"
-          className="absolute z-60 left-0 right-0 md:left-auto md:right-0 md:w-84 lg:w-92 mt-1.5 bg-white border border-slate-200 rounded-2xl shadow-2xl overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-150"
-          style={{ maxHeight: '480px' }}
+          className="absolute z-60 left-0 right-0 mt-1.5 max-h-[38vh] md:max-h-[min(480px,58vh)] bg-white border border-slate-200 rounded-2xl shadow-2xl overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-150"
         >
           {/* Header & Live Preview Input */}
           <div className="p-3 bg-slate-50/90 border-b border-slate-200 shrink-0 space-y-2.5">
