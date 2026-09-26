@@ -317,9 +317,9 @@ export const FontPickerMenu: React.FC<FontPickerMenuProps> = ({
                         : 'hover:bg-slate-50 border border-transparent'
                     }`}
                   >
-                    {/* Header: Name, Category, Check */}
+                    {/* Header: Name, Category, StyleTag, Check */}
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-1.5">
+                      <div className="flex items-center gap-1.5 flex-wrap">
                         <span
                           className={`text-xs font-bold ${
                             isSelected
@@ -332,15 +332,26 @@ export const FontPickerMenu: React.FC<FontPickerMenuProps> = ({
                         <span className="text-[9px] font-medium bg-slate-100 text-slate-500 px-1.5 py-0.2 rounded">
                           {font.category}
                         </span>
+                        {font.styleTag && (
+                          <span className="text-[9px] font-medium bg-rose-50 text-rose-600 border border-rose-100 px-1.5 py-0.2 rounded">
+                            {font.styleTag}
+                          </span>
+                        )}
                       </div>
 
                       {isSelected && (
-                        <div className="flex items-center gap-1 text-rose-600 text-[10px] font-bold">
+                        <div className="flex items-center gap-1 text-rose-600 text-[10px] font-bold shrink-0">
                           <Check className="w-3.5 h-3.5" />
                           <span>Active</span>
                         </div>
                       )}
                     </div>
+
+                    {font.description && (
+                      <p className="text-[10px] text-slate-400 group-hover/item:text-slate-500 leading-tight">
+                        {font.description}
+                      </p>
+                    )}
 
                     {/* LIVE FONT PREVIEW LINE */}
                     <div
