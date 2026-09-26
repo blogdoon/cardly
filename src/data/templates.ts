@@ -1532,7 +1532,11 @@ function generateMasterTemplateCatalog(): CardTemplate[] {
     'crown-gold', 'ribbon-badge', 'cool-sunglasses'
   ];
 
-  // Loop through occasions and generate variations until we reach 325 cards
+  // Loop through occasions and generate variations until we reach 325 cards.
+  // Cover picks cycle per occasion: indexing the pool with `templates.length` (the same
+  // number used for the parity gate) leaves the index locked to one value per occasion,
+  // so every photo card of that occasion got the identical picture.
+  const coverCounters = new Map<string, number>();
   while (templates.length < 325) {
     const occIdx = templates.length % occasionKeys.length;
     const occasion = occasionKeys[occIdx];
@@ -1553,9 +1557,15 @@ function generateMasterTemplateCatalog(): CardTemplate[] {
 
     // Distribute studio artwork covers to 50% of procedural cards
     const coversForOccasion = occasionCoverPool[occasion] || [floralCoverImg, birthdayCoverImg];
-    const assignedCover = (templates.length % 2 === 0)
-      ? coversForOccasion[templates.length % coversForOccasion.length]
-      : undefined;
+    let assignedCover: string | undefined;
+    if (templates.length % 2 === 0) {
+      const n = coverCounters.get(occasion) || 0;
+      // A single-image pool would otherwise repeat that photo on every photo card.
+      if (coversForOccasion.length > 1 || n === 0) {
+        assignedCover = coversForOccasion[n % coversForOccasion.length];
+      }
+      coverCounters.set(occasion, n + 1);
+    }
 
     const id = `card-${String(idCounter).padStart(3, '0')}`;
     idCounter++;
