@@ -307,6 +307,13 @@ export const Account: React.FC<AccountProps> = ({
 
                     <div className="flex items-center space-x-1">
                       <button
+                        onClick={() => setPreviewModalDesign(design)}
+                        className="p-1.5 hover:bg-slate-200 rounded-lg text-slate-500 hover:text-slate-900"
+                        title="3D Card Preview"
+                      >
+                        <Eye className="w-4 h-4" />
+                      </button>
+                      <button
                         onClick={() => setPrintModalDesign(design)}
                         className="p-1.5 hover:bg-slate-200 rounded-lg text-slate-500 hover:text-slate-900"
                         title="Print Preview (5x7 & Standard Sizes)"

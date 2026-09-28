@@ -208,7 +208,8 @@ function AppRoutes() {
 
   const handleEditDesign = (design: UserDesign) => {
     try {
-      window.history.pushState({}, '', routePath('editor', design.templateId));
+      const targetPath = `${routePath('editor', design.templateId)}?template=${encodeURIComponent(design.templateId)}&design=${encodeURIComponent(design.id)}`;
+      window.history.pushState({}, '', targetPath);
     } catch (e) {
       console.warn(e);
     }

@@ -26,6 +26,7 @@ import {
 } from 'lucide-react';
 import { CardElement, TextElement, PhotoElement, StickerElement } from '../../types/template';
 import { AVAILABLE_FONTS, PRESET_COLORS } from '../../data/fonts';
+import { getStickerById } from '../../data/elements';
 import { FontPickerMenu, findFontByFamily } from './FontPickerMenu';
 import { PHOTO_FILTER_PRESETS, getPhotoFilterCss, getPhotoOverlayColor } from '../../utils/photoFilter';
 import { uploadUserPhoto } from '../../services/cardStorage';
@@ -1372,27 +1373,32 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
 
   // Handle Sticker Element Properties
   const stickerEl = selectedElement as StickerElement;
+  const catalogSticker = getStickerById(stickerEl.stickerId);
+  const stickerSvg = stickerEl.svg || catalogSticker?.svg;
+  const stickerEmoji = stickerEl.emoji || catalogSticker?.emoji;
+  const stickerName = stickerEl.name || catalogSticker?.name || 'Sticker';
+  const stickerColor = stickerEl.color || catalogSticker?.defaultColor || '#e11d48';
 
   return (
     <div className="w-full md:w-64 lg:w-72 md:border-l border-slate-200 bg-white p-4 space-y-5 overflow-y-auto text-xs">
       <div className="flex items-center justify-between border-b border-slate-100 pb-3">
         <div className="flex items-center space-x-2">
           <div className="w-7 h-7 rounded-lg bg-rose-50 border border-rose-200 flex items-center justify-center overflow-hidden">
-            {stickerEl.svg ? (
+            {stickerSvg ? (
               <div
                 className="w-5 h-5 [&>svg]:w-full [&>svg]:h-full"
-                style={{ color: stickerEl.color || '#e11d48' }}
-                dangerouslySetInnerHTML={{ __html: stickerEl.svg }}
+                style={{ color: stickerColor }}
+                dangerouslySetInnerHTML={{ __html: stickerSvg }}
               />
-            ) : stickerEl.emoji ? (
-              <span className="text-base select-none">{stickerEl.emoji}</span>
+            ) : stickerEmoji ? (
+              <span className="text-base select-none">{stickerEmoji}</span>
             ) : (
               <span className="text-sm">✨</span>
             )}
           </div>
           <div>
             <span className="font-bold text-slate-900 text-sm block leading-tight">
-              {stickerEl.name || 'Sticker'}
+              {stickerName}
             </span>
             <span className="text-[10px] text-slate-400">Decoration</span>
           </div>
@@ -1417,17 +1423,17 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
       </div>
 
       {/* Color tinting if it's an SVG vector sticker */}
-      {stickerEl.svg && (
+      {stickerSvg && (
         <div>
           <label className="block text-[11px] font-semibold text-slate-700 mb-1.5">Sticker Color</label>
           <div className="flex flex-wrap gap-1.5">
             {PRESET_COLORS.map((col) => (
               <button
                 key={col}
-                onClick={() => onUpdateElement({ ...stickerEl, color: col })}
+                onClick={() => onUpdateElement({ ...stickerEl, color: col, svg: stickerSvg })}
                 style={{ backgroundColor: col }}
                 className={`w-6 h-6 rounded-full border transition hover:scale-110 shadow-xs ${
-                  stickerEl.color === col ? 'ring-2 ring-rose-500 ring-offset-1 border-white' : 'border-slate-300'
+                  stickerColor === col ? 'ring-2 ring-rose-500 ring-offset-1 border-white' : 'border-slate-300'
                 }`}
                 title={col}
               />

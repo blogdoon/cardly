@@ -9,6 +9,7 @@ import { StickerLibraryPanel } from '../components/Editor/StickerLibraryPanel';
 import { CardTemplate, CardPageType, CardPageDefinition, CardElement, TextElement, PhotoElement, StickerElement } from '../types/template';
 import { UserDesign, AutosaveStatus } from '../types/design';
 import { getTemplateById } from '../data/templates';
+import { getStickerById } from '../data/elements';
 import {
   saveUserDesign,
   getDesignById,
@@ -750,6 +751,13 @@ export const CardEditor: React.FC<CardEditorProps> = ({
     const existingStickerCount = activePageDefinition.elements.filter((e) => e.type === 'sticker').length;
     const offset = (existingStickerCount % 4) * 4 - 6;
 
+    // Resolve art from elements catalog if not directly provided
+    const catalogItem = getStickerById(stickerId);
+    const resolvedSvg = svg || catalogItem?.svg;
+    const resolvedEmoji = emoji || catalogItem?.emoji;
+    const resolvedName = name || catalogItem?.name || 'Sticker';
+    const resolvedColor = color || catalogItem?.defaultColor || '#e11d48';
+
     const newSticker: StickerElement = {
       id,
       type: 'sticker',
@@ -760,13 +768,15 @@ export const CardEditor: React.FC<CardEditorProps> = ({
       rotation: 0,
       zIndex: activePageDefinition.elements.length + 1,
       stickerId,
-      svg,
-      emoji,
-      color: color || '#e11d48',
-      name,
+      ...(resolvedSvg ? { svg: resolvedSvg } : {}),
+      ...(resolvedEmoji ? { emoji: resolvedEmoji } : {}),
+      color: resolvedColor,
+      name: resolvedName,
     };
     updateCurrentPageElements([...activePageDefinition.elements, newSticker]);
     setSelectedElementId(id);
+    setSaveToast({ message: `Added "${resolvedName}" sticker!`, type: 'success' });
+    setTimeout(() => setSaveToast(null), 2500);
   };
 
   const handleBackgroundChange = (color: string, gradient?: string) => {

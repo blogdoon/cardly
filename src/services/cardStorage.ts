@@ -36,6 +36,15 @@ function safeSetLocalDesigns(designs: UserDesign[]): void {
 }
 
 /**
+ * Recursively removes undefined fields from an object so that Firestore
+ * never throws "Unsupported field value: undefined".
+ */
+export function cleanForFirestore<T>(data: T): T {
+  if (data === undefined) return null as any;
+  return JSON.parse(JSON.stringify(data));
+}
+
+/**
  * Check if the user is genuinely authenticated in Firebase and matches the target userId
  */
 function isAuthUser(userId?: string): boolean {
@@ -63,34 +72,37 @@ export async function saveUserDesign(design: UserDesign): Promise<void> {
     design = { ...design, previewThumbnail: effectiveThumbnail };
   }
 
+  // Clean design to strip undefined properties (crucial for Firestore and localStorage)
+  const cleanedDesign: UserDesign = cleanForFirestore(design);
+
   // Always persist locally first so user never loses edits
   const existing = getLocalDesigns();
-  const index = existing.findIndex((d) => d.id === design.id);
+  const index = existing.findIndex((d) => d.id === cleanedDesign.id);
   if (index >= 0) {
-    existing[index] = design;
+    existing[index] = cleanedDesign;
   } else {
-    existing.unshift(design);
+    existing.unshift(cleanedDesign);
   }
   safeSetLocalDesigns(existing);
 
   // Also remember this active draft for the template
-  saveActiveDraftId(design.templateId, design.id);
+  saveActiveDraftId(cleanedDesign.templateId, cleanedDesign.id);
 
   // Sync to Firestore if authenticated & authorized
-  if (isAuthUser(design.userId)) {
-    const designPath = `users/${design.userId}/designs/${design.id}`;
+  if (isAuthUser(cleanedDesign.userId)) {
+    const designPath = `users/${cleanedDesign.userId}/designs/${cleanedDesign.id}`;
     try {
-      const designRef = doc(db, 'users', design.userId, 'designs', design.id);
-      await setDoc(designRef, {
-        id: design.id,
-        templateId: design.templateId,
-        userId: design.userId,
-        title: design.title,
-        pages: design.pages,
-        previewThumbnail: design.previewThumbnail || '',
-        createdAt: design.createdAt,
+      const designRef = doc(db, 'users', cleanedDesign.userId, 'designs', cleanedDesign.id);
+      await setDoc(designRef, cleanForFirestore({
+        id: cleanedDesign.id,
+        templateId: cleanedDesign.templateId,
+        userId: cleanedDesign.userId,
+        title: cleanedDesign.title,
+        pages: cleanedDesign.pages,
+        previewThumbnail: cleanedDesign.previewThumbnail || '',
+        createdAt: cleanedDesign.createdAt,
         updatedAt: new Date().toISOString(),
-      });
+      }));
     } catch (e: any) {
       if (e?.code === 'permission-denied') {
         handleFirestoreError(e, OperationType.WRITE, designPath);
@@ -103,6 +115,10 @@ export async function saveUserDesign(design: UserDesign): Promise<void> {
 export async function getDesignById(designId: string, userId?: string): Promise<UserDesign | null> {
   const effectiveUserId = userId || auth?.currentUser?.uid;
 
+  // Retrieve cached local version first
+  const localList = getLocalDesigns();
+  const localDesign = localList.find((d) => d.id === designId) || null;
+
   // Try Firestore first if authenticated
   if (isAuthUser(effectiveUserId) && effectiveUserId) {
     const designPath = `users/${effectiveUserId}/designs/${designId}`;
@@ -111,12 +127,21 @@ export async function getDesignById(designId: string, userId?: string): Promise<
       const snap = await getDoc(designRef);
       if (snap.exists()) {
         const remoteData = snap.data() as UserDesign;
+
+        // If local version exists and has newer updatedAt than remote, keep local edits
+        if (localDesign) {
+          const localTime = new Date(localDesign.updatedAt || localDesign.createdAt || 0).getTime();
+          const remoteTime = new Date(remoteData.updatedAt || remoteData.createdAt || 0).getTime();
+          if (localTime > remoteTime) {
+            return localDesign;
+          }
+        }
+
         // Merge into local cache safely
-        const local = getLocalDesigns();
-        const idx = local.findIndex((d) => d.id === designId);
-        if (idx >= 0) local[idx] = remoteData;
-        else local.unshift(remoteData);
-        safeSetLocalDesigns(local);
+        const idx = localList.findIndex((d) => d.id === designId);
+        if (idx >= 0) localList[idx] = remoteData;
+        else localList.unshift(remoteData);
+        safeSetLocalDesigns(localList);
         return remoteData;
       }
     } catch (e: any) {
@@ -128,8 +153,7 @@ export async function getDesignById(designId: string, userId?: string): Promise<
   }
 
   // Fallback to local storage
-  const localList = getLocalDesigns();
-  return localList.find((d) => d.id === designId) || null;
+  return localDesign;
 }
 
 export function saveActiveDraftId(templateId: string, designId: string): void {
@@ -172,12 +196,19 @@ export async function getUserDesigns(userId?: string): Promise<UserDesign[]> {
       const remoteList: UserDesign[] = [];
       snap.forEach((d) => remoteList.push(d.data() as UserDesign));
 
-      // Merge remote & local designs by ID, preferring newest
+      // Merge remote & local designs by ID, preferring whichever version has the newer timestamp
       const mergedMap = new Map<string, UserDesign>();
       remoteList.forEach((d) => mergedMap.set(d.id, d));
-      localList.forEach((d) => {
-        if (!mergedMap.has(d.id)) {
-          mergedMap.set(d.id, d);
+      localList.forEach((localD) => {
+        const remoteD = mergedMap.get(localD.id);
+        if (!remoteD) {
+          mergedMap.set(localD.id, localD);
+        } else {
+          const localTime = new Date(localD.updatedAt || localD.createdAt || 0).getTime();
+          const remoteTime = new Date(remoteD.updatedAt || remoteD.createdAt || 0).getTime();
+          if (localTime >= remoteTime) {
+            mergedMap.set(localD.id, localD);
+          }
         }
       });
       return Array.from(mergedMap.values());
@@ -512,15 +543,16 @@ export async function getUserOrders(userId?: string): Promise<Order[]> {
 }
 
 export async function createOrder(order: Order): Promise<void> {
+  const cleanedOrder = cleanForFirestore(order);
   const current = getLocalOrders();
-  current.unshift(order);
+  current.unshift(cleanedOrder);
   localStorage.setItem(LOCAL_ORDERS_KEY, JSON.stringify(current));
 
-  if (isAuthUser(order.userId)) {
-    const orderPath = `users/${order.userId}/orders/${order.id}`;
+  if (isAuthUser(cleanedOrder.userId)) {
+    const orderPath = `users/${cleanedOrder.userId}/orders/${cleanedOrder.id}`;
     try {
-      const orderRef = doc(db, 'users', order.userId, 'orders', order.id);
-      await setDoc(orderRef, order);
+      const orderRef = doc(db, 'users', cleanedOrder.userId, 'orders', cleanedOrder.id);
+      await setDoc(orderRef, cleanedOrder);
     } catch (e: any) {
       if (e?.code === 'permission-denied') {
         handleFirestoreError(e, OperationType.CREATE, orderPath);
