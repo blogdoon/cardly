@@ -4,11 +4,36 @@ import { db, storage, auth, isFirebaseConfigured } from './firebase';
 import { UserDesign } from '../types/design';
 import { Order } from '../types/order';
 import { handleFirestoreError, OperationType } from './firestoreErrors';
+import { optimizeImageFile, getCardDesignThumbnail } from '../utils/imageOptimizer';
 
 const LOCAL_DESIGNS_KEY = 'cardly_user_designs';
 const LOCAL_FAVORITES_KEY = 'cardly_user_favorites';
 const LOCAL_ORDERS_KEY = 'cardly_user_orders';
 const LOCAL_RECENT_KEY = 'cardly_recently_viewed';
+
+/**
+ * Safely persists designs to localStorage with quota-management fallbacks
+ */
+function safeSetLocalDesigns(designs: UserDesign[]): void {
+  try {
+    localStorage.setItem(LOCAL_DESIGNS_KEY, JSON.stringify(designs));
+  } catch (err) {
+    console.warn('LocalStorage save failed (quota exceeded?), attempting to prune cache:', err);
+    try {
+      // Keep only 8 most recent designs to reclaim quota
+      const pruned = designs.slice(0, 8);
+      localStorage.setItem(LOCAL_DESIGNS_KEY, JSON.stringify(pruned));
+    } catch (err2) {
+      console.warn('LocalStorage prune failed, attempting minimal cache:', err2);
+      try {
+        const minimal = designs.slice(0, 2);
+        localStorage.setItem(LOCAL_DESIGNS_KEY, JSON.stringify(minimal));
+      } catch (err3) {
+        console.warn('LocalStorage entirely unavailable for designs:', err3);
+      }
+    }
+  }
+}
 
 /**
  * Check if the user is genuinely authenticated in Firebase and matches the target userId
@@ -32,6 +57,12 @@ export async function saveUserDesign(design: UserDesign): Promise<void> {
     design = { ...design, userId: currentAuthUid };
   }
 
+  // Ensure previewThumbnail reflects any customized or uploaded photos
+  const effectiveThumbnail = getCardDesignThumbnail(design.pages, design.previewThumbnail);
+  if (effectiveThumbnail) {
+    design = { ...design, previewThumbnail: effectiveThumbnail };
+  }
+
   // Always persist locally first so user never loses edits
   const existing = getLocalDesigns();
   const index = existing.findIndex((d) => d.id === design.id);
@@ -40,7 +71,7 @@ export async function saveUserDesign(design: UserDesign): Promise<void> {
   } else {
     existing.unshift(design);
   }
-  localStorage.setItem(LOCAL_DESIGNS_KEY, JSON.stringify(existing));
+  safeSetLocalDesigns(existing);
 
   // Also remember this active draft for the template
   saveActiveDraftId(design.templateId, design.id);
@@ -80,12 +111,12 @@ export async function getDesignById(designId: string, userId?: string): Promise<
       const snap = await getDoc(designRef);
       if (snap.exists()) {
         const remoteData = snap.data() as UserDesign;
-        // Merge into local cache
+        // Merge into local cache safely
         const local = getLocalDesigns();
         const idx = local.findIndex((d) => d.id === designId);
         if (idx >= 0) local[idx] = remoteData;
         else local.unshift(remoteData);
-        localStorage.setItem(LOCAL_DESIGNS_KEY, JSON.stringify(local));
+        safeSetLocalDesigns(local);
         return remoteData;
       }
     } catch (e: any) {
@@ -162,7 +193,7 @@ export async function getUserDesigns(userId?: string): Promise<UserDesign[]> {
 
 export async function deleteUserDesign(designId: string, userId?: string): Promise<void> {
   const existing = getLocalDesigns().filter((d) => d.id !== designId);
-  localStorage.setItem(LOCAL_DESIGNS_KEY, JSON.stringify(existing));
+  safeSetLocalDesigns(existing);
 
   if (isAuthUser(userId) && userId) {
     const docPath = `users/${userId}/designs/${designId}`;
@@ -523,21 +554,44 @@ export function getRecentlyViewed(): string[] {
 
 // ======================== PHOTO UPLOAD ========================
 
-export async function uploadUserPhoto(file: File, userId: string): Promise<string> {
-  // If Firebase Storage is configured, upload to storage
-  if (isFirebaseConfigured && storage && userId && auth?.currentUser) {
+export async function uploadUserPhoto(file: File, userId?: string): Promise<string> {
+  const effectiveUserId = userId || auth?.currentUser?.uid;
+
+  // 1. Optimize image into lightweight WebP/JPEG via Canvas (~60KB - 120KB)
+  let optimizedDataUrl: string | null = null;
+  let optimizedBlob: Blob | null = null;
+
+  try {
+    const optimized = await optimizeImageFile(file, 1200, 0.82);
+    optimizedDataUrl = optimized.dataUrl;
+    optimizedBlob = optimized.blob;
+  } catch (optErr) {
+    console.warn('Canvas image optimization failed, proceeding with original file:', optErr);
+  }
+
+  // 2. If Firebase Storage is configured and user is authenticated, upload to storage
+  if (isFirebaseConfigured && storage && effectiveUserId && auth?.currentUser) {
     try {
-      const fileId = `${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.]/g, '')}`;
-      const storageRef = ref(storage, `users/${userId}/photos/${fileId}`);
-      await uploadBytes(storageRef, file);
+      const sanitizedName = file.name.replace(/[^a-zA-Z0-9.]/g, '') || 'photo.webp';
+      const fileId = `${Date.now()}_${sanitizedName}`;
+      const storageRef = ref(storage, `users/${effectiveUserId}/photos/${fileId}`);
+      const uploadPayload = optimizedBlob || file;
+      await uploadBytes(storageRef, uploadPayload, {
+        contentType: optimizedBlob ? 'image/webp' : file.type,
+      });
       const downloadUrl = await getDownloadURL(storageRef);
       return downloadUrl;
     } catch (err) {
-      console.warn('Firebase Storage upload failed, using DataURL fallback:', err);
+      console.warn('Firebase Storage upload failed, using optimized DataURL fallback:', err);
     }
   }
 
-  // Fast client-side Data URL conversion
+  // 3. Fallback: Return lightweight WebP/JPEG DataURL (~60KB - 120KB)
+  if (optimizedDataUrl) {
+    return optimizedDataUrl;
+  }
+
+  // 4. Raw file reader fallback if canvas failed
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(reader.result as string);

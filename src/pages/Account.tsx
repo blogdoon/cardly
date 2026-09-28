@@ -29,6 +29,7 @@ import {
   getUserOrders
 } from '../services/cardStorage';
 import { getTemplateById } from '../data/templates';
+import { getCardDesignThumbnail } from '../utils/imageOptimizer';
 import { PreviewModal } from '../components/PreviewModal';
 import { PrintPreview } from '../components/PrintPreview';
 
@@ -330,15 +331,18 @@ export const Account: React.FC<AccountProps> = ({
                   </div>
 
                   <div className="p-4 flex items-center justify-center aspect-[3/2] bg-slate-100/50">
-                    {design.previewThumbnail ? (
-                      <img
-                        src={design.previewThumbnail}
-                        alt="Design thumbnail"
-                        className="h-full object-contain rounded-lg shadow-sm"
-                      />
-                    ) : (
-                      <Sparkles className="w-8 h-8 text-rose-400" />
-                    )}
+                    {(() => {
+                      const thumb = getCardDesignThumbnail(design.pages, design.previewThumbnail);
+                      return thumb ? (
+                        <img
+                          src={thumb}
+                          alt="Design thumbnail"
+                          className="h-full object-contain rounded-lg shadow-sm"
+                        />
+                      ) : (
+                        <Sparkles className="w-8 h-8 text-rose-400" />
+                      );
+                    })()}
                   </div>
 
                   <div className="p-4 bg-white border-t border-slate-100">
@@ -439,7 +443,7 @@ export const Account: React.FC<AccountProps> = ({
                     </span>
                     {ord.items.map((it) => {
                       const cardDesign = getOrderCardDesign(it);
-                      const thumb = it.thumbnail || cardDesign.previewThumbnail;
+                      const thumb = getCardDesignThumbnail(cardDesign.pages, it.thumbnail || cardDesign.previewThumbnail);
 
                       return (
                         <div

@@ -15,6 +15,7 @@ import {
 import { CardPageType } from '../../types/template';
 import { PRESET_COLORS } from '../../data/fonts';
 import { StickerLibraryPanel } from './StickerLibraryPanel';
+import { uploadUserPhoto } from '../../services/cardStorage';
 
 interface EditorSidebarProps {
   currentPage: CardPageType;
@@ -87,22 +88,29 @@ export const EditorSidebar: React.FC<EditorSidebarProps> = ({
     { name: 'Pure White', val: '#ffffff', color: '#ffffff' },
   ];
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const [uploadError, setUploadError] = useState<string | null>(null);
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (file.size > 10 * 1024 * 1024) {
-      alert('Photo must be less than 10MB.');
+    if (file.size > 20 * 1024 * 1024) {
+      setUploadError('Photo must be less than 20MB.');
       return;
     }
 
+    setUploadError(null);
     setIsUploading(true);
-    const reader = new FileReader();
-    reader.onload = () => {
-      onAddPhoto(reader.result as string);
+    try {
+      const url = await uploadUserPhoto(file);
+      onAddPhoto(url);
+    } catch (err) {
+      console.warn('Photo processing failed:', err);
+      setUploadError('Could not process photo. Please try a different image.');
+    } finally {
       setIsUploading(false);
-    };
-    reader.readAsDataURL(file);
+      e.target.value = '';
+    }
   };
 
   return (
@@ -307,19 +315,26 @@ export const EditorSidebar: React.FC<EditorSidebarProps> = ({
             </div>
 
             {/* Upload Button */}
-            <label className="border-2 border-dashed border-rose-300 hover:border-rose-500 bg-rose-50/50 hover:bg-rose-50 rounded-2xl p-4 flex flex-col items-center justify-center cursor-pointer transition text-center">
+            <label className={`border-2 border-dashed border-rose-300 hover:border-rose-500 bg-rose-50/50 hover:bg-rose-50 rounded-2xl p-4 flex flex-col items-center justify-center cursor-pointer transition text-center ${isUploading ? 'opacity-70 pointer-events-none' : ''}`}>
               <input
                 type="file"
-                accept="image/jpeg,image/png,image/webp"
+                accept="image/jpeg,image/png,image/webp,image/gif"
                 onChange={handleFileUpload}
+                disabled={isUploading}
                 className="hidden"
               />
-              <Upload className="w-6 h-6 text-rose-500 mb-1.5" />
+              <Upload className={`w-6 h-6 text-rose-500 mb-1.5 ${isUploading ? 'animate-bounce' : ''}`} />
               <span className="text-xs font-bold text-rose-700">
-                {isUploading ? 'Loading photo...' : 'Upload Your Photo'}
+                {isUploading ? 'Processing & saving photo...' : 'Upload Your Photo'}
               </span>
-              <span className="text-[10px] text-slate-500 mt-0.5">JPG, PNG, WEBP up to 10MB</span>
+              <span className="text-[10px] text-slate-500 mt-0.5">JPG, PNG, WEBP up to 20MB</span>
             </label>
+
+            {uploadError && (
+              <div className="p-2.5 bg-rose-50 border border-rose-200 rounded-xl text-rose-700 text-xs">
+                {uploadError}
+              </div>
+            )}
 
             {/* Sample Gallery */}
             <div>

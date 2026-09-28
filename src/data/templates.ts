@@ -1252,7 +1252,7 @@ function buildDefaultPages(
       pageType: 'front',
       backgroundColor: bgColor,
       backgroundGradient: coverImage ? undefined : bgGradient,
-      backgroundImage: coverImage,
+      backgroundImage: isPhoto ? undefined : coverImage,
       elements: frontElements
     },
     insideLeft: {

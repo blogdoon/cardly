@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Bold,
   Italic,
@@ -21,12 +21,14 @@ import {
   Sparkles,
   Sun,
   Contrast,
-  Wand2
+  Wand2,
+  Upload
 } from 'lucide-react';
 import { CardElement, TextElement, PhotoElement, StickerElement } from '../../types/template';
 import { AVAILABLE_FONTS, PRESET_COLORS } from '../../data/fonts';
 import { FontPickerMenu, findFontByFamily } from './FontPickerMenu';
 import { PHOTO_FILTER_PRESETS, getPhotoFilterCss, getPhotoOverlayColor } from '../../utils/photoFilter';
+import { uploadUserPhoto } from '../../services/cardStorage';
 
 interface PropertyPanelProps {
   selectedElement: CardElement | null;
@@ -49,6 +51,36 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
   onBringToFront,
   onSendToBack,
 }) => {
+  const [isReplacingPhoto, setIsReplacingPhoto] = useState(false);
+  const [replacePhotoError, setReplacePhotoError] = useState<string | null>(null);
+
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>, photoEl: PhotoElement) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 20 * 1024 * 1024) {
+      setReplacePhotoError('Photo must be less than 20MB.');
+      return;
+    }
+
+    setReplacePhotoError(null);
+    setIsReplacingPhoto(true);
+    try {
+      const url = await uploadUserPhoto(file);
+      onUpdateElement({
+        ...photoEl,
+        imageUrl: url,
+        placeholder: false,
+      });
+    } catch (err) {
+      console.warn('Failed to replace photo:', err);
+      setReplacePhotoError('Could not process photo. Please try a different image.');
+    } finally {
+      setIsReplacingPhoto(false);
+      e.target.value = '';
+    }
+  };
+
   if (!selectedElement) {
     return (
       <div className="w-full md:w-64 lg:w-72 md:border-l border-slate-200 bg-white p-5 flex flex-col justify-between text-slate-500 text-xs">
@@ -785,6 +817,24 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
               className="absolute inset-0 pointer-events-none transition-colors"
               style={{ backgroundColor: getPhotoOverlayColor(photoEl.overlayTint, photoEl.overlayOpacity)! }}
             />
+          )}
+        </div>
+
+        {/* Replace Photo / Upload Image Button */}
+        <div>
+          <label className={`w-full py-2.5 px-3 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold rounded-xl border border-rose-200 flex items-center justify-center gap-2 cursor-pointer transition shadow-2xs ${isReplacingPhoto ? 'opacity-70 pointer-events-none' : ''}`}>
+            <Upload className={`w-4 h-4 text-rose-600 ${isReplacingPhoto ? 'animate-bounce' : ''}`} />
+            <span>{isReplacingPhoto ? 'Processing photo...' : 'Replace Photo / Upload Image'}</span>
+            <input
+              type="file"
+              accept="image/jpeg,image/png,image/webp,image/gif"
+              onChange={(e) => handlePhotoUpload(e, photoEl)}
+              disabled={isReplacingPhoto}
+              className="hidden"
+            />
+          </label>
+          {replacePhotoError && (
+            <p className="text-[11px] text-rose-600 mt-1">{replacePhotoError}</p>
           )}
         </div>
 

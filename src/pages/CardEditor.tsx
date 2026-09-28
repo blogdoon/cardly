@@ -18,6 +18,7 @@ import {
 import { auth } from '../services/firebase';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
+import { getCardDesignThumbnail } from '../utils/imageOptimizer';
 import { X, Sparkles, Undo2, Redo2 } from 'lucide-react';
 
 interface CardEditorProps {
@@ -293,13 +294,14 @@ export const CardEditor: React.FC<CardEditorProps> = ({
 
       try {
         const effectiveUserId = user?.uid || auth?.currentUser?.uid || 'guest_user';
+        const effectiveThumbnail = getCardDesignThumbnail(pages, template?.thumbnail);
         const designToSave: UserDesign = {
           id: designId,
           templateId,
           userId: effectiveUserId,
           title: title.trim() || template?.title || 'Personalized Greeting Card',
           pages,
-          previewThumbnail: template?.thumbnail || '',
+          previewThumbnail: effectiveThumbnail,
           createdAt: initialDesign?.createdAt || new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         };
@@ -364,13 +366,14 @@ export const CardEditor: React.FC<CardEditorProps> = ({
     const handleBeforeUnload = () => {
       try {
         const effectiveUserId = user?.uid || auth?.currentUser?.uid || 'guest_user';
+        const effectiveThumbnail = getCardDesignThumbnail(pages, template?.thumbnail);
         const designToSave: UserDesign = {
           id: designId,
           templateId,
           userId: effectiveUserId,
           title: title.trim() || template?.title || 'Personalized Greeting Card',
           pages,
-          previewThumbnail: template?.thumbnail || '',
+          previewThumbnail: effectiveThumbnail,
           createdAt: initialDesign?.createdAt || new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         };
@@ -659,6 +662,60 @@ export const CardEditor: React.FC<CardEditorProps> = ({
   };
 
   const handleAddPhoto = (imageUrl: string) => {
+    // 1. If user currently has a photo element selected on the active page, replace its image
+    const selectedPhoto = activePageDefinition.elements.find(
+      (el) => el.id === selectedElementId && el.type === 'photo'
+    ) as PhotoElement | undefined;
+
+    // 2. If no photo is selected, but active page has an existing stock template photo element
+    const templatePhoto = !selectedPhoto
+      ? (activePageDefinition.elements.find(
+          (el) =>
+            el.type === 'photo' &&
+            (el.id === 'photo-1' || el.id === 'inside-left-photo' || (el as PhotoElement).placeholder)
+        ) as PhotoElement | undefined)
+      : undefined;
+
+    const targetPhoto = selectedPhoto || templatePhoto;
+
+    if (targetPhoto) {
+      const updatedElements = activePageDefinition.elements.map((el) => {
+        if (el.id === targetPhoto.id) {
+          return {
+            ...el,
+            imageUrl,
+            placeholder: false,
+          };
+        }
+        return el;
+      });
+
+      // Clear active page backgroundImage if it was mirroring the stock cover
+      const updatedPage = {
+        ...activePageDefinition,
+        backgroundImage: undefined,
+        elements: updatedElements,
+      };
+
+      const updated = {
+        ...pages,
+        [currentPage === 'front'
+          ? 'front'
+          : currentPage === 'inside-left'
+          ? 'insideLeft'
+          : currentPage === 'inside-right'
+          ? 'insideRight'
+          : 'back']: updatedPage,
+      };
+
+      pushState(updated);
+      setSelectedElementId(targetPhoto.id);
+      setSaveToast({ message: 'Photo updated with your uploaded image!', type: 'success' });
+      setTimeout(() => setSaveToast(null), 2500);
+      return;
+    }
+
+    // 3. Otherwise add as a new photo element
     const id = `img_${Date.now()}`;
     const newPhoto: PhotoElement = {
       id,
@@ -675,6 +732,8 @@ export const CardEditor: React.FC<CardEditorProps> = ({
     };
     updateCurrentPageElements([...activePageDefinition.elements, newPhoto]);
     setSelectedElementId(id);
+    setSaveToast({ message: 'Photo added to card!', type: 'success' });
+    setTimeout(() => setSaveToast(null), 2500);
   };
 
   const handleAddSticker = (
@@ -786,13 +845,14 @@ export const CardEditor: React.FC<CardEditorProps> = ({
   };
 
   const handleAddToBasket = async () => {
+    const effectiveThumbnail = getCardDesignThumbnail(pages, template?.thumbnail);
     const designToSave: UserDesign = {
       id: designId,
       templateId,
       userId: user?.uid || 'guest_user',
       title,
       pages,
-      previewThumbnail: template?.thumbnail || '',
+      previewThumbnail: effectiveThumbnail,
       createdAt: initialDesign?.createdAt || new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
@@ -808,7 +868,7 @@ export const CardEditor: React.FC<CardEditorProps> = ({
       designId,
       designSnapshot: designToSave,
       title,
-      thumbnail: template?.thumbnail || '',
+      thumbnail: effectiveThumbnail,
       cardSize: 'standard',
       envelopeColor: 'white',
       quantity: 1,
