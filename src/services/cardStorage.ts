@@ -554,6 +554,12 @@ export function getRecentlyViewed(): string[] {
 
 // ======================== PHOTO UPLOAD ========================
 
+// By default, Cardly uses high-performance client-side optimized WebP/JPEG data URLs (~60-100KB)
+// for customer card photos. These save directly into Firestore and localStorage with zero latency
+// and zero CORS preflight errors. If you have configured CORS on your Firebase Storage bucket,
+// you can enable remote bucket uploads by setting VITE_USE_FIREBASE_STORAGE="true".
+const ENABLE_REMOTE_STORAGE_UPLOAD = import.meta.env.VITE_USE_FIREBASE_STORAGE === 'true';
+
 export async function uploadUserPhoto(file: File, userId?: string): Promise<string> {
   const effectiveUserId = userId || auth?.currentUser?.uid;
 
@@ -569,8 +575,8 @@ export async function uploadUserPhoto(file: File, userId?: string): Promise<stri
     console.warn('Canvas image optimization failed, proceeding with original file:', optErr);
   }
 
-  // 2. If Firebase Storage is configured and user is authenticated, upload to storage
-  if (isFirebaseConfigured && storage && effectiveUserId && auth?.currentUser) {
+  // 2. If remote bucket upload is explicitly enabled and Firebase Storage is configured:
+  if (ENABLE_REMOTE_STORAGE_UPLOAD && isFirebaseConfigured && storage && effectiveUserId && auth?.currentUser) {
     try {
       const sanitizedName = file.name.replace(/[^a-zA-Z0-9.]/g, '') || 'photo.webp';
       const fileId = `${Date.now()}_${sanitizedName}`;
@@ -582,11 +588,12 @@ export async function uploadUserPhoto(file: File, userId?: string): Promise<stri
       const downloadUrl = await getDownloadURL(storageRef);
       return downloadUrl;
     } catch (err) {
-      console.warn('Firebase Storage upload failed, using optimized DataURL fallback:', err);
+      console.warn('Firebase Storage upload failed (CORS or permissions), falling back to optimized DataURL:', err);
     }
   }
 
-  // 3. Fallback: Return lightweight WebP/JPEG DataURL (~60KB - 120KB)
+  // 3. Fast, reliable client-side optimized WebP/JPEG DataURL (~60KB - 120KB)
+  // Immune to CORS issues and immediately persistent in Firestore & local storage.
   if (optimizedDataUrl) {
     return optimizedDataUrl;
   }
