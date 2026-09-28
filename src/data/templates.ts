@@ -696,7 +696,11 @@ function generateCardThumbnailSvg(
     | 'japandi-organic'
     | 'vintage-airmail'
     | 'comic-pop-burst'
-    | 'art-deco-gatsby';
+    | 'art-deco-gatsby'
+    | 'watercolor-wash'
+    | 'linocut-botanical'
+    | 'mid-century-modern'
+    | 'chalkboard-handletter';
 
   if (isPhoto || style === 'Photo') {
     layout = 'polaroid-scrapbook';
@@ -1114,6 +1118,171 @@ function generateCardThumbnailSvg(
       break;
 
     case 'art-deco-gatsby':
+      layoutMarkup = `
+        <rect width="280" height="392" rx="10" fill="url(#bg-${uid})"/>
+        <!-- 3-Tier Stepped Art Deco Luxury Borders -->
+        <g stroke="url(#gold-${uid})" stroke-width="1.4" fill="none" opacity="0.9">
+          <path d="M 28 14 L 252 14 L 266 28 L 266 364 L 252 378 L 28 378 L 14 364 L 14 28 Z"/>
+          <path d="M 34 20 L 246 20 L 260 34 L 260 358 L 246 372 L 34 372 L 20 358 L 20 34 Z" stroke-width="0.7"/>
+          <path d="M 14 28 L 34 28 L 34 14"/>
+          <path d="M 266 28 L 246 28 L 246 14"/>
+          <path d="M 14 364 L 34 364 L 34 378"/>
+          <path d="M 266 364 L 246 364 L 246 378"/>
+        </g>
+
+        <!-- Central Art Deco Diamond Medallion -->
+        <g transform="translate(140, 140)">
+          <polygon points="0,-65 65,0 0,65 -65,0" fill="${accentColor}" fill-opacity="0.12" stroke="url(#gold-${uid})" stroke-width="2"/>
+          <polygon points="0,-55 55,0 0,55 -55,0" fill="none" stroke="url(#gold-${uid})" stroke-width="0.75"/>
+          <polygon points="0,-45 45,0 0,45 -45,0" fill="none" stroke="url(#gold-${uid})" stroke-width="0.5" stroke-dasharray="3 2"/>
+          <polygon points="0,-25 6,-7 25,0 6,7 0,25 -6,7 -25,0 -6,-7" fill="url(#gold-${uid})"/>
+        </g>
+
+        <!-- Gatsby Upper Class Serif Typography -->
+        <text x="140" y="250" font-family="'Outfit', sans-serif" font-size="8.5" font-weight="700" letter-spacing="4" fill="url(#gold-${uid})" text-anchor="middle">${cleanKicker}</text>
+        <text x="140" y="280" font-family="'Cormorant Garamond', serif" font-size="${cleanTitle.length > 20 ? 17 : 21}" font-weight="700" letter-spacing="1" fill="${textColor}" text-anchor="middle">${cleanTitle}</text>
+        <text x="140" y="308" font-family="'Playfair Display', serif" font-style="italic" font-size="12.5" fill="${textColor}" opacity="0.85" text-anchor="middle">${cleanSub}</text>
+        <line x1="70" y1="330" x2="210" y2="330" stroke="url(#gold-${uid})" stroke-width="1"/>
+        <polygon points="140,327 143,330 140,333 137,330" fill="url(#gold-${uid})"/>
+      `;
+      break;
+
+    case 'watercolor-wash':
+      layoutMarkup = `
+        <rect width="280" height="392" rx="10" fill="url(#bg-${uid})"/>
+        <!-- Soft Watercolor Wash Blobs -->
+        <ellipse cx="80" cy="100" rx="90" ry="70" fill="${accentColor}" fill-opacity="0.12"/>
+        <ellipse cx="220" cy="180" rx="80" ry="90" fill="${textColor}" fill-opacity="0.08"/>
+        <ellipse cx="100" cy="300" rx="100" ry="60" fill="${accentColor}" fill-opacity="0.1"/>
+        <ellipse cx="200" cy="320" rx="70" ry="50" fill="${textColor}" fill-opacity="0.06"/>
+
+        <!-- Delicate Gold Splatter Dots -->
+        <g fill="url(#gold-${uid})" opacity="0.5">
+          <circle cx="60" cy="80" r="2"/>
+          <circle cx="230" cy="120" r="1.5"/>
+          <circle cx="180" cy="60" r="2.5"/>
+          <circle cx="90" cy="200" r="1.8"/>
+          <circle cx="240" cy="280" r="2.2"/>
+          <circle cx="50" cy="250" r="1.5"/>
+        </g>
+
+        <!-- Central White Card with Soft Shadow -->
+        <rect x="50" y="120" width="180" height="160" rx="12" fill="#ffffff" fill-opacity="0.88" filter="url(#shadow-${uid})"/>
+
+        <!-- Elegant Typography -->
+        <text x="140" y="165" font-family="'Outfit', sans-serif" font-size="8" font-weight="700" letter-spacing="3" fill="${accentColor}" text-anchor="middle">${cleanKicker}</text>
+        <text x="140" y="200" font-family="'Playfair Display', serif" font-size="${cleanTitle.length > 20 ? 16 : 19}" font-weight="700" fill="${textColor}" text-anchor="middle">${cleanTitle}</text>
+        <text x="140" y="230" font-family="'Cormorant Garamond', serif" font-style="italic" font-size="12" fill="${textColor}" opacity="0.8" text-anchor="middle">${cleanSub}</text>
+
+        <!-- Hand-painted Underline Stroke -->
+        <path d="M 90 250 Q 140 258 190 250" fill="none" stroke="${accentColor}" stroke-width="2" stroke-linecap="round" opacity="0.6"/>
+      `;
+      break;
+
+    case 'linocut-botanical':
+      layoutMarkup = `
+        <rect width="280" height="392" rx="10" fill="#faf8f5"/>
+        <!-- Bold Black Border -->
+        <rect x="12" y="12" width="256" height="368" rx="6" fill="none" stroke="#1a1a1a" stroke-width="3"/>
+        <rect x="18" y="18" width="244" height="356" rx="4" fill="none" stroke="#1a1a1a" stroke-width="1"/>
+
+        <!-- Linocut Botanical Illustrations -->
+        <g stroke="#1a1a1a" stroke-width="2.5" fill="none" stroke-linecap="round">
+          <!-- Left Branch -->
+          <path d="M 35 350 Q 40 280 55 220 Q 65 170 80 130"/>
+          <path d="M 55 220 Q 40 200 35 180 Q 50 190 55 220" fill="#1a1a1a" fill-opacity="0.15"/>
+          <path d="M 65 170 Q 80 150 85 130 Q 70 145 65 170" fill="#1a1a1a" fill-opacity="0.15"/>
+          <path d="M 75 140 Q 60 120 55 100 Q 70 115 75 140" fill="#1a1a1a" fill-opacity="0.15"/>
+
+          <!-- Right Branch -->
+          <path d="M 245 350 Q 240 280 225 220 Q 215 170 200 130"/>
+          <path d="M 225 220 Q 240 200 245 180 Q 230 190 225 220" fill="#1a1a1a" fill-opacity="0.15"/>
+          <path d="M 215 170 Q 200 150 195 130 Q 210 145 215 170" fill="#1a1a1a" fill-opacity="0.15"/>
+        </g>
+
+        <!-- Central Typography -->
+        <text x="140" y="180" font-family="'Outfit', sans-serif" font-size="8" font-weight="700" letter-spacing="3" fill="${accentColor}" text-anchor="middle">${cleanKicker}</text>
+        <text x="140" y="215" font-family="'Playfair Display', serif" font-size="${cleanTitle.length > 20 ? 16 : 19}" font-weight="700" fill="#1a1a1a" text-anchor="middle">${cleanTitle}</text>
+        <text x="140" y="245" font-family="'Cormorant Garamond', serif" font-style="italic" font-size="12" fill="#1a1a1a" opacity="0.75" text-anchor="middle">${cleanSub}</text>
+
+        <!-- Decorative Linocut Flourish -->
+        <path d="M 100 280 Q 140 295 180 280" fill="none" stroke="#1a1a1a" stroke-width="2" stroke-linecap="round"/>
+        <circle cx="140" cy="285" r="3" fill="#1a1a1a"/>
+      `;
+      break;
+
+    case 'mid-century-modern':
+      layoutMarkup = `
+        <rect width="280" height="392" rx="10" fill="url(#bg-${uid})"/>
+        <!-- Geometric Sunburst -->
+        <g transform="translate(140, 140)">
+          <circle cx="0" cy="0" r="55" fill="${accentColor}" fill-opacity="0.15"/>
+          <circle cx="0" cy="0" r="40" fill="${accentColor}" fill-opacity="0.2"/>
+          <circle cx="0" cy="0" r="25" fill="url(#gold-${uid})"/>
+          <!-- Rays -->
+          <g stroke="${accentColor}" stroke-width="2" opacity="0.4">
+            <line x1="0" y1="-70" x2="0" y2="-55"/>
+            <line x1="50" y1="-50" x2="40" y2="-40"/>
+            <line x1="70" y1="0" x2="55" y2="0"/>
+            <line x1="50" y1="50" x2="40" y2="40"/>
+            <line x1="0" y1="70" x2="0" y2="55"/>
+            <line x1="-50" y1="50" x2="-40" y2="40"/>
+            <line x1="-70" y1="0" x2="-55" y2="0"/>
+            <line x1="-50" y1="-50" x2="-40" y2="-40"/>
+          </g>
+        </g>
+
+        <!-- Retro Geometric Shapes -->
+        <rect x="30" y="260" width="40" height="40" rx="4" fill="${textColor}" fill-opacity="0.1" transform="rotate(15 50 280)"/>
+        <circle cx="230" cy="280" r="20" fill="${accentColor}" fill-opacity="0.2"/>
+        <polygon points="250,260 270,300 230,300" fill="${textColor}" fill-opacity="0.08"/>
+
+        <!-- Clean Typography -->
+        <text x="140" y="250" font-family="'Outfit', sans-serif" font-size="8" font-weight="700" letter-spacing="3" fill="${accentColor}" text-anchor="middle">${cleanKicker}</text>
+        <text x="140" y="285" font-family="'Outfit', sans-serif" font-size="${cleanTitle.length > 20 ? 17 : 20}" font-weight="800" fill="${textColor}" text-anchor="middle">${cleanTitle}</text>
+        <text x="140" y="315" font-family="'Outfit', sans-serif" font-size="11" fill="${textColor}" opacity="0.7" text-anchor="middle">${cleanSub}</text>
+
+        <!-- Retro Underline -->
+        <rect x="90" y="330" width="100" height="3" rx="1.5" fill="${accentColor}"/>
+      `;
+      break;
+
+    case 'chalkboard-handletter':
+      layoutMarkup = `
+        <rect width="280" height="392" rx="10" fill="#2d2d2d"/>
+        <!-- Chalk Dust Texture -->
+        <g fill="#ffffff" opacity="0.03">
+          <circle cx="40" cy="60" r="1.5"/>
+          <circle cx="120" cy="40" r="1"/>
+          <circle cx="200" cy="80" r="1.5"/>
+          <circle cx="250" cy="50" r="1"/>
+          <circle cx="60" cy="150" r="1"/>
+          <circle cx="180" cy="200" r="1.5"/>
+          <circle cx="90" cy="300" r="1"/>
+          <circle cx="220" cy="350" r="1.5"/>
+          <circle cx="150" cy="370" r="1"/>
+        </g>
+
+        <!-- Hand-drawn White Border -->
+        <rect x="15" y="15" width="250" height="362" rx="8" fill="none" stroke="#ffffff" stroke-width="2" stroke-opacity="0.6" stroke-dasharray="8 4"/>
+
+        <!-- Chalk Typography -->
+        <text x="140" y="140" font-family="'Outfit', sans-serif" font-size="8" font-weight="700" letter-spacing="3" fill="${accentColor}" text-anchor="middle">${cleanKicker}</text>
+        <text x="140" y="185" font-family="'Caveat', cursive" font-size="${cleanTitle.length > 20 ? 22 : 26}" font-weight="700" fill="#ffffff" text-anchor="middle">${cleanTitle}</text>
+        <text x="140" y="225" font-family="'Caveat', cursive" font-size="16" fill="#ffffff" opacity="0.8" text-anchor="middle">${cleanSub}</text>
+
+        <!-- Hand-drawn Chalk Flourish -->
+        <path d="M 80 260 Q 140 280 200 260" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" opacity="0.5"/>
+        <path d="M 100 275 Q 140 290 180 275" fill="none" stroke="${accentColor}" stroke-width="1.5" stroke-linecap="round" opacity="0.6"/>
+
+        <!-- Small Chalk Stars -->
+        <g fill="#ffffff" opacity="0.4">
+          <polygon points="60,100 62,106 68,106 63,110 65,116 60,112 55,116 57,110 52,106 58,106"/>
+          <polygon points="220,120 222,126 228,126 223,130 225,136 220,132 215,136 217,130 212,126 218,126"/>
+        </g>
+      `;
+      break;
+
     default:
       layoutMarkup = `
         <rect width="280" height="392" rx="10" fill="url(#bg-${uid})"/>
@@ -1374,7 +1543,12 @@ function generateMasterTemplateCatalog(): CardTemplate[] {
     'Friendship': [friendshipCocktailsImg, abstractTerrazzoImg, humorRetroCoverImg],
     'Good Luck': [congratulationsCoverImg, boldLetterpressImg],
     'Retirement': [boldLetterpressImg, vintageCoverImg],
-    'Thinking of You': [sympathyDawnImg, getWellTeaImg, wildflowerMeadowImg]
+    'Thinking of You': [sympathyDawnImg, getWellTeaImg, wildflowerMeadowImg],
+    'Sympathy': [sympathyDawnImg, getWellTeaImg, wildflowerMeadowImg],
+    'Graduation': [boldLetterpressImg, congratulationsCoverImg, artDecoLuxuryImg],
+    'Engagement': [weddingCoverImg, anniversaryCoverImg, floralCoverImg],
+    'Easter': [wildflowerMeadowImg, floralCoverImg, babyCoverImg],
+    'Housewarming': [abstractTerrazzoImg, boldLetterpressImg, wildflowerMeadowImg]
   };
 
   let idCounter = 1;
@@ -1440,7 +1614,8 @@ function generateMasterTemplateCatalog(): CardTemplate[] {
   const occasionKeys: OccasionType[] = [
     'Birthday', 'Anniversary', 'Wedding', 'New Baby', 'Congratulations',
     'Thank You', 'Valentine\'s Day', 'Mother\'s Day', 'Father\'s Day',
-    'Get Well', 'Christmas', 'Friendship', 'Good Luck', 'Retirement', 'Thinking of You'
+    'Get Well', 'Christmas', 'Friendship', 'Good Luck', 'Retirement', 'Thinking of You',
+    'Sympathy', 'Graduation', 'Engagement', 'Easter', 'Housewarming'
   ];
 
   const headlineBank: Partial<Record<OccasionType, { title: string; headline: string; subText: string; tone: RawCardArchetype['tone'] }[]>> = {
@@ -1512,7 +1687,396 @@ function generateMasterTemplateCatalog(): CardTemplate[] {
     ],
     'Thinking of You': [
       { title: "Just A Little Note of Warmth", headline: "Thinking of You", subText: "Sending sunshine to brighten your week.", tone: "Sweet" }
+    ],
+    'Sympathy': [
+      { title: "With Deepest Sympathy", headline: "With Heartfelt Sympathy", subText: "Holding you close in our thoughts during this difficult time.", tone: "Heartfelt" },
+      { title: "In Loving Memory", headline: "Forever in Our Hearts", subText: "May the love surrounding you bring comfort and peace.", tone: "Formal" },
+      { title: "Sending You Strength", headline: "With Caring Thoughts", subText: "Wishing you peace and strength in the days ahead.", tone: "Sweet" }
+    ],
+    'Graduation': [
+      { title: "The World Is Yours!", headline: "CONGRATS GRADUATE!", subText: "You did it! Now go conquer the world.", tone: "Playful" },
+      { title: "Caps Off to You!", headline: "CLASS OF 2026", subText: "Your hard work and late nights finally paid off.", tone: "Heartfelt" },
+      { title: "Dream Big, Graduate", headline: "The Future Is Bright", subText: "This is just the beginning of your incredible journey.", tone: "Heartfelt" }
+    ],
+    'Engagement': [
+      { title: "She Said Yes!", headline: "CONGRATULATIONS!", subText: "Wishing you a lifetime of love and happiness together.", tone: "Heartfelt" },
+      { title: "To the Happy Couple", headline: "CHEERS TO LOVE!", subText: "So thrilled for you both as you start this beautiful chapter.", tone: "Sweet" },
+      { title: "Love Is in the Air", headline: "ENGAGEMENT BLISS", subText: "Here's to forever starting right now.", tone: "Playful" }
+    ],
+    'Easter': [
+      { title: "Hoppy Easter!", headline: "HAPPY EASTER!", subText: "Wishing you a season filled with joy, chocolate, and new beginnings.", tone: "Playful" },
+      { title: "Spring Has Sprung", headline: "EASTER BLESSINGS", subText: "May your Easter be as bright and beautiful as spring flowers.", tone: "Sweet" },
+      { title: "Egg-cellent Wishes", headline: "HAPPY EASTER!", subText: "Hope your basket is full and your heart is fuller.", tone: "Humorous" }
+    ],
+    'Housewarming': [
+      { title: "Home Sweet Home", headline: "HAPPY HOUSEWARMING!", subText: "May your new home be filled with love, laughter, and great memories.", tone: "Heartfelt" },
+      { title: "New Keys, New Adventures", headline: "CONGRATS ON YOUR NEW HOME!", subText: "Wishing you endless happiness in your beautiful new space.", tone: "Sweet" },
+      { title: "Finally Decorated!", headline: "HOME AT LAST!", subText: "The sofa looks amazing. When's the housewarming party?", tone: "Cheeky" }
     ]
+  };
+
+  // Diverse inside messages keyed by occasion + tone — the most personal part of a card
+  const insideMessageBank: Partial<Record<OccasionType, Partial<Record<RawCardArchetype['tone'], string[]>>>> = {
+    'Birthday': {
+      'Playful': [
+        "Another year older, another year bolder. Cake first, questions later.\n\nAll the best,\n[Your Name]",
+        "Warning: this birthday may cause excessive happiness and cake comas.\n\nCheers,\n[Your Name]",
+        "You're not getting older — you're just becoming a limited edition.\n\nLove,\n[Your Name]"
+      ],
+      'Humorous': [
+        "Age is just a number. A really, really big number in your case.\n\nHappy Birthday!\n[Your Name]",
+        "Don't worry, you're not old — you're vintage. Like a fine wine or a classic car.\n\nBest wishes,\n[Your Name]",
+        "Remember: you're only as old as you feel. So act your age... which is 21, right?\n\nHave a great one!\n[Your Name]"
+      ],
+      'Heartfelt': [
+        "Wishing you a year filled with the same joy and warmth you bring to everyone around you.\n\nWith love,\n[Your Name]",
+        "May this birthday be the start of your best chapter yet. You deserve every happiness.\n\nAlways,\n[Your Name]",
+        "Another year of you is something truly worth celebrating. Happy Birthday!\n\nGratefully,\n[Your Name]"
+      ],
+      'Sweet': [
+        "Hope your day is wrapped in love, sprinkled with laughter, and filled with everything that makes you smile.\n\nSweetest wishes,\n[Your Name]",
+        "Sending you the warmest birthday hugs across the miles. Have the most wonderful day.\n\nWith love,\n[Your Name]",
+        "May your birthday be as sweet and special as you are. Enjoy every moment!\n\nLots of love,\n[Your Name]"
+      ],
+      'Cheeky': [
+        "Happy Birthday! Don't forget to make a wish — but not about your age, we know that's a sore subject.\n\nCheers,\n[Your Name]",
+        "Another candle on the cake, another year of putting up with me. You're a star.\n\nLove,\n[Your Name]",
+        "Happy Birthday! Remember, calories don't count today. That's just science.\n\nEnjoy!\n[Your Name]"
+      ],
+      'Formal': [
+        "Wishing you a most joyous birthday and a year ahead filled with prosperity and good health.\n\nWith warm regards,\n[Your Name]",
+        "May this special day bring you continued success, happiness, and fulfillment.\n\nRespectfully,\n[Your Name]",
+        "Accept my heartfelt wishes on your birthday. May the coming year be your finest yet.\n\nSincerely,\n[Your Name]"
+      ]
+    },
+    'Anniversary': {
+      'Heartfelt': [
+        "Every year with you is a gift I never take for granted. Here's to many more.\n\nForever yours,\n[Your Name]",
+        "Thank you for choosing me, every single day. I love you more than words can say.\n\nAll my love,\n[Your Name]",
+        "Another year of us — and I'd do it all over again in a heartbeat.\n\nYours always,\n[Your Name]"
+      ],
+      'Sweet': [
+        "May our love continue to grow deeper and stronger with each passing year.\n\nWith all my love,\n[Your Name]",
+        "You're my favourite hello and my hardest goodbye. Happy Anniversary.\n\nLove,\n[Your Name]",
+        "Here's to the memories we've made and the many more to come.\n\nSweetly yours,\n[Your Name]"
+      ],
+      'Playful': [
+        "Happy Anniversary! Thanks for another year of tolerating my weirdness.\n\nLove you!\n[Your Name]",
+        "Another year down, forever to go. You're stuck with me now!\n\nCheers,\n[Your Name]",
+        "They say marriage is about finding that one special person you want to annoy for the rest of your life. Mission accomplished.\n\nLove,\n[Your Name]"
+      ],
+      'Cheeky': [
+        "Happy Anniversary! You're still the one... I checked.\n\nYours,\n[Your Name]",
+        "Another year of marriage! I'd say we're doing pretty well — only mildly insane.\n\nLove,\n[Your Name]",
+        "Thanks for being my favourite person to do nothing with. Happy Anniversary!\n\nAlways,\n[Your Name]"
+      ]
+    },
+    'Wedding': {
+      'Heartfelt': [
+        "May your love be a light that never dims, a bond that never breaks, and a joy that never fades.\n\nWith love,\n[Your Name]",
+        "Wishing you a lifetime of shared sunsets, quiet mornings, and endless laughter.\n\nWarmest wishes,\n[Your Name]",
+        "Today you begin the greatest adventure of all — a life together. Make it beautiful.\n\nWith all my love,\n[Your Name]"
+      ],
+      'Sweet': [
+        "May your marriage be filled with the same joy you feel today, multiplied by a thousand.\n\nSweetest wishes,\n[Your Name]",
+        "Here's to love, laughter, and happily ever after.\n\nWith love,\n[Your Name]",
+        "Wishing you both a lifetime of love as beautiful as this day.\n\nWarmly,\n[Your Name]"
+      ],
+      'Playful': [
+        "Congratulations! Remember: a happy marriage is about finding the right person... and then annoying them forever.\n\nCheers,\n[Your Name]",
+        "You did it! Now the real fun begins — arguing about whose turn it is to do the dishes.\n\nLove,\n[Your Name]",
+        "Welcome to married life! It's like dating, but with more furniture and less sleep.\n\nBest wishes,\n[Your Name]"
+      ]
+    },
+    'New Baby': {
+      'Sweet': [
+        "Welcome to the world, little one. You are already so deeply loved.\n\nWith all our love,\n[Your Name]",
+        "May your life be filled with wonder, your days with joy, and your heart with love.\n\nLots of love,\n[Your Name]",
+        "A tiny miracle has arrived. Wishing your growing family endless happiness.\n\nWarmly,\n[Your Name]"
+      ],
+      'Heartfelt': [
+        "Congratulations on your beautiful new arrival. May your hearts overflow with love.\n\nWith love,\n[Your Name]",
+        "A baby is a blessing, a gift from heaven above. Cherish every moment.\n\nWarmest wishes,\n[Your Name]",
+        "Wishing your little one a lifetime of love, laughter, and sweet dreams.\n\nWith all our love,\n[Your Name]"
+      ],
+      'Playful': [
+        "Congratulations! Get ready for sleepless nights, endless nappies, and more love than you ever imagined.\n\nCheers,\n[Your Name]",
+        "Welcome to parenthood! It's the hardest job you'll ever love.\n\nBest wishes,\n[Your Name]",
+        "A tiny human has arrived and stolen everyone's hearts. Congratulations!\n\nLove,\n[Your Name]"
+      ]
+    },
+    'Congratulations': {
+      'Heartfelt': [
+        "Your hard work, dedication, and perseverance have truly paid off. So proud of you.\n\nWith admiration,\n[Your Name]",
+        "This achievement is just the beginning of all the amazing things you'll accomplish.\n\nCongratulations!\n[Your Name]",
+        "You've earned this moment. Enjoy it — you've worked so hard for it.\n\nProudly,\n[Your Name]"
+      ],
+      'Playful': [
+        "Look at you go! Seriously, when do you sleep? Congratulations!\n\nCheers,\n[Your Name]",
+        "You did the thing! Now take a breath, celebrate, and then do the next thing.\n\nSo proud!\n[Your Name]",
+        "Breaking news: local person achieves amazing thing. More at eleven.\n\nCongratulations!\n[Your Name]"
+      ],
+      'Sweet': [
+        "Wishing you continued success and happiness in this new chapter.\n\nWarmest wishes,\n[Your Name]",
+        "May this achievement bring you even more joy and opportunity.\n\nWith love,\n[Your Name]",
+        "So happy for you! You deserve every bit of this success.\n\nSweetly,\n[Your Name]"
+      ]
+    },
+    'Thank You': {
+      'Heartfelt': [
+        "Your kindness touched my heart in ways words cannot fully express. Thank you.\n\nGratefully,\n[Your Name]",
+        "In a world that can feel rushed and busy, you took the time to be kind. That means everything.\n\nWith deep thanks,\n[Your Name]",
+        "Thank you for being you — generous, thoughtful, and endlessly kind.\n\nAlways grateful,\n[Your Name]"
+      ],
+      'Sweet': [
+        "A little note to say a very big thank you. You made my day brighter.\n\nWith love,\n[Your Name]",
+        "Thank you for your sweetness and generosity. The world needs more people like you.\n\nWarmly,\n[Your Name]",
+        "Your thoughtfulness did not go unnoticed. Thank you from the bottom of my heart.\n\nSweetly,\n[Your Name]"
+      ],
+      'Playful': [
+        "Thanks a million! I owe you one. Or ten. Probably ten.\n\nGratefully,\n[Your Name]",
+        "You're officially the best. I've checked. There's a spreadsheet.\n\nThanks!\n[Your Name]",
+        "Thank you! I'd hug you, but this card will have to do for now.\n\nWith love,\n[Your Name]"
+      ]
+    },
+    'Valentine\'s Day': {
+      'Heartfelt': [
+        "You are my today and all of my tomorrows. I love you endlessly.\n\nForever yours,\n[Your Name]",
+        "In a sea of people, my eyes always search for you. Happy Valentine's Day.\n\nAll my love,\n[Your Name]",
+        "You make my heart smile in ways I never knew were possible. I love you.\n\nYours,\n[Your Name]"
+      ],
+      'Sweet': [
+        "Roses are red, violets are blue, no words could ever describe how much I love you.\n\nHappy Valentine's Day,\n[Your Name]",
+        "You're the peanut butter to my jelly, the stars to my night. I love you.\n\nSweetly,\n[Your Name]",
+        "Every love story is beautiful, but ours will always be my favourite.\n\nWith love,\n[Your Name]"
+      ],
+      'Cheeky': [
+        "Happy Valentine's Day! You're stuck with me now — no returns, no exchanges.\n\nLove,\n[Your Name]",
+        "I love you more than coffee. And that's saying a lot.\n\nYours,\n[Your Name]",
+        "You're my favourite notification. Happy Valentine's Day!\n\nLove you,\n[Your Name]"
+      ]
+    },
+    'Mother\'s Day': {
+      'Heartfelt': [
+        "Mum, you are the heart of our family. Thank you for your endless love and sacrifice.\n\nWith all my love,\n[Your Name]",
+        "No words could ever capture how much you mean to me. I love you, Mum.\n\nForever grateful,\n[Your Name]",
+        "You gave me life, love, and the strength to chase my dreams. Thank you for everything.\n\nWith love,\n[Your Name]"
+      ],
+      'Sweet': [
+        "To the world's best Mum — thank you for the hugs, the wisdom, and the endless cups of tea.\n\nLove you,\n[Your Name]",
+        "Mum, you deserve all the flowers in the world. Happy Mother's Day!\n\nWith love,\n[Your Name]",
+        "Thank you for being my first friend, my forever hero, and my biggest cheerleader.\n\nLove,\n[Your Name]"
+      ],
+      'Humorous': [
+        "Happy Mother's Day! Thanks for not leaving me in a shopping trolley when I was a toddler.\n\nLove,\n[Your Name]",
+        "Mum, you're a legend. Sorry for the teenage years. And the childhood years. And the baby years.\n\nCheers!\n[Your Name]",
+        "They say it takes a village to raise a child. You did it mostly alone. You're a superhero.\n\nLove you!\n[Your Name]"
+      ]
+    },
+    'Father\'s Day': {
+      'Heartfelt': [
+        "Dad, you've been my rock, my hero, and my greatest teacher. Thank you for everything.\n\nWith love,\n[Your Name]",
+        "Thank you for showing me what strength, kindness, and integrity look like. I love you, Dad.\n\nAlways,\n[Your Name]",
+        "Dad, your love has shaped me into who I am today. I'm forever grateful.\n\nWith all my love,\n[Your Name]"
+      ],
+      'Playful': [
+        "Happy Father's Day! Thanks for the dad jokes, the life lessons, and the occasional decent advice.\n\nLove,\n[Your Name]",
+        "Dad, you're officially the coolest. Don't let it go to your head.\n\nCheers,\n[Your Name]",
+        "Thanks for teaching me to ride a bike, drive a car, and question my life choices.\n\nLove you!\n[Your Name]"
+      ],
+      'Sweet': [
+        "To the best Dad in the world — thank you for your patience, your love, and your warm hugs.\n\nWith love,\n[Your Name]",
+        "Dad, you're my hero today and always. Happy Father's Day!\n\nLove,\n[Your Name]",
+        "Thank you for being the greatest Dad anyone could ask for. I love you.\n\nSweetly,\n[Your Name]"
+      ]
+    },
+    'Get Well': {
+      'Sweet': [
+        "Sending you warm hugs and healing thoughts. Get well soon, you're missed.\n\nWith love,\n[Your Name]",
+        "Rest up, take it easy, and let everyone take care of you for a change.\n\nWarmly,\n[Your Name]",
+        "Wishing you a speedy recovery and brighter days ahead. Take care.\n\nWith love,\n[Your Name]"
+      ],
+      'Playful': [
+        "Get well soon! The world is significantly less fun without you in it.\n\nCheers,\n[Your Name]",
+        "Rest up! Doctor's orders. And by doctor, I mean me. I'm very qualified.\n\nFeel better!\n[Your Name]",
+        "Sending you healing vibes and a get-well-soon hug. No germs allowed!\n\nLove,\n[Your Name]"
+      ],
+      'Heartfelt': [
+        "Thinking of you and wishing you strength and comfort during this time.\n\nWith caring thoughts,\n[Your Name]",
+        "May each day bring you closer to full health and renewed energy.\n\nWarmly,\n[Your Name]",
+        "You're in my thoughts. Take all the time you need to heal.\n\nWith love,\n[Your Name]"
+      ]
+    },
+    'Christmas': {
+      'Heartfelt': [
+        "May the magic of Christmas fill your home with warmth, your heart with love, and your life with joy.\n\nMerry Christmas,\n[Your Name]",
+        "Wishing you peace, love, and all the wonder of the season.\n\nWith love,\n[Your Name]",
+        "May your Christmas be wrapped in joy and tied with love.\n\nWarmest wishes,\n[Your Name]"
+      ],
+      'Playful': [
+        "Merry Christmas! May your day be filled with good food, great company, and minimal family drama.\n\nCheers,\n[Your Name]",
+        "Hope Santa brings you everything you asked for — and that you didn't ask for another socks.\n\nMerry Christmas!\n[Your Name]",
+        "It's the most wonderful time of the year! And also the most calorific. Enjoy!\n\nLove,\n[Your Name]"
+      ],
+      'Sweet': [
+        "Wishing you a Christmas as sweet and special as you are.\n\nWith love,\n[Your Name]",
+        "May your holidays sparkle with joy and your new year shine with promise.\n\nMerry Christmas,\n[Your Name]",
+        "Sending you warm wishes and festive hugs this holiday season.\n\nSweetly,\n[Your Name]"
+      ]
+    },
+    'Friendship': {
+      'Playful': [
+        "Thanks for being my partner in crime, my emergency contact, and my favourite weirdo.\n\nLove you!\n[Your Name]",
+        "We've been friends so long, I can't remember which one of us is the bad influence.\n\nCheers,\n[Your Name]",
+        "You're the friend everyone wishes they have. Lucky me!\n\nAlways,\n[Your Name]"
+      ],
+      'Heartfelt': [
+        "Thank you for being the kind of friend who makes life brighter just by being in it.\n\nWith love,\n[Your Name]",
+        "Some people come and go, but friends like you stay forever. Grateful for you.\n\nAlways,\n[Your Name]",
+        "You've seen me at my worst and somehow stuck around. That's true friendship.\n\nLove,\n[Your Name]"
+      ],
+      'Sweet': [
+        "A little note to remind you how much your friendship means to me.\n\nWith love,\n[Your Name]",
+        "Distance means nothing when someone means so much. Thinking of you.\n\nSweetly,\n[Your Name]",
+        "Thank you for the laughter, the memories, and the unconditional support.\n\nLove,\n[Your Name]"
+      ]
+    },
+    'Good Luck': {
+      'Heartfelt': [
+        "Believe in yourself as much as I believe in you. You've got this.\n\nWith confidence in you,\n[Your Name]",
+        "May luck follow you wherever you go. You're going to do amazing things.\n\nWarmly,\n[Your Name]",
+        "Sending you all the positive vibes and good fortune in the world.\n\nRooting for you,\n[Your Name]"
+      ],
+      'Playful': [
+        "Good luck! Remember: fortune favours the bold. And the slightly caffeinated.\n\nGo get 'em!\n[Your Name]",
+        "You've got this! And if you don't, I'll pretend I never wrote this card.\n\nCheers,\n[Your Name]",
+        "Knock 'em dead! (Not literally, that would be concerning.)\n\nGood luck!\n[Your Name]"
+      ],
+      'Sweet': [
+        "Wishing you all the luck and happiness in the world. You deserve it.\n\nWith love,\n[Your Name]",
+        "May everything fall into place for you. You've worked so hard.\n\nWarmly,\n[Your Name]",
+        "Sending you sunshine and good fortune. Go shine!\n\nSweetly,\n[Your Name]"
+      ]
+    },
+    'Retirement': {
+      'Playful': [
+        "Happy Retirement! Now every day is Saturday. Enjoy the lie-ins!\n\nCheers,\n[Your Name]",
+        "You've earned this! Time to do all the things you've been putting off for decades.\n\nBest wishes,\n[Your Name]",
+        "Retirement: where every day is casual Friday and there's no Monday morning.\n\nEnjoy!\n[Your Name]"
+      ],
+      'Heartfelt': [
+        "Thank you for your years of dedication and hard work. You've inspired us all.\n\nWith gratitude,\n[Your Name]",
+        "Your legacy will live on in everything you've built. Enjoy your well-earned rest.\n\nWarmly,\n[Your Name]",
+        "Wishing you a retirement filled with joy, adventure, and everything you love.\n\nWith admiration,\n[Your Name]"
+      ],
+      'Sweet': [
+        "May this new chapter bring you endless happiness and relaxation.\n\nWith love,\n[Your Name]",
+        "You've worked so hard for this moment. Enjoy every minute of it.\n\nSweetly,\n[Your Name]",
+        "Here's to new adventures and well-deserved rest. Happy Retirement!\n\nWarmly,\n[Your Name]"
+      ]
+    },
+    'Thinking of You': {
+      'Heartfelt': [
+        "You crossed my mind today and I wanted you to know you're in my heart.\n\nWith love,\n[Your Name]",
+        "Just a little reminder that someone out there cares about you deeply.\n\nWarmly,\n[Your Name]",
+        "Holding you close in my thoughts. You're not alone.\n\nWith love,\n[Your Name]"
+      ],
+      'Sweet': [
+        "Sending a little sunshine your way to brighten your day.\n\nWith love,\n[Your Name]",
+        "Just thinking of you and hoping you're doing okay.\n\nSweetly,\n[Your Name]",
+        "A small note to say you're appreciated and thought of often.\n\nWarmly,\n[Your Name]"
+      ],
+      'Playful': [
+        "I was thinking about you... and then I got distracted. But I'm back now!\n\nLove,\n[Your Name]",
+        "You popped into my head, so I'm popping into your inbox. Hi!\n\nCheers,\n[Your Name]",
+        "Just checking in! Life's too short not to tell people you're thinking of them.\n\nLove,\n[Your Name]"
+      ]
+    },
+    'Sympathy': {
+      'Heartfelt': [
+        "May the love of those around you help you through the days ahead. With deepest sympathy.\n\nWith love,\n[Your Name]",
+        "Words cannot express how sorry I am for your loss. You're in my thoughts.\n\nWith sympathy,\n[Your Name]",
+        "May you find comfort in the memories you shared and peace in the days to come.\n\nWith caring thoughts,\n[Your Name]"
+      ],
+      'Formal': [
+        "Please accept my heartfelt condolences. May you find strength and peace during this difficult time.\n\nWith deepest sympathy,\n[Your Name]",
+        "I am deeply sorry for your loss. May the memories of your loved one bring you comfort.\n\nRespectfully,\n[Your Name]",
+        "Accept my sincere condolences. You are in my thoughts and prayers.\n\nWith sympathy,\n[Your Name]"
+      ],
+      'Sweet': [
+        "Sending you gentle hugs and healing thoughts. May peace find you in the days ahead.\n\nWith love,\n[Your Name]",
+        "May the warmth of cherished memories bring you comfort and solace.\n\nWith caring thoughts,\n[Your Name]",
+        "Holding you gently in my heart during this tender time.\n\nWith love,\n[Your Name]"
+      ]
+    },
+    'Graduation': {
+      'Playful': [
+        "You did it! Now go forth and adult... eventually. No rush.\n\nCongratulations!\n[Your Name]",
+        "Caps off to you! The tassel was worth the hassle. Go celebrate!\n\nSo proud,\n[Your Name]",
+        "You graduated! I always knew you could do it. Eventually. After several all-nighters.\n\nCheers,\n[Your Name]"
+      ],
+      'Heartfelt': [
+        "Your hard work, late nights, and determination have led to this moment. So proud of you.\n\nWith admiration,\n[Your Name]",
+        "This diploma is more than paper — it's proof of your incredible perseverance. Congratulations!\n\nProudly,\n[Your Name]",
+        "The future is yours to shape. Go make it extraordinary.\n\nWith love,\n[Your Name]"
+      ],
+      'Sweet': [
+        "Wishing you a future filled with success, happiness, and endless possibilities.\n\nWith love,\n[Your Name]",
+        "May this graduation be the first of many amazing achievements.\n\nSweetly,\n[Your Name]",
+        "You've earned this moment. Enjoy it and dream big.\n\nWarmly,\n[Your Name]"
+      ]
+    },
+    'Engagement': {
+      'Heartfelt': [
+        "Wishing you a lifetime of love, laughter, and beautiful moments together.\n\nWith love,\n[Your Name]",
+        "May your engagement be the beginning of a love story for the ages.\n\nWarmest wishes,\n[Your Name]",
+        "So happy for you both! May your love grow deeper with each passing year.\n\nWith all my love,\n[Your Name]"
+      ],
+      'Sweet': [
+        "Here's to the happy couple! May your journey together be filled with joy.\n\nWith love,\n[Your Name]",
+        "Congratulations on your engagement! Wishing you endless happiness.\n\nSweetly,\n[Your Name]",
+        "A beautiful engagement for a beautiful couple. Cheers to forever!\n\nWarmly,\n[Your Name]"
+      ],
+      'Playful': [
+        "She said yes! Or he said yes! Either way, congratulations!\n\nCheers,\n[Your Name]",
+        "You're engaged! Now the real fun begins — wedding planning!\n\nLove,\n[Your Name]",
+        "Congratulations! Remember, a happy engagement is about finding the right person... and then arguing about the seating chart.\n\nBest wishes,\n[Your Name]"
+      ]
+    },
+    'Easter': {
+      'Playful': [
+        "Hoppy Easter! May your basket be heavy and your chocolate stash last until Monday.\n\nCheers,\n[Your Name]",
+        "Wishing you an egg-stra special Easter filled with joy and chocolate.\n\nHappy Easter!\n[Your Name]",
+        "It's Easter! Time to eat chocolate for breakfast and call it a balanced diet.\n\nLove,\n[Your Name]"
+      ],
+      'Sweet': [
+        "May your Easter be filled with spring sunshine, sweet moments, and chocolate eggs.\n\nWith love,\n[Your Name]",
+        "Wishing you a beautiful Easter surrounded by those you love.\n\nSweetly,\n[Your Name]",
+        "May the joy of Easter fill your home and heart.\n\nWarmly,\n[Your Name]"
+      ],
+      'Humorous': [
+        "Happy Easter! I hope the Easter Bunny brings you everything you wished for — and more chocolate.\n\nCheers,\n[Your Name]",
+        "It's Easter! The one day it's socially acceptable to eat chocolate before noon.\n\nEnjoy!\n[Your Name]",
+        "Hoppy Easter! May your day be egg-citing and your chocolate egg-stra large.\n\nLove,\n[Your Name]"
+      ]
+    },
+    'Housewarming': {
+      'Heartfelt': [
+        "May your new home be filled with love, laughter, and beautiful memories.\n\nWith love,\n[Your Name]",
+        "Wishing you endless happiness in your beautiful new space.\n\nWarmly,\n[Your Name]",
+        "Home is where the heart is — and yours is clearly in the right place.\n\nWith love,\n[Your Name]"
+      ],
+      'Sweet': [
+        "Congratulations on your new home! May it bring you comfort and joy.\n\nWith love,\n[Your Name]",
+        "Wishing you many happy moments in your new abode.\n\nSweetly,\n[Your Name]",
+        "May your new house feel like home from the very first day.\n\nWarmly,\n[Your Name]"
+      ],
+      'Cheeky': [
+        "Congratulations on the new place! When's the housewarming party? I'll bring snacks.\n\nCheers,\n[Your Name]",
+        "New home, new adventures! And by adventures, I mean arguing about whose turn it is to clean.\n\nLove,\n[Your Name]",
+        "You did it! A place of your own. Now the real challenge begins — assembling the furniture.\n\nBest wishes,\n[Your Name]"
+      ]
+    }
   };
 
   const fontsPool = [
@@ -1570,13 +2134,78 @@ function generateMasterTemplateCatalog(): CardTemplate[] {
     const id = `card-${String(idCounter).padStart(3, '0')}`;
     idCounter++;
 
-    const price = 3.49 + ((templates.length * 17) % 150) / 100;
-    const roundedPrice = Number(price.toFixed(2));
-    const rating = Number((4.6 + ((templates.length * 3) % 5) / 10).toFixed(1));
-    const reviewCount = 20 + ((templates.length * 29) % 360);
+    // Tiered pricing based on card style and features
+    const styleBasePrice: Record<CardStyleType, number> = {
+      'Minimal': 2.99,
+      'Typography': 2.99,
+      'Modern': 3.79,
+      'Cute': 3.79,
+      'Funny': 3.79,
+      'Cartoon': 3.79,
+      'Colorful': 3.79,
+      'Floral': 4.29,
+      'Elegant': 4.29,
+      'Retro': 4.29,
+      'Inspirational': 4.29,
+      'Luxury': 5.49,
+      'Photo': 5.49,
+    };
+    const basePrice = styleBasePrice[style] || 3.79;
+    const photoSurcharge = isPhoto ? 0.50 : 0;
+    const milestoneSurcharge = (hItem.headline.match(/\d+/)?.[0]) ? 0.30 : 0;
+    const roundedPrice = Number((basePrice + photoSurcharge + milestoneSurcharge).toFixed(2));
+
+    // Social proof correlates with popularity flags
+    const isBestSeller = templates.length % 8 === 0;
+    const isPopular = templates.length % 6 === 0;
+    const rating = isBestSeller || isPopular
+      ? Number((4.7 + ((templates.length * 7) % 3) / 10).toFixed(1))
+      : Number((4.3 + ((templates.length * 11) % 6) / 10).toFixed(1));
+    const reviewCount = isBestSeller
+      ? 150 + ((templates.length * 37) % 400)
+      : isPopular
+        ? 60 + ((templates.length * 23) % 150)
+        : 15 + ((templates.length * 13) % 120);
 
     const titleSuffix = `${hItem.title} - ${recipient}`;
     const desc = `A wonderfully designed ${style.toLowerCase()} ${occasion.toLowerCase()} card personalized especially for ${recipient}.`;
+
+    // Tone-specific tags for better searchability
+    const toneTags: Record<RawCardArchetype['tone'], string[]> = {
+      'Humorous': ['funny', 'humor', 'laugh', 'joke', 'witty'],
+      'Heartfelt': ['heartfelt', 'emotional', 'sincere', 'touching', 'meaningful'],
+      'Cheeky': ['cheeky', 'sassy', 'witty', 'playful', 'teasing'],
+      'Sweet': ['sweet', 'lovely', 'gentle', 'tender', 'warm'],
+      'Formal': ['formal', 'elegant', 'classic', 'sophisticated', 'refined'],
+      'Playful': ['playful', 'fun', 'cheerful', 'bright', 'lively'],
+    };
+    const tags = [
+      occasion.toLowerCase(),
+      style.toLowerCase(),
+      recipient.toLowerCase(),
+      ...toneTags[hItem.tone],
+      'personalized',
+      'greeting card'
+    ];
+
+    // Season metadata for seasonal browsing
+    const seasonMap: Partial<Record<OccasionType, 'spring' | 'summer' | 'autumn' | 'winter' | 'all-year'>> = {
+      'Christmas': 'winter',
+      'Valentine\'s Day': 'winter',
+      'Easter': 'spring',
+      'Mother\'s Day': 'spring',
+      'Father\'s Day': 'summer',
+      'Graduation': 'spring',
+      'Housewarming': 'autumn',
+    };
+    const season = seasonMap[occasion] || 'all-year';
+
+    // Select inside message from bank based on occasion + tone
+    const occasionMessages = insideMessageBank[occasion];
+    const toneMessages = occasionMessages?.[hItem.tone];
+    const fallbackMessages = occasionMessages?.['Heartfelt'] || insideMessageBank['Birthday']?.['Heartfelt'] || [];
+    const insideMessages = toneMessages && toneMessages.length > 0 ? toneMessages : fallbackMessages;
+    const insideText = insideMessages[templates.length % insideMessages.length];
 
     const thumb = assignedCover
       ? assignedCover
@@ -1601,21 +2230,23 @@ function generateMasterTemplateCatalog(): CardTemplate[] {
       recipient: recipient,
       style: style,
       tone: hItem.tone,
-      tags: [occasion.toLowerCase(), style.toLowerCase(), recipient.toLowerCase(), 'personalized', 'greeting card'],
+      tags,
       price: roundedPrice,
       rating,
       reviewCount,
       isPhotoCard: isPhoto,
-      isPopular: templates.length % 6 === 0,
-      isBestSeller: templates.length % 8 === 0,
-      isNew: templates.length % 9 === 0,
+      isPopular,
+      isBestSeller,
+      isNew: idCounter > 300,
       thumbnail: thumb,
       previewColors: [palette.bgColor, palette.accentColor, palette.textColor],
+      altText: `${style} ${occasion} card for ${recipient} — ${hItem.title}`,
+      season,
       defaultPages: buildDefaultPages(
         hItem.headline,
         hItem.subText,
         recipient === 'Her' ? 'Sarah' : recipient === 'Him' ? 'David' : recipient,
-        `Wishing you so much happiness and smiles on this special ${occasion.toLowerCase()}!\n\nWith all my love,\n[Your Name]`,
+        insideText,
         palette.bgGradient,
         palette.bgColor,
         palette.textColor,

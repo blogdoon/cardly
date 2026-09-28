@@ -103,7 +103,10 @@ export type OccasionType =
   | 'Christmas'
   | 'Easter'
   | 'Friendship'
-  | 'Thinking of You';
+  | 'Thinking of You'
+  | 'Sympathy'
+  | 'Graduation'
+  | 'Housewarming';
 
 export type RecipientType =
   | 'Her'
@@ -157,6 +160,8 @@ export interface CardTemplate {
   isNew?: boolean;
   isBestSeller?: boolean;
   milestoneAge?: number;
+  altText?: string;
+  season?: 'spring' | 'summer' | 'autumn' | 'winter' | 'all-year';
   thumbnail: string;
   previewColors: string[];
   defaultPages: {
