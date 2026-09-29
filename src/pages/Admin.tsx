@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   ShieldCheck,
   Search,
@@ -11,7 +11,8 @@ import {
   ArrowLeft,
   DollarSign,
   TrendingUp,
-  AlertCircle
+  AlertCircle,
+  FolderHeart
 } from 'lucide-react';
 import { ALL_TEMPLATES } from '../data/templates';
 import { CardTemplate } from '../types/template';
@@ -19,9 +20,10 @@ import { getLocalOrders } from '../services/cardStorage';
 import { Order } from '../types/order';
 import { useAuth } from '../context/AuthContext';
 import { isFirebaseConfigured } from '../services/firebase';
+import { OccasionStudio } from '../components/Admin/OccasionStudio';
 
 interface AdminProps {
-  onNavigate: (route: string) => void;
+  onNavigate: (route: string, param?: string) => void;
 }
 
 export const Admin: React.FC<AdminProps> = ({ onNavigate }) => {
@@ -30,7 +32,13 @@ export const Admin: React.FC<AdminProps> = ({ onNavigate }) => {
   const [orders, setOrders] = useState<Order[]>(getLocalOrders());
   const [search, setSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
-  const [activeTab, setActiveTab] = useState<'catalog' | 'orders' | 'system'>('catalog');
+  const [activeTab, setActiveTab] = useState<'catalog' | 'orders' | 'occasions' | 'system'>('catalog');
+
+  useEffect(() => {
+    const handleUpdate = () => setTemplates([...ALL_TEMPLATES]);
+    window.addEventListener('cardly_templates_updated', handleUpdate);
+    return () => window.removeEventListener('cardly_templates_updated', handleUpdate);
+  }, []);
 
   const filteredTemplates = templates.filter((t) => {
     if (selectedCategory !== 'All' && t.category !== selectedCategory) return false;
@@ -100,6 +108,15 @@ export const Admin: React.FC<AdminProps> = ({ onNavigate }) => {
             }`}
           >
             Orders ({orders.length})
+          </button>
+          <button
+            onClick={() => setActiveTab('occasions')}
+            className={`px-4 py-2 rounded-xl transition flex items-center gap-1.5 ${
+              activeTab === 'occasions' ? 'bg-white shadow-xs text-slate-900' : 'text-slate-600'
+            }`}
+          >
+            <FolderHeart className="w-3.5 h-3.5 text-rose-500" />
+            Occasions & Studio
           </button>
           <button
             onClick={() => setActiveTab('system')}
@@ -269,6 +286,16 @@ export const Admin: React.FC<AdminProps> = ({ onNavigate }) => {
             ))}
           </div>
         </div>
+      )}
+
+      {/* Tab: Occasions Studio & Template Generator */}
+      {activeTab === 'occasions' && (
+        <OccasionStudio
+          onNavigate={onNavigate}
+          onTemplateCreated={(newTpl) => {
+            setTemplates([...ALL_TEMPLATES]);
+          }}
+        />
       )}
 
       {/* Tab: System & Firebase */}

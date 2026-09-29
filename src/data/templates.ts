@@ -20,6 +20,29 @@ import wildflowerMeadowImg from '../assets/images/card_wildflower_meadow_cover_1
 import abstractTerrazzoImg from '../assets/images/card_abstract_terrazzo_pastel_cover_1790279901073.jpg';
 import boldLetterpressImg from '../assets/images/card_bold_letterpress_gold_cover_1790279911475.jpg';
 
+// Commercial warm ivory botanical collection (asymmetrical right-edge bleed with text-safe clear zone)
+import birthdayIvoryCoverImg from '../assets/images/birthday_ivory_botanical_1790673882764.jpg';
+import anniversaryIvoryCoverImg from '../assets/images/anniversary_ivory_botanical_1790673896218.jpg';
+import weddingIvoryCoverImg from '../assets/images/wedding_ivory_botanical_1790673911132.jpg';
+import thankYouIvoryCoverImg from '../assets/images/thankyou_ivory_botanical_1790673920335.jpg';
+import sympathyIvoryCoverImg from '../assets/images/sympathy_ivory_botanical_1790673931631.jpg';
+import newBabyIvoryCoverImg from '../assets/images/new_baby_card_1790690688611.jpg';
+import congratulationsIvoryCoverImg from '../assets/images/congratulations_card_1790690699969.jpg';
+import valentinesIvoryCoverImg from '../assets/images/valentines_card_1790690709324.jpg';
+import mothersDayIvoryCoverImg from '../assets/images/mothers_day_card_1790690724885.jpg';
+import fathersDayIvoryCoverImg from '../assets/images/fathers_day_card_1790690738374.jpg';
+import getWellIvoryCoverImg from '../assets/images/get_well_card_1790690754120.jpg';
+import christmasIvoryCoverImg from '../assets/images/christmas_holiday_card_1790690763572.jpg';
+
+// Dynamic Occasion Folder Templates Loader
+import {
+  generateTemplatesFromOccasionImages,
+  getOccasionImageEntries,
+  getCustomUploadedTemplates,
+  saveCustomUploadedTemplate,
+  deleteCustomUploadedTemplate,
+} from '../utils/occasionTemplateLoader';
+
 interface RawCardArchetype {
   title: string;
   desc: string;
@@ -33,6 +56,7 @@ interface RawCardArchetype {
   rating: number;
   reviews: number;
   isPhoto: boolean;
+  isAsymmetricIvory?: boolean;
   coverImage?: string;
   bgGradient: string;
   bgColor: string;
@@ -656,6 +680,319 @@ const BASE_ARCHETYPES: RawCardArchetype[] = [
     defaultName: "Grace",
     insideRightText: "Holding you close in my thoughts and heart. Whenever you need a chat, a cup of tea, or a silent hug, I am always right here for you.\n\nMuch love,\n[Your Name]",
     stickerId: "leaf-branch"
+  },
+  // --- Warm Ivory Botanical Collection (Commercial Right-Edge Asymmetric Layout with Clear Text-Safe Area) ---
+  {
+    title: "Warm Ivory Botanical Birthday",
+    desc: "Boutique ivory cardstock featuring gold-foil balloons, delicate confetti, and cascading right-edge botanical flora.",
+    category: "Birthday",
+    subcategory: "Botanical Luxury",
+    recipient: "Her",
+    style: "Floral",
+    tone: "Playful",
+    tags: ["birthday", "botanical", "ivory", "luxury", "balloons", "gold foil"],
+    price: 4.29,
+    rating: 4.9,
+    reviews: 195,
+    isPhoto: false,
+    isAsymmetricIvory: true,
+    coverImage: birthdayIvoryCoverImg,
+    bgGradient: "linear-gradient(135deg, #fdfbf7 0%, #f7f3ec 100%)",
+    bgColor: "#faf8f5",
+    textColor: "#881337",
+    accentColor: "#e11d48",
+    fontHeadline: "'Playfair Display', serif",
+    headlineText: "Happiest of Birthdays",
+    subText: "To someone truly wonderful and cherished.",
+    defaultName: "Emma",
+    insideRightText: "Wishing you a birthday blooming with joy, sweet laughter, and all the happiness in the world.\n\nWith all my love,\n[Your Name]",
+    stickerId: "balloon-party"
+  },
+  {
+    title: "Golden Olive & Garden Rose Anniversary",
+    desc: "Romantic warm ivory card with trailing olive branches, garden roses, and champagne gold vines.",
+    category: "Anniversary",
+    subcategory: "Romantic Flora",
+    recipient: "Partner",
+    style: "Elegant",
+    tone: "Heartfelt",
+    tags: ["anniversary", "botanical", "roses", "olive branch", "romance"],
+    price: 4.49,
+    rating: 5.0,
+    reviews: 240,
+    isPhoto: false,
+    isAsymmetricIvory: true,
+    coverImage: anniversaryIvoryCoverImg,
+    bgGradient: "linear-gradient(135deg, #fdfbf7 0%, #f7f3ec 100%)",
+    bgColor: "#faf8f5",
+    textColor: "#4c1d95",
+    accentColor: "#b45309",
+    fontHeadline: "'Cormorant Garamond', serif",
+    headlineText: "Forever & Always",
+    subText: "Celebrating another beautiful year of our love story.",
+    defaultName: "My Love",
+    insideRightText: "Every single year with you is my favourite chapter. Thank you for filling my days with warmth and endless love.\n\nYours forever,\n[Your Name]",
+    stickerId: "champagne-toast"
+  },
+  {
+    title: "Ethereal Ivory Orchid Wedding",
+    desc: "Luxury ivory letterpress wedding card with cascading white orchids, eucalyptus, and gold foil accents.",
+    category: "Wedding",
+    subcategory: "Luxury Letterpress",
+    recipient: "Anyone",
+    style: "Luxury",
+    tone: "Heartfelt",
+    tags: ["wedding", "orchids", "eucalyptus", "gold foil", "marriage"],
+    price: 4.99,
+    rating: 5.0,
+    reviews: 310,
+    isPhoto: false,
+    isAsymmetricIvory: true,
+    coverImage: weddingIvoryCoverImg,
+    bgGradient: "linear-gradient(135deg, #fdfbf7 0%, #f7f3ec 100%)",
+    bgColor: "#faf8f5",
+    textColor: "#1c1917",
+    accentColor: "#d97706",
+    fontHeadline: "'Playfair Display', serif",
+    headlineText: "A Lifetime of Love",
+    subText: "Warmest congratulations on your wedding day.",
+    defaultName: "The Happy Couple",
+    insideRightText: "May your wedding day be only the first chapter of a long, joy-filled, and extraordinary life together.\n\nWarmest wishes,\n[Your Name]",
+    stickerId: "champagne-toast"
+  },
+  {
+    title: "Lavender & Sweet Pea Thank You",
+    desc: "Graceful botanical stationery card with trailing hydrangeas, sweet peas, and honeysuckle foliage.",
+    category: "Thank You",
+    subcategory: "Botanical Gratitude",
+    recipient: "Friend",
+    style: "Floral",
+    tone: "Heartfelt",
+    tags: ["thank you", "lavender", "hydrangea", "gratitude", "sweet pea"],
+    price: 3.99,
+    rating: 4.9,
+    reviews: 168,
+    isPhoto: false,
+    isAsymmetricIvory: true,
+    coverImage: thankYouIvoryCoverImg,
+    bgGradient: "linear-gradient(135deg, #fdfbf7 0%, #f7f3ec 100%)",
+    bgColor: "#faf8f5",
+    textColor: "#1e3a8a",
+    accentColor: "#7c3aed",
+    fontHeadline: "'Playfair Display', serif",
+    headlineText: "With Heartfelt Thanks",
+    subText: "Your kindness touched my heart in so many ways.",
+    defaultName: "Sarah",
+    insideRightText: "Thank you so very much for your generosity and warmth. It meant more than words could ever say.\n\nWarmly & gratefully,\n[Your Name]",
+    stickerId: "flower-bloom"
+  },
+  {
+    title: "Peaceful Calla Lily & Willow Sympathy",
+    desc: "Serene warm ivory sympathy card featuring calla lilies, willow sprigs, and gentle twilight tones.",
+    category: "Sympathy",
+    subcategory: "Serene Comfort",
+    recipient: "Anyone",
+    style: "Elegant",
+    tone: "Heartfelt",
+    tags: ["sympathy", "calla lily", "peaceful", "comfort", "condolences"],
+    price: 4.19,
+    rating: 4.9,
+    reviews: 145,
+    isPhoto: false,
+    isAsymmetricIvory: true,
+    coverImage: sympathyIvoryCoverImg,
+    bgGradient: "linear-gradient(135deg, #fdfbf7 0%, #f7f3ec 100%)",
+    bgColor: "#faf8f5",
+    textColor: "#334155",
+    accentColor: "#64748b",
+    fontHeadline: "'Cormorant Garamond', serif",
+    headlineText: "In Loving Thought",
+    subText: "May peace and comfort find you in the days ahead.",
+    defaultName: "Dear Family",
+    insideRightText: "Holding you close in our thoughts and prayers during this tender time. May the treasured memories of your loved one bring you peace.\n\nWith deepest sympathy,\n[Your Name]",
+    stickerId: "leaf-branch"
+  },
+  {
+    title: "Soft Pastels & Golden Stardust New Baby",
+    desc: "Delicate nursery botanical card with heirloom accents, soft eucalyptus, and gentle golden stardust.",
+    category: "New Baby",
+    subcategory: "Artisan Nursery",
+    recipient: "Anyone",
+    style: "Cute",
+    tone: "Sweet",
+    tags: ["new baby", "nursery", "botanical", "pastels", "welcome baby"],
+    price: 4.29,
+    rating: 4.9,
+    reviews: 132,
+    isPhoto: false,
+    isAsymmetricIvory: true,
+    coverImage: newBabyIvoryCoverImg,
+    bgGradient: "linear-gradient(135deg, #fdfbf7 0%, #f7f3ec 100%)",
+    bgColor: "#faf8f5",
+    textColor: "#0f766e",
+    accentColor: "#f59e0b",
+    fontHeadline: "'Playfair Display', serif",
+    headlineText: "Welcome Little Wonder",
+    subText: "A tiny arrival brings the greatest joy.",
+    defaultName: "Baby",
+    insideRightText: "Welcome to the world, precious little one! Wishing your family endless joy, sweet snuggles, and magical memories.\n\nWith all our love,\n[Your Name]",
+    stickerId: "star-sparkle"
+  },
+  {
+    title: "Golden Laurel & Starburst Congratulations",
+    desc: "Prestigious ivory stationery card with cascading celebration laurels, sapphire accents, and rich metallic gold foil.",
+    category: "Congratulations",
+    subcategory: "Triumphant Milestone",
+    recipient: "Anyone",
+    style: "Luxury",
+    tone: "Heartfelt",
+    tags: ["congratulations", "achievement", "laurel", "gold foil", "success"],
+    price: 4.49,
+    rating: 5.0,
+    reviews: 215,
+    isPhoto: false,
+    isAsymmetricIvory: true,
+    coverImage: congratulationsIvoryCoverImg,
+    bgGradient: "linear-gradient(135deg, #fdfbf7 0%, #f7f3ec 100%)",
+    bgColor: "#faf8f5",
+    textColor: "#1e3a8a",
+    accentColor: "#d97706",
+    fontHeadline: "'Playfair Display', serif",
+    headlineText: "Huge Congratulations!",
+    subText: "Your hard work and brilliance have truly shone through.",
+    defaultName: "Champion",
+    insideRightText: "So enormously proud of all that you have accomplished. Here is to celebrating your well-deserved triumph!\n\nWarmest congratulations,\n[Your Name]",
+    stickerId: "champagne-toast"
+  },
+  {
+    title: "Velvet Crimson Roses & Jasmine Valentine",
+    desc: "Intimate and luxurious warm ivory romance card with velvet crimson garden roses and entwined jasmine vines.",
+    category: "Valentine's Day",
+    subcategory: "Romantic Botany",
+    recipient: "Partner",
+    style: "Floral",
+    tone: "Heartfelt",
+    tags: ["valentines", "crimson roses", "romance", "jasmine", "love"],
+    price: 4.49,
+    rating: 5.0,
+    reviews: 280,
+    isPhoto: false,
+    isAsymmetricIvory: true,
+    coverImage: valentinesIvoryCoverImg,
+    bgGradient: "linear-gradient(135deg, #fdfbf7 0%, #f7f3ec 100%)",
+    bgColor: "#faf8f5",
+    textColor: "#9f1239",
+    accentColor: "#e11d48",
+    fontHeadline: "'Cormorant Garamond', serif",
+    headlineText: "Forever My Valentine",
+    subText: "With all my heart, today and for all our tomorrows.",
+    defaultName: "My Dearest",
+    insideRightText: "Every moment by your side makes my world brighter and infinitely happier. Happy Valentine's Day, my love.\n\nYours always,\n[Your Name]",
+    stickerId: "heart-sparkle"
+  },
+  {
+    title: "Blushing Peony & Rose Gold Mother's Day",
+    desc: "Elegantly composed botanical stationery card with lush English peonies, peach blossoms, and warm rose gold flora.",
+    category: "Mother's Day",
+    subcategory: "Sweet Botany",
+    recipient: "Mum",
+    style: "Floral",
+    tone: "Sweet",
+    tags: ["mothers day", "peonies", "mum", "flowers", "botanical"],
+    price: 4.29,
+    rating: 4.9,
+    reviews: 260,
+    isPhoto: false,
+    isAsymmetricIvory: true,
+    coverImage: mothersDayIvoryCoverImg,
+    bgGradient: "linear-gradient(135deg, #fdfbf7 0%, #f7f3ec 100%)",
+    bgColor: "#faf8f5",
+    textColor: "#9d174d",
+    accentColor: "#be185d",
+    fontHeadline: "'Playfair Display', serif",
+    headlineText: "To the World's Best Mum",
+    subText: "Thank you for your endless love and boundless warmth.",
+    defaultName: "Mum",
+    insideRightText: "Thank you for being my constant light, guiding hand, and biggest supporter. Wishing you the most beautiful Mother's Day.\n\nWith all my love,\n[Your Name]",
+    stickerId: "flower-bloom"
+  },
+  {
+    title: "Distinguished Oak & Copper Father's Day",
+    desc: "Refined warm ivory card featuring detailed botanical oak foliage, acorns, juniper, and rich copper foil details.",
+    category: "Father's Day",
+    subcategory: "Distinguished Botanical",
+    recipient: "Dad",
+    style: "Elegant",
+    tone: "Heartfelt",
+    tags: ["fathers day", "oak leaves", "dad", "copper", "botanical"],
+    price: 4.29,
+    rating: 4.9,
+    reviews: 198,
+    isPhoto: false,
+    isAsymmetricIvory: true,
+    coverImage: fathersDayIvoryCoverImg,
+    bgGradient: "linear-gradient(135deg, #fdfbf7 0%, #f7f3ec 100%)",
+    bgColor: "#faf8f5",
+    textColor: "#1e293b",
+    accentColor: "#b45309",
+    fontHeadline: "'Playfair Display', serif",
+    headlineText: "To An Extraordinary Dad",
+    subText: "Grateful for your wisdom, humor, and steadfast guidance.",
+    defaultName: "Dad",
+    insideRightText: "Thank you for always standing by me with great stories, sound wisdom, and unwavering encouragement.\n\nCheers Dad,\n[Your Name]",
+    stickerId: "leaf-branch"
+  },
+  {
+    title: "Chamomile & Citrus Bloom Get Well",
+    desc: "Soothing warm ivory stationery card with calming chamomile flowers, fresh mint sprigs, and gentle herbal blossoms.",
+    category: "Get Well",
+    subcategory: "Comforting Florals",
+    recipient: "Anyone",
+    style: "Floral",
+    tone: "Sweet",
+    tags: ["get well", "chamomile", "healing", "comfort", "flowers"],
+    price: 3.99,
+    rating: 4.9,
+    reviews: 112,
+    isPhoto: false,
+    isAsymmetricIvory: true,
+    coverImage: getWellIvoryCoverImg,
+    bgGradient: "linear-gradient(135deg, #fdfbf7 0%, #f7f3ec 100%)",
+    bgColor: "#faf8f5",
+    textColor: "#0369a1",
+    accentColor: "#eab308",
+    fontHeadline: "'Playfair Display', serif",
+    headlineText: "Sending Gentle Healing Hugs",
+    subText: "Wishing you a calm, restful, and speedy recovery.",
+    defaultName: "Friend",
+    insideRightText: "Take all the time you need to rest, recharge, and heal. Sending you warm hugs and brightest thoughts every day.\n\nGet well soon,\n[Your Name]",
+    stickerId: "flower-bloom"
+  },
+  {
+    title: "Frosted Evergreen & Cranberry Christmas",
+    desc: "Festive warm ivory holiday card with frosted pine boughs, winter cranberries, golden pinecones, and antique leaf accents.",
+    category: "Christmas",
+    subcategory: "Festive Botanicals",
+    recipient: "Anyone",
+    style: "Floral",
+    tone: "Heartfelt",
+    tags: ["christmas", "holiday", "evergreen", "cranberry", "gold leaf"],
+    price: 4.49,
+    rating: 5.0,
+    reviews: 340,
+    isPhoto: false,
+    isAsymmetricIvory: true,
+    coverImage: christmasIvoryCoverImg,
+    bgGradient: "linear-gradient(135deg, #fdfbf7 0%, #f7f3ec 100%)",
+    bgColor: "#faf8f5",
+    textColor: "#166534",
+    accentColor: "#b91c1c",
+    fontHeadline: "'Playfair Display', serif",
+    headlineText: "Merry & Wonderfully Bright",
+    subText: "Warmest season's greetings to you and your loved ones.",
+    defaultName: "Friends & Family",
+    insideRightText: "May the magic and tranquility of the holiday season fill your home with warmth, love, and sweet memories.\n\nMerry Christmas,\n[Your Name]",
+    stickerId: "star-sparkle"
   }
 ];
 
@@ -1336,56 +1673,98 @@ function buildDefaultPages(
   fontHeadline: string,
   isPhoto: boolean,
   stickerId?: string,
-  coverImage?: string
+  coverImage?: string,
+  isAsymmetricIvory?: boolean
 ): CardTemplate['defaultPages'] {
-  const frontElements: CardPageDefinition['elements'] = [
-    {
-      id: 'headline-1',
-      type: 'text',
-      x: 50,
-      y: isPhoto ? 18 : 32,
-      width: 82,
-      height: 18,
-      rotation: 0,
-      zIndex: 10,
-      text: title,
-      fontFamily: fontHeadline,
-      fontSize: 36,
-      color: textColor,
-      textAlign: 'center',
-      fontWeight: 'bold',
-      personalizationField: 'message',
-      hasBackground: Boolean(coverImage),
-      backgroundColor: '#ffffff',
-      backgroundOpacity: 0.85,
-      borderRadius: 12,
-      backgroundPadding: 8,
-      textShadow: coverImage ? 'soft-dark' : 'none',
-    },
-    {
-      id: 'subtext-1',
-      type: 'text',
-      x: 50,
-      y: isPhoto ? 76 : 64,
-      width: 76,
-      height: 12,
-      rotation: 0,
-      zIndex: 11,
-      text: subText || `To dear ${defaultName}`,
-      fontFamily: "'Playfair Display', serif",
-      fontSize: 18,
-      color: textColor,
-      textAlign: 'center',
-      fontWeight: '600',
-      personalizationField: 'name',
-      hasBackground: Boolean(coverImage),
-      backgroundColor: '#ffffff',
-      backgroundOpacity: 0.85,
-      borderRadius: 9999,
-      backgroundPadding: 6,
-      textShadow: coverImage ? 'soft-dark' : 'none',
-    }
-  ];
+  const frontElements: CardPageDefinition['elements'] = isAsymmetricIvory
+    ? [
+        {
+          id: 'headline-1',
+          type: 'text',
+          x: 32,
+          y: 40,
+          width: 44,
+          height: 24,
+          rotation: 0,
+          zIndex: 10,
+          text: title,
+          fontFamily: fontHeadline,
+          fontSize: 28,
+          color: textColor,
+          textAlign: 'left',
+          fontWeight: 'bold',
+          personalizationField: 'message',
+          hasBackground: false,
+          textShadow: 'none',
+        },
+        {
+          id: 'subtext-1',
+          type: 'text',
+          x: 32,
+          y: 56,
+          width: 44,
+          height: 16,
+          rotation: 0,
+          zIndex: 11,
+          text: subText || `To dear ${defaultName}`,
+          fontFamily: "'Playfair Display', serif",
+          fontSize: 16,
+          color: textColor,
+          textAlign: 'left',
+          fontWeight: 'normal',
+          personalizationField: 'name',
+          hasBackground: false,
+          textShadow: 'none',
+        },
+      ]
+    : [
+        {
+          id: 'headline-1',
+          type: 'text',
+          x: 50,
+          y: isPhoto ? 18 : 32,
+          width: 82,
+          height: 18,
+          rotation: 0,
+          zIndex: 10,
+          text: title,
+          fontFamily: fontHeadline,
+          fontSize: 36,
+          color: textColor,
+          textAlign: 'center',
+          fontWeight: 'bold',
+          personalizationField: 'message',
+          hasBackground: Boolean(coverImage),
+          backgroundColor: '#ffffff',
+          backgroundOpacity: 0.85,
+          borderRadius: 12,
+          backgroundPadding: 8,
+          textShadow: coverImage ? 'soft-dark' : 'none',
+        },
+        {
+          id: 'subtext-1',
+          type: 'text',
+          x: 50,
+          y: isPhoto ? 76 : 64,
+          width: 76,
+          height: 12,
+          rotation: 0,
+          zIndex: 11,
+          text: subText || `To dear ${defaultName}`,
+          fontFamily: "'Playfair Display', serif",
+          fontSize: 18,
+          color: textColor,
+          textAlign: 'center',
+          fontWeight: '600',
+          personalizationField: 'name',
+          hasBackground: Boolean(coverImage),
+          backgroundColor: '#ffffff',
+          backgroundOpacity: 0.85,
+          borderRadius: 9999,
+          backgroundPadding: 6,
+          textShadow: coverImage ? 'soft-dark' : 'none',
+        }
+      ];
 
   if (isPhoto) {
     frontElements.push({
@@ -1529,27 +1908,38 @@ function generateMasterTemplateCatalog(): CardTemplate[] {
 
   // Studio artwork covers categorized by occasion
   const occasionCoverPool: Record<string, string[]> = {
-    'Birthday': [birthdayCoverImg, artDecoLuxuryImg, abstractTerrazzoImg, kidsSafariImg, humorRetroCoverImg, vintageCoverImg],
-    'Anniversary': [anniversaryCoverImg, weddingCoverImg, artDecoLuxuryImg],
-    'Wedding': [weddingCoverImg, anniversaryCoverImg, floralCoverImg],
-    'New Baby': [babyCoverImg, kidsSafariImg, wildflowerMeadowImg],
-    'Congratulations': [congratulationsCoverImg, boldLetterpressImg, artDecoLuxuryImg],
-    'Thank You': [thankYouCoverImg, wildflowerMeadowImg, floralCoverImg],
-    'Valentine\'s Day': [anniversaryCoverImg, weddingCoverImg],
-    'Mother\'s Day': [floralCoverImg, wildflowerMeadowImg, abstractTerrazzoImg],
-    'Father\'s Day': [vintageCoverImg, boldLetterpressImg],
-    'Get Well': [getWellTeaImg, sympathyDawnImg, wildflowerMeadowImg],
-    'Christmas': [christmasCoverImg],
+    'Birthday': [birthdayCoverImg, birthdayIvoryCoverImg, artDecoLuxuryImg, abstractTerrazzoImg, kidsSafariImg, humorRetroCoverImg, vintageCoverImg],
+    'Anniversary': [anniversaryCoverImg, anniversaryIvoryCoverImg, weddingCoverImg, artDecoLuxuryImg],
+    'Wedding': [weddingCoverImg, weddingIvoryCoverImg, anniversaryCoverImg, floralCoverImg],
+    'New Baby': [babyCoverImg, newBabyIvoryCoverImg, kidsSafariImg, wildflowerMeadowImg],
+    'Congratulations': [congratulationsCoverImg, congratulationsIvoryCoverImg, boldLetterpressImg, artDecoLuxuryImg],
+    'Thank You': [thankYouCoverImg, thankYouIvoryCoverImg, wildflowerMeadowImg, floralCoverImg],
+    'Valentine\'s Day': [valentinesIvoryCoverImg, anniversaryCoverImg, anniversaryIvoryCoverImg, weddingCoverImg],
+    'Mother\'s Day': [mothersDayIvoryCoverImg, floralCoverImg, wildflowerMeadowImg, abstractTerrazzoImg],
+    'Father\'s Day': [fathersDayIvoryCoverImg, vintageCoverImg, boldLetterpressImg],
+    'Get Well': [getWellIvoryCoverImg, getWellTeaImg, sympathyDawnImg, wildflowerMeadowImg],
+    'Christmas': [christmasCoverImg, christmasIvoryCoverImg],
     'Friendship': [friendshipCocktailsImg, abstractTerrazzoImg, humorRetroCoverImg],
     'Good Luck': [congratulationsCoverImg, boldLetterpressImg],
     'Retirement': [boldLetterpressImg, vintageCoverImg],
     'Thinking of You': [sympathyDawnImg, getWellTeaImg, wildflowerMeadowImg],
-    'Sympathy': [sympathyDawnImg, getWellTeaImg, wildflowerMeadowImg],
+    'Sympathy': [sympathyDawnImg, sympathyIvoryCoverImg, getWellTeaImg, wildflowerMeadowImg],
     'Graduation': [boldLetterpressImg, congratulationsCoverImg, artDecoLuxuryImg],
-    'Engagement': [weddingCoverImg, anniversaryCoverImg, floralCoverImg],
+    'Engagement': [weddingCoverImg, weddingIvoryCoverImg, anniversaryCoverImg, floralCoverImg],
     'Easter': [wildflowerMeadowImg, floralCoverImg, babyCoverImg],
     'Housewarming': [abstractTerrazzoImg, boldLetterpressImg, wildflowerMeadowImg]
   };
+
+  // Automatically register any images found in src/assets/images/occasions/<occasion>/
+  const discoveredEntries = getOccasionImageEntries();
+  for (const entry of discoveredEntries) {
+    if (!occasionCoverPool[entry.occasion]) {
+      occasionCoverPool[entry.occasion] = [];
+    }
+    if (!occasionCoverPool[entry.occasion].includes(entry.imageUrl)) {
+      occasionCoverPool[entry.occasion].unshift(entry.imageUrl);
+    }
+  }
 
   let idCounter = 1;
 
@@ -1605,7 +1995,8 @@ function generateMasterTemplateCatalog(): CardTemplate[] {
         base.fontHeadline,
         base.isPhoto,
         base.stickerId,
-        base.coverImage
+        base.coverImage,
+        base.isAsymmetricIvory
       )
     });
   }
@@ -2258,6 +2649,30 @@ function generateMasterTemplateCatalog(): CardTemplate[] {
     });
   }
 
+  // Append dynamically generated templates from occasion folders
+  try {
+    const dynamicOccasionTemplates = generateTemplatesFromOccasionImages();
+    for (const dt of dynamicOccasionTemplates) {
+      if (!templates.some((t) => t.id === dt.id)) {
+        templates.push(dt);
+      }
+    }
+  } catch (e) {
+    console.warn('Could not load dynamic occasion templates:', e);
+  }
+
+  // Append custom uploaded templates created via the Admin Occasion Studio
+  try {
+    const customTemplates = getCustomUploadedTemplates();
+    for (const ct of customTemplates) {
+      if (!templates.some((t) => t.id === ct.id)) {
+        templates.unshift(ct);
+      }
+    }
+  } catch {
+    // In SSR/prerender localStorage is undefined
+  }
+
   return templates;
 }
 
@@ -2282,3 +2697,28 @@ export function getPopularTemplates(limit = 12): CardTemplate[] {
 export function getPhotoTemplates(limit = 12): CardTemplate[] {
   return ALL_TEMPLATES.filter((t) => t.isPhotoCard).slice(0, limit);
 }
+
+export function registerCustomTemplate(template: CardTemplate): void {
+  saveCustomUploadedTemplate(template);
+  const existingIdx = ALL_TEMPLATES.findIndex((t) => t.id === template.id);
+  if (existingIdx >= 0) {
+    ALL_TEMPLATES[existingIdx] = template;
+  } else {
+    ALL_TEMPLATES.unshift(template);
+  }
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('cardly_templates_updated', { detail: template }));
+  }
+}
+
+export function unregisterCustomTemplate(templateId: string): void {
+  deleteCustomUploadedTemplate(templateId);
+  const existingIdx = ALL_TEMPLATES.findIndex((t) => t.id === templateId);
+  if (existingIdx >= 0) {
+    ALL_TEMPLATES.splice(existingIdx, 1);
+  }
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('cardly_templates_updated', { detail: { id: templateId, deleted: true } }));
+  }
+}
+

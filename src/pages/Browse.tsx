@@ -3,7 +3,7 @@ import { Filter, X, SlidersHorizontal, Search, ChevronDown, RotateCcw, Camera } 
 import { CardTile } from '../components/CardTile';
 import { ALL_TEMPLATES } from '../data/templates';
 import { OCCASIONS_LIST, RECIPIENTS_LIST, STYLES_LIST, MILESTONE_AGES } from '../data/categories';
-import { OccasionType, RecipientType, CardStyleType } from '../types/template';
+import { CardTemplate, OccasionType, RecipientType, CardStyleType } from '../types/template';
 
 interface BrowseProps {
   initialCategory?: string;
@@ -29,6 +29,13 @@ export const Browse: React.FC<BrowseProps> = ({
 
   const [visibleCount, setVisibleCount] = useState(24);
   const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
+  const [templateList, setTemplateList] = useState<CardTemplate[]>(ALL_TEMPLATES);
+
+  useEffect(() => {
+    const handleUpdate = () => setTemplateList([...ALL_TEMPLATES]);
+    window.addEventListener('cardly_templates_updated', handleUpdate);
+    return () => window.removeEventListener('cardly_templates_updated', handleUpdate);
+  }, []);
 
   // If initialCategory or initialSearch changes, update state
   useEffect(() => {
@@ -76,7 +83,7 @@ export const Browse: React.FC<BrowseProps> = ({
 
   // Filter logic
   const filteredTemplates = useMemo(() => {
-    return ALL_TEMPLATES.filter((template) => {
+    return templateList.filter((template) => {
       // Search query matching
       if (search.trim()) {
         const q = search.toLowerCase();
@@ -84,7 +91,7 @@ export const Browse: React.FC<BrowseProps> = ({
         const matchDesc = template.description.toLowerCase().includes(q);
         const matchCategory = template.category.toLowerCase().includes(q);
         const matchRecipient = template.recipient.toLowerCase().includes(q);
-        const matchTags = template.tags.some((tag) => tag.toLowerCase().includes(q));
+        const matchTags = template.tags.some((tag: string) => tag.toLowerCase().includes(q));
         if (!matchTitle && !matchDesc && !matchCategory && !matchRecipient && !matchTags) {
           return false;
         }
