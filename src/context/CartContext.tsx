@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { CartItem, PromoCode } from '../types/cart';
 import { useAuth } from './AuthContext';
+import { STANDARD_DELIVERY_PRICE } from '../utils/delivery';
 
 const LOCAL_CART_KEY = 'cardly_shopping_cart';
 
@@ -95,7 +96,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return acc + (item.unitPrice + addonsTotal) * item.quantity;
   }, 0);
 
-  const deliveryFee = items.length > 0 ? 1.25 : 0;
+  const deliveryFee = items.length > 0 ? STANDARD_DELIVERY_PRICE : 0;
   const discount = promoCode ? (subtotal * promoCode.discountPercentage) / 100 : 0;
   const total = Math.max(0, subtotal - discount + deliveryFee);
 

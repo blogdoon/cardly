@@ -11,6 +11,8 @@ export interface DeliveryMethod {
   price: number;
   estimatedDelivery: string;
   description: string;
+  /** Transit time in working days, used to compute the dispatch/arrival window. */
+  transitDays: number;
 }
 
 export interface Order {
@@ -25,7 +27,11 @@ export interface Order {
   status: OrderStatus;
   shippingAddress: DeliveryAddress;
   deliveryMethod: DeliveryMethod;
-  dispatchDate: string; // 'now' or ISO date
+  dispatchDate: string; // ISO date the card leaves the printer
+  /** Where the finished card goes: the recipient, or back to the customer. */
+  deliveryType: 'direct_to_recipient' | 'back_to_me';
+  /** ISO date the carrier is expected to deliver, derived from the delivery method. */
+  estimatedArrival: string;
   paymentSummary: {
     method: 'card' | 'apple_pay' | 'google_pay';
     last4?: string;

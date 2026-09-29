@@ -11,6 +11,11 @@ export default defineConfig(() => {
         '@': path.resolve(__dirname, '.'),
       },
     },
+    // Vite only exposes VITE_*-prefixed vars, but .env.example documents a bare
+    // GEMINI_API_KEY. Inject it so src/utils/aiMessage.ts can read it.
+    define: {
+      'import.meta.env.GEMINI_API_KEY': JSON.stringify(process.env.GEMINI_API_KEY || ''),
+    },
     server: {
       allowedHosts: ['cardly.ai.studio'],
       // HMR is disabled in AI Studio via DISABLE_HMR env var.

@@ -14,6 +14,8 @@ import {
 } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { CardAddon } from '../types/cart';
+import { formatPrice } from '../utils/currency';
+import { STANDARD_DELIVERY } from '../utils/delivery';
 
 interface CartProps {
   onNavigate: (route: string) => void;
@@ -190,9 +192,13 @@ export const Cart: React.FC<CartProps> = ({ onNavigate }) => {
                   </div>
 
                   <div className="text-right">
-                    <span className="text-xs text-slate-400 block font-normal">£{item.unitPrice.toFixed(2)} each</span>
+                    <span className="text-xs text-slate-400 block font-normal">
+                      {formatPrice(item.unitPrice)} each
+                    </span>
                     <span className="text-lg font-black text-slate-900">
-                      £{((item.unitPrice + item.addons.reduce((s, a) => s + a.price, 0)) * item.quantity).toFixed(2)}
+                      {formatPrice(
+                        (item.unitPrice + item.addons.reduce((s, a) => s + a.price, 0)) * item.quantity
+                      )}
                     </span>
                   </div>
                 </div>
@@ -218,7 +224,7 @@ export const Cart: React.FC<CartProps> = ({ onNavigate }) => {
                     <p className="text-[10px] text-slate-500 mt-1">{addon.description}</p>
                   </div>
                   <div className="flex items-center justify-between mt-3 pt-2 border-t border-slate-100">
-                    <span className="text-xs font-bold text-slate-900">+£{addon.price.toFixed(2)}</span>
+                    <span className="text-xs font-bold text-slate-900">+{formatPrice(addon.price)}</span>
                     <span className="text-[10px] font-bold text-rose-600 bg-rose-50 px-2 py-0.5 rounded-md">
                       Included option
                     </span>
@@ -273,24 +279,24 @@ export const Cart: React.FC<CartProps> = ({ onNavigate }) => {
           <div className="space-y-2 text-xs text-slate-600 pt-2 border-t border-slate-100">
             <div className="flex justify-between">
               <span>Card Items Subtotal</span>
-              <span className="font-semibold text-slate-800">£{subtotal.toFixed(2)}</span>
+              <span className="font-semibold text-slate-800">{formatPrice(subtotal)}</span>
             </div>
 
             {discount > 0 && (
               <div className="flex justify-between text-emerald-600 font-semibold">
                 <span>Promotional Discount</span>
-                <span>-£{discount.toFixed(2)}</span>
+                <span>-{formatPrice(discount)}</span>
               </div>
             )}
 
             <div className="flex justify-between">
-              <span>Royal Mail 1st Class Delivery</span>
-              <span className="font-semibold text-slate-800">£{deliveryFee.toFixed(2)}</span>
+              <span>{STANDARD_DELIVERY.name} Delivery</span>
+              <span className="font-semibold text-slate-800">{formatPrice(deliveryFee)}</span>
             </div>
 
             <div className="flex justify-between text-base font-black text-slate-900 pt-3 border-t border-slate-200">
               <span>Total Amount</span>
-              <span>£{total.toFixed(2)}</span>
+              <span>{formatPrice(total)}</span>
             </div>
           </div>
 

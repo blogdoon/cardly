@@ -18,6 +18,7 @@ import { ALL_TEMPLATES } from '../data/templates';
 import { CardTemplate } from '../types/template';
 import { getLocalOrders } from '../services/cardStorage';
 import { Order } from '../types/order';
+import { formatPrice } from '../utils/currency';
 import { useAuth } from '../context/AuthContext';
 import { isFirebaseConfigured } from '../services/firebase';
 import { OccasionStudio } from '../components/Admin/OccasionStudio';
@@ -154,7 +155,7 @@ export const Admin: React.FC<AdminProps> = ({ onNavigate }) => {
             <span>Total Card Revenue</span>
             <DollarSign className="w-4 h-4 text-emerald-500" />
           </div>
-          <div className="text-3xl font-black text-slate-900">£{totalRevenue.toFixed(2)}</div>
+          <div className="text-3xl font-black text-slate-900">{formatPrice(totalRevenue)}</div>
           <div className="text-[11px] text-emerald-600 font-semibold">Processed securely</div>
         </div>
       </div>
@@ -211,7 +212,7 @@ export const Admin: React.FC<AdminProps> = ({ onNavigate }) => {
                         {t.category}
                       </span>
                     </td>
-                    <td className="py-2 px-4 font-bold text-slate-800">£{t.price.toFixed(2)}</td>
+                    <td className="py-2 px-4 font-bold text-slate-800">{formatPrice(t.price)}</td>
                     <td className="py-2 px-4">
                       {t.isPhotoCard ? (
                         <span className="text-purple-700 bg-purple-50 px-2 py-0.5 rounded font-semibold text-[10px]">
@@ -270,7 +271,7 @@ export const Admin: React.FC<AdminProps> = ({ onNavigate }) => {
                 </div>
 
                 <div className="flex items-center space-x-3">
-                  <span className="font-black text-slate-900 text-sm">£{ord.total.toFixed(2)}</span>
+                  <span className="font-black text-slate-900 text-sm">{formatPrice(ord.total)}</span>
                   <select
                     value={ord.status}
                     onChange={(e) => handleUpdateOrderStatus(ord.id, e.target.value as any)}

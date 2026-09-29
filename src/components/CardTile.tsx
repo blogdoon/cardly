@@ -2,6 +2,7 @@ import React from 'react';
 import { Heart, Sparkles, Camera, Star } from 'lucide-react';
 import { CardTemplate } from '../types/template';
 import { useFavorites } from '../context/FavoritesContext';
+import { formatPrice } from '../utils/currency';
 
 interface CardTileProps {
   template: CardTemplate;
@@ -114,7 +115,7 @@ export const CardTile: React.FC<CardTileProps> = ({ template, onSelect, onPerson
           <div>
             <span className="text-[11px] text-slate-400 block font-normal">from</span>
             <span className="text-base font-bold text-slate-900 tabular-nums">
-              £{template.price.toFixed(2)}
+              {formatPrice(template.price)}
             </span>
           </div>
 

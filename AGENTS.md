@@ -24,6 +24,12 @@ npm run build    # vite build + scripts/prerender.mjs (static HTML per card, rob
   `covers.check.mjs` fails the build's test step if covers bunch up.
 - Prerendered HTML under `dist/card/<id>/` is replaced by React on mount; keep head tags
   (title/canonical/og) in sync between `scripts/prerender.mjs` and `setPageMeta` in App.tsx.
+- **Euro only, Europe only.** The store has no multi-currency support and does not ship outside
+  Europe. All amounts are plain EUR numbers. Never inline a currency glyph — use
+  `formatPrice` / `formatPriceCompact` from `src/utils/currency.ts`; the checkout country list comes
+  from `SHIPPING_COUNTRIES` there, and the delivery tiers from `src/utils/delivery.ts` (shared so
+  the cart estimate and the checkout charge can never drift apart). `scripts/prerender.mjs` has its
+  own `formatPrice` that must match the TS one.
 
 ---
 

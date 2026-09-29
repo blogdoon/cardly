@@ -47,6 +47,17 @@ const esc = (s) =>
 
 const clip = (s, n) => (s.length > n ? `${s.slice(0, n).trimEnd()}…` : s);
 
+// Mirrors `formatPrice` in src/utils/currency.ts. The store is euro-only, so
+// there is no conversion — keep the two in sync or the static HTML and the
+// hydrated React tree will disagree on price.
+const eur = new Intl.NumberFormat('en-IE', {
+  style: 'currency',
+  currency: 'EUR',
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+});
+const formatPrice = (amount) => eur.format(amount);
+
 const PAGE_STYLE = `
     .card-page { max-width: 720px; margin: 0 auto; padding: 48px 24px; font-family: system-ui, sans-serif; color: #0f172a; }
     .card-page h1 { font-size: 2.25rem; font-weight: 900; margin: 0 0 12px; }
@@ -86,7 +97,7 @@ for (const t of ALL_TEMPLATES) {
         <style>${PAGE_STYLE}</style>
         <h1>${esc(t.title)}</h1>
         <p class="desc">${esc(t.description)}</p>
-        <p class="meta">${esc(t.category)} card for ${esc(t.recipient)} · £${t.price.toFixed(2)} · ${t.rating}★ (${t.reviewCount} reviews)</p>
+        <p class="meta">${esc(t.category)} card for ${esc(t.recipient)} · ${esc(formatPrice(t.price))} · ${t.rating}★ (${t.reviewCount} reviews)</p>
         ${img ? `<img src="${img}" alt="${esc(t.title)} greeting card design" />` : ''}
         <a class="cta" href="/edit/${esc(t.id)}/">Personalise this card</a>
       </main>

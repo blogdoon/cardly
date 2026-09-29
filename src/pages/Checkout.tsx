@@ -13,8 +13,18 @@ import {
 } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
-import { DeliveryAddress, DeliveryMethod, Order } from '../types/order';
+import { DeliveryAddress, Order } from '../types/order';
 import { createOrder } from '../services/cardStorage';
+import { getSavedAddresses, saveAddress } from '../utils/addressBook';
+import { DELIVERY_METHODS, STANDARD_DELIVERY } from '../utils/delivery';
+import {
+  DEFAULT_SHIPPING_COUNTRY,
+  POSTCODE_HINT,
+  POSTCODE_LABEL,
+  SHIPPING_COUNTRIES,
+  SHIPPING_REGION,
+  formatPrice,
+} from '../utils/currency';
 
 interface CheckoutProps {
   onNavigate: (route: string) => void;
@@ -27,43 +37,31 @@ export const Checkout: React.FC<CheckoutProps> = ({ onNavigate }) => {
   const [deliveryType, setDeliveryType] = useState<'back_to_me' | 'direct_to_recipient'>('direct_to_recipient');
 
   // Address State
-  const [address, setAddress] = useState<DeliveryAddress>({
-    id: `addr_${Date.now()}`,
-    name: user?.displayName || '',
-    line1: '42 Highfield Crescent',
-    line2: '',
-    city: 'London',
-    county: 'Greater London',
-    postcode: 'SW1A 1AA',
-    country: 'United Kingdom',
+  const [savedAddresses, setSavedAddresses] = useState<DeliveryAddress[]>(() => {
+    const book = getSavedAddresses();
+    return book.length ? book : user?.savedAddresses || [];
+  });
+
+  const [address, setAddress] = useState<DeliveryAddress>(() => {
+    const preset = getSavedAddresses()[0] || user?.savedAddresses?.[0];
+    return (
+      preset || {
+        id: `addr_${Date.now()}`,
+        name: user?.displayName || '',
+        line1: '',
+        line2: '',
+        city: '',
+        county: '',
+        postcode: '',
+        country: DEFAULT_SHIPPING_COUNTRY,
+      }
+    );
   });
 
   // Delivery Method State
-  const deliveryOptions: DeliveryMethod[] = [
-    {
-      id: 'royal-mail-1st',
-      name: 'Royal Mail 1st Class',
-      price: 1.25,
-      estimatedDelivery: 'Next working day',
-      description: 'Delivered straight through letterbox',
-    },
-    {
-      id: 'royal-mail-tracked',
-      name: 'Royal Mail Tracked 24',
-      price: 2.95,
-      estimatedDelivery: 'Tomorrow with tracking updates',
-      description: 'SMS & Email delivery notifications',
-    },
-    {
-      id: 'special-delivery',
-      name: 'Next Day Special Guaranteed',
-      price: 6.50,
-      estimatedDelivery: 'Guaranteed by 1:00 PM tomorrow',
-      description: 'Signed-for priority courier',
-    },
-  ];
+  const deliveryOptions = DELIVERY_METHODS;
 
-  const [selectedMethod, setSelectedMethod] = useState<DeliveryMethod>(deliveryOptions[0]);
+  const [selectedMethod, setSelectedMethod] = useState(STANDARD_DELIVERY);
 
   // Payment Form State
   const [paymentMethod, setPaymentMethod] = useState<'google_pay' | 'card'>('google_pay');
@@ -80,13 +78,21 @@ export const Checkout: React.FC<CheckoutProps> = ({ onNavigate }) => {
   const handlePlaceOrder = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!address.name || !address.line1 || !address.postcode) {
-      alert('Please fill out the recipient name, street address, and postcode.');
+      alert(`Please fill out the recipient name, street address, and ${POSTCODE_LABEL.toLowerCase()}.`);
       return;
     }
 
     setIsPlacing(true);
 
     const orderNumber = `CRD-2026-${Math.floor(1000 + Math.random() * 9000)}`;
+    // Print + dispatch window: 1 working day of production, then the carrier's
+    // transit time. Express is same-day production, everything else is next day.
+    const productionDays = selectedMethod.id === 'express-courier' ? 0 : 1;
+    const dispatchDate = new Date();
+    dispatchDate.setDate(dispatchDate.getDate() + productionDays);
+    const estimatedArrival = new Date(dispatchDate);
+    estimatedArrival.setDate(estimatedArrival.getDate() + selectedMethod.transitDays);
+
     const newOrder: Order = {
       id: `ord_${Date.now()}`,
       orderNumber,
@@ -99,7 +105,9 @@ export const Checkout: React.FC<CheckoutProps> = ({ onNavigate }) => {
       status: 'processing',
       shippingAddress: address,
       deliveryMethod: selectedMethod,
-      dispatchDate: new Date(Date.now() + 1000 * 60 * 60 * 4).toISOString(),
+      deliveryType,
+      estimatedArrival: estimatedArrival.toISOString(),
+      dispatchDate: dispatchDate.toISOString(),
       paymentSummary: {
         method: paymentMethod,
         last4: paymentMethod === 'card' ? cardNumber.slice(-4) : '4242',
@@ -110,6 +118,7 @@ export const Checkout: React.FC<CheckoutProps> = ({ onNavigate }) => {
     };
 
     await createOrder(newOrder);
+    setSavedAddresses(saveAddress(address));
 
     // Trigger celebration confetti
     try {
@@ -166,7 +175,11 @@ export const Checkout: React.FC<CheckoutProps> = ({ onNavigate }) => {
                     {it.quantity}x • {it.cardSize} size • {it.envelopeColor} envelope
                   </p>
                 </div>
-                <span className="font-bold text-slate-800">£{(it.unitPrice * it.quantity).toFixed(2)}</span>
+                <span className="font-bold text-slate-800">
+                  {formatPrice(
+                    (it.unitPrice + it.addons.reduce((s, a) => s + a.price, 0)) * it.quantity
+                  )}
+                </span>
               </div>
             ))}
           </div>
@@ -184,7 +197,7 @@ export const Checkout: React.FC<CheckoutProps> = ({ onNavigate }) => {
             </div>
             <div className="flex justify-between text-sm font-black text-slate-900 pt-2 border-t border-slate-100">
               <span>Total Paid:</span>
-              <span>£{placedOrder.total.toFixed(2)}</span>
+              <span>{formatPrice(placedOrder.total)}</span>
             </div>
           </div>
         </div>
@@ -220,7 +233,7 @@ export const Checkout: React.FC<CheckoutProps> = ({ onNavigate }) => {
         <div>
           <h1 className="text-2xl sm:text-3xl font-black text-slate-900">Secure Checkout</h1>
           <p className="text-xs text-slate-500 mt-0.5">
-            Complete your order with Royal Mail fast delivery
+            Complete your order with tracked delivery across {SHIPPING_REGION}
           </p>
         </div>
       </div>
@@ -274,6 +287,29 @@ export const Checkout: React.FC<CheckoutProps> = ({ onNavigate }) => {
               2. {deliveryType === 'direct_to_recipient' ? "Recipient's Address" : 'Your Delivery Address'}
             </h2>
 
+            {savedAddresses.length > 0 && (
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1 text-xs">
+                  Send to a saved address
+                </label>
+                <select
+                  value={savedAddresses.some((a) => a.id === address.id) ? address.id : ''}
+                  onChange={(e) => {
+                    const picked = savedAddresses.find((a) => a.id === e.target.value);
+                    if (picked) setAddress(picked);
+                  }}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:outline-rose-500 bg-white text-xs"
+                >
+                  <option value="">Enter a new address...</option>
+                  {savedAddresses.map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {a.name} — {a.line1}, {a.postcode}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
               <div className="sm:col-span-2">
                 <label className="block font-semibold text-slate-700 mb-1">Full Name</label>
@@ -322,11 +358,11 @@ export const Checkout: React.FC<CheckoutProps> = ({ onNavigate }) => {
               </div>
 
               <div>
-                <label className="block font-semibold text-slate-700 mb-1">Postcode</label>
+                <label className="block font-semibold text-slate-700 mb-1">{POSTCODE_LABEL}</label>
                 <input
                   type="text"
                   required
-                  placeholder="e.g. SW1A 1AA"
+                  placeholder={POSTCODE_HINT}
                   value={address.postcode}
                   onChange={(e) => setAddress({ ...address, postcode: e.target.value })}
                   className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:outline-rose-500 uppercase font-mono"
@@ -340,11 +376,16 @@ export const Checkout: React.FC<CheckoutProps> = ({ onNavigate }) => {
                   onChange={(e) => setAddress({ ...address, country: e.target.value })}
                   className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:outline-rose-500 bg-white"
                 >
-                  <option value="United Kingdom">United Kingdom</option>
-                  <option value="Ireland">Ireland</option>
-                  <option value="United States">United States</option>
-                  <option value="Australia">Australia</option>
+                  {SHIPPING_COUNTRIES.map((country) => (
+                    <option key={country} value={country}>
+                      {country}
+                    </option>
+                  ))}
                 </select>
+                <p className="text-[11px] text-slate-500 mt-1">
+                  We currently deliver within {SHIPPING_REGION}. Prices are in EUR for every
+                  destination.
+                </p>
               </div>
             </div>
           </div>
@@ -379,7 +420,7 @@ export const Checkout: React.FC<CheckoutProps> = ({ onNavigate }) => {
                       <div className="text-[11px] text-slate-500">{opt.estimatedDelivery} • {opt.description}</div>
                     </div>
                   </div>
-                  <span className="font-bold text-xs text-slate-900">£{opt.price.toFixed(2)}</span>
+                  <span className="font-bold text-xs text-slate-900">{formatPrice(opt.price)}</span>
                 </label>
               ))}
             </div>
@@ -481,7 +522,9 @@ export const Checkout: React.FC<CheckoutProps> = ({ onNavigate }) => {
                     {item.quantity}x • {item.cardSize} • {item.envelopeColor}
                   </p>
                   <p className="font-bold text-slate-800 mt-1">
-                    £{((item.unitPrice + item.addons.reduce((s, a) => s + a.price, 0)) * item.quantity).toFixed(2)}
+                    {formatPrice(
+                      (item.unitPrice + item.addons.reduce((s, a) => s + a.price, 0)) * item.quantity
+                    )}
                   </p>
                 </div>
               </div>
@@ -491,24 +534,24 @@ export const Checkout: React.FC<CheckoutProps> = ({ onNavigate }) => {
           <div className="space-y-2 text-xs text-slate-600 pt-3 border-t border-slate-100">
             <div className="flex justify-between">
               <span>Cards Subtotal</span>
-              <span className="font-semibold text-slate-900">£{subtotal.toFixed(2)}</span>
+              <span className="font-semibold text-slate-900">{formatPrice(subtotal)}</span>
             </div>
 
             {discount > 0 && (
               <div className="flex justify-between text-emerald-600 font-semibold">
                 <span>Discount</span>
-                <span>-£{discount.toFixed(2)}</span>
+                <span>-{formatPrice(discount)}</span>
               </div>
             )}
 
             <div className="flex justify-between">
               <span>Delivery ({selectedMethod.name})</span>
-              <span className="font-semibold text-slate-900">£{selectedMethod.price.toFixed(2)}</span>
+              <span className="font-semibold text-slate-900">{formatPrice(selectedMethod.price)}</span>
             </div>
 
             <div className="flex justify-between text-base font-black text-slate-900 pt-3 border-t border-slate-200">
               <span>Total to Pay</span>
-              <span>£{finalTotal.toFixed(2)}</span>
+              <span>{formatPrice(finalTotal)}</span>
             </div>
           </div>
 
@@ -521,7 +564,7 @@ export const Checkout: React.FC<CheckoutProps> = ({ onNavigate }) => {
               <span>Printing Order...</span>
             ) : (
               <>
-                <span>Pay £{finalTotal.toFixed(2)} & Place Order</span>
+                <span>Pay {formatPrice(finalTotal)} & Place Order</span>
                 <ArrowRight className="w-4 h-4" />
               </>
             )}

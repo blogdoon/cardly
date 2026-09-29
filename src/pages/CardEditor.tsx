@@ -982,6 +982,11 @@ export const CardEditor: React.FC<CardEditorProps> = ({
             onBackgroundChange={handleBackgroundChange}
             quickFields={quickFields}
             onQuickFieldChange={handleQuickFieldChange}
+            aiContext={{
+              occasion: template?.category,
+              tone: template?.tone,
+              milestoneAge: template?.milestoneAge,
+            }}
             activeTab={sidebarTab}
             onTabChange={setSidebarTab}
           />

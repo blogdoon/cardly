@@ -296,7 +296,7 @@ export function getLocalOrders(): Order[] {
 
     // Initial demo order with realistic design snapshots so customer has an order history out of the box
     const demoOrder: Order = {
-      id: 'ord-8921-uk',
+      id: 'ord-8921-ie',
       orderNumber: 'CRD-2026-8921',
       userId: 'demo_user_google_108',
       items: [
@@ -462,7 +462,7 @@ export function getLocalOrders(): Order[] {
                     height: 8,
                     rotation: 0,
                     zIndex: 1,
-                    text: 'Handcrafted on Cardly • cardly.co.uk',
+                    text: 'Handcrafted on Cardly • cardly.app',
                     fontFamily: 'Montserrat',
                     fontSize: 11,
                     color: '#94a3b8',
@@ -482,18 +482,21 @@ export function getLocalOrders(): Order[] {
       shippingAddress: {
         id: 'addr-1',
         name: 'Alex Morgan',
-        line1: '42 Highfield Crescent',
-        city: 'London',
-        postcode: 'SW1A 1AA',
-        country: 'United Kingdom',
+        line1: '12 Merrion Square',
+        city: 'Dublin',
+        postcode: 'D02 AF30',
+        country: 'Ireland',
       },
       deliveryMethod: {
-        id: 'royal-mail-1st',
-        name: 'Royal Mail 1st Class',
-        price: 1.25,
+        id: 'letterbox-standard',
+        name: 'Standard Letterbox',
+        price: 1.45,
         estimatedDelivery: 'Delivered',
         description: 'Delivered through letterbox',
+        transitDays: 4,
       },
+      deliveryType: 'direct_to_recipient',
+      estimatedArrival: new Date(Date.now() - 1000 * 60 * 60 * 24 * 3).toISOString(),
       dispatchDate: new Date(Date.now() - 1000 * 60 * 60 * 24 * 5).toISOString(),
       paymentSummary: { method: 'google_pay', last4: '4242', brand: 'Visa' },
       createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 7).toISOString(),

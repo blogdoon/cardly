@@ -28,6 +28,7 @@ import {
   OccasionImageEntry
 } from '../../utils/occasionTemplateLoader';
 import { registerCustomTemplate, unregisterCustomTemplate } from '../../data/templates';
+import { formatPrice } from '../../utils/currency';
 import { OCCASIONS_LIST, RECIPIENTS_LIST, STYLES_LIST } from '../../data/categories';
 
 interface OccasionStudioProps {
@@ -436,7 +437,7 @@ export const OccasionStudio: React.FC<OccasionStudioProps> = ({ onNavigate, onTe
                 {/* Price, Recipient, Style */}
                 <div className="grid grid-cols-3 gap-3">
                   <div>
-                    <label className="block text-[11px] font-semibold text-slate-600 mb-1">Price (£)</label>
+                    <label className="block text-[11px] font-semibold text-slate-600 mb-1">Price (EUR)</label>
                     <input
                       type="number"
                       step="0.10"
@@ -798,7 +799,7 @@ export const OccasionStudio: React.FC<OccasionStudioProps> = ({ onNavigate, onTe
                     <span className="text-[10px] font-semibold text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded">
                       {tpl.category}
                     </span>
-                    <div className="text-[10px] text-slate-400 font-mono mt-0.5">£{tpl.price.toFixed(2)}</div>
+                    <div className="text-[10px] text-slate-400 font-mono mt-0.5">{formatPrice(tpl.price)}</div>
                   </div>
                 </div>
 

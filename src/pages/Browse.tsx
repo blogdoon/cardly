@@ -4,6 +4,7 @@ import { CardTile } from '../components/CardTile';
 import { ALL_TEMPLATES } from '../data/templates';
 import { OCCASIONS_LIST, RECIPIENTS_LIST, STYLES_LIST, MILESTONE_AGES } from '../data/categories';
 import { CardTemplate, OccasionType, RecipientType, CardStyleType } from '../types/template';
+import { formatPriceCompact } from '../utils/currency';
 
 interface BrowseProps {
   initialCategory?: string;
@@ -396,7 +397,7 @@ export const Browse: React.FC<BrowseProps> = ({
           <div className="space-y-2 pt-3 border-t border-slate-100">
             <div className="flex justify-between items-center text-xs">
               <h4 className="font-bold text-slate-900 uppercase tracking-wider text-[11px]">Max Price</h4>
-              <span className="font-bold text-rose-600">£{maxPrice.toFixed(2)}</span>
+              <span className="font-bold text-rose-600">{formatPriceCompact(maxPrice)}</span>
             </div>
             <input
               type="range"

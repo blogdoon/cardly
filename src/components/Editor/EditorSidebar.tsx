@@ -16,6 +16,7 @@ import { CardPageType } from '../../types/template';
 import { PRESET_COLORS } from '../../data/fonts';
 import { StickerLibraryPanel } from './StickerLibraryPanel';
 import { uploadUserPhoto } from '../../services/cardStorage';
+import { generateCardMessage, isAiMessageAvailable, CardMessageContext } from '../../utils/aiMessage';
 
 interface EditorSidebarProps {
   currentPage: CardPageType;
@@ -36,6 +37,8 @@ interface EditorSidebarProps {
     message: string;
   };
   onQuickFieldChange: (field: 'name' | 'message', val: string) => void;
+  /** Template metadata used to steer the AI writer. */
+  aiContext?: CardMessageContext;
   activeTab?: TabType;
   onTabChange?: (tab: TabType) => void;
 }
@@ -51,6 +54,7 @@ export const EditorSidebar: React.FC<EditorSidebarProps> = ({
   onBackgroundChange,
   quickFields,
   onQuickFieldChange,
+  aiContext,
   activeTab: controlledTab,
   onTabChange,
 }) => {
@@ -58,6 +62,27 @@ export const EditorSidebar: React.FC<EditorSidebarProps> = ({
   const activeTab = controlledTab !== undefined ? controlledTab : internalTab;
 
   const [isUploading, setIsUploading] = useState(false);
+
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState('');
+
+  const handleWriteWithAi = async () => {
+    setAiLoading(true);
+    setAiError('');
+    try {
+      const message = await generateCardMessage({
+        recipient: quickFields.name || aiContext?.occasion,
+        occasion: aiContext?.occasion,
+        tone: aiContext?.tone,
+        milestoneAge: aiContext?.milestoneAge,
+      });
+      onQuickFieldChange('message', message);
+    } catch (err: any) {
+      setAiError(err?.message || 'Could not write a message. Please try again.');
+    } finally {
+      setAiLoading(false);
+    }
+  };
   // Mobile: tab content stays collapsed until a tab is tapped (desktop always shows it)
   const [mobileOpen, setMobileOpen] = useState(false);
   const selectTab = (tab: TabType) => {
@@ -227,6 +252,20 @@ export const EditorSidebar: React.FC<EditorSidebarProps> = ({
                   placeholder="e.g. Happy 30th Birthday!"
                   className="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl focus:outline-rose-500 font-medium resize-none"
                 />
+                {isAiMessageAvailable && (
+                  <button
+                    type="button"
+                    onClick={handleWriteWithAi}
+                    disabled={aiLoading}
+                    className="mt-1.5 w-full px-3 py-2 text-xs font-bold rounded-xl bg-slate-900 hover:bg-slate-800 text-white flex items-center justify-center gap-1.5 transition active:scale-98 disabled:opacity-50"
+                  >
+                    <Wand2 className={`w-3.5 h-3.5 text-rose-400 ${aiLoading ? 'animate-spin' : ''}`} />
+                    <span>{aiLoading ? 'Writing your message...' : 'Write it for me'}</span>
+                  </button>
+                )}
+                {aiError && (
+                  <p className="mt-1.5 text-[11px] text-rose-600 font-medium">{aiError}</p>
+                )}
               </div>
 
               <div className="p-3 bg-rose-50 rounded-xl border border-rose-100 text-xs text-rose-800">

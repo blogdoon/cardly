@@ -90,7 +90,7 @@ export const PAPER_SIZES: Record<PaperSizeKey, PaperSizeConfig> = {
     foldedHeightInches: 8.27,
     unfoldedWidthInches: 11.69,
     unfoldedHeightInches: 8.27,
-    description: 'Standard UK & European greeting card format. Folds into C5 envelope.',
+    description: 'Standard European greeting card format. Folds into C5 / DL envelope.',
   },
   'letter-half': {
     id: 'letter-half',

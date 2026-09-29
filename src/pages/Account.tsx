@@ -16,9 +16,11 @@ import {
   Eye,
   ExternalLink,
   RotateCcw,
-  Printer
+  Printer,
+  ShoppingBag
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { useCart } from '../context/CartContext';
 import { UserDesign } from '../types/design';
 import { Order, DeliveryAddress } from '../types/order';
 import { CartItem } from '../types/cart';
@@ -28,8 +30,16 @@ import {
   saveUserDesign,
   getUserOrders
 } from '../services/cardStorage';
+import { getSavedAddresses, saveAddress, deleteSavedAddress } from '../utils/addressBook';
 import { getTemplateById } from '../data/templates';
 import { getCardDesignThumbnail } from '../utils/imageOptimizer';
+import {
+  DEFAULT_SHIPPING_COUNTRY,
+  POSTCODE_HINT,
+  POSTCODE_LABEL,
+  SHIPPING_COUNTRIES,
+  formatPrice
+} from '../utils/currency';
 import { PreviewModal } from '../components/PreviewModal';
 import { PrintPreview } from '../components/PrintPreview';
 
@@ -45,11 +55,14 @@ export const Account: React.FC<AccountProps> = ({
   onEditDesign,
 }) => {
   const { user, signOut, signInWithGoogle } = useAuth();
+  const { addItem } = useCart();
   const [activeTab, setActiveTab] = useState<'designs' | 'orders' | 'addresses'>(initialTab);
 
   const [designs, setDesigns] = useState<UserDesign[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
-  const [addresses, setAddresses] = useState<DeliveryAddress[]>(user?.savedAddresses || []);
+  const [addresses, setAddresses] = useState<DeliveryAddress[]>(
+    () => getSavedAddresses().length ? getSavedAddresses() : user?.savedAddresses || []
+  );
   const [isLoading, setIsLoading] = useState(true);
   const [previewModalDesign, setPreviewModalDesign] = useState<UserDesign | null>(null);
   const [printModalDesign, setPrintModalDesign] = useState<UserDesign | null>(null);
@@ -60,9 +73,9 @@ export const Account: React.FC<AccountProps> = ({
     name: user?.displayName || '',
     line1: '',
     line2: '',
-    city: 'London',
+    city: '',
     postcode: '',
-    country: 'United Kingdom',
+    country: DEFAULT_SHIPPING_COUNTRY,
     isDefault: false,
   });
 
@@ -139,7 +152,9 @@ export const Account: React.FC<AccountProps> = ({
       } catch (err) {
         console.warn('Could not fetch account data:', err);
       } finally {
-        if (user?.savedAddresses) {
+        // Only seed from the auth profile when nothing is stored yet, otherwise
+        // the profile's stale copy would clobber the saved book on every load.
+        if (getSavedAddresses().length === 0 && user?.savedAddresses?.length) {
           setAddresses(user.savedAddresses);
         }
         setIsLoading(false);
@@ -173,7 +188,7 @@ export const Account: React.FC<AccountProps> = ({
       ...newAddr,
       id: `addr_${Date.now()}`,
     };
-    setAddresses((prev) => [...prev, created]);
+    setAddresses(saveAddress(created));
     setShowAddressForm(false);
   };
 
@@ -409,7 +424,7 @@ export const Account: React.FC<AccountProps> = ({
 
                     <div className="text-right">
                       <span className="text-xs text-slate-400">Total: </span>
-                      <span className="font-black text-slate-900 text-sm">£{ord.total.toFixed(2)}</span>
+                      <span className="font-black text-slate-900 text-sm">{formatPrice(ord.total)}</span>
                     </div>
                   </div>
 
@@ -433,7 +448,7 @@ export const Account: React.FC<AccountProps> = ({
                         : 'text-slate-400'
                     }`}>
                       <Truck className="w-4 h-4" />
-                      <span>Dispatched (Royal Mail)</span>
+                      <span>Dispatched ({ord.deliveryMethod?.name ?? 'courier'})</span>
                     </div>
                     <div className={`flex flex-col items-center gap-1 ${
                       ord.status === 'delivered' ? 'text-emerald-600' : 'text-slate-400'
@@ -497,6 +512,19 @@ export const Account: React.FC<AccountProps> = ({
                           </div>
 
                           <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
+                            {/* Re-order this exact card */}
+                            <button
+                              onClick={() => {
+                                const { id: _orderItemId, ...item } = it;
+                                addItem({ ...item, quantity: it.quantity });
+                              }}
+                              className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition shadow-2xs active:scale-95"
+                              title="Add this exact card and message back to your basket"
+                            >
+                              <ShoppingBag className="w-3.5 h-3.5" />
+                              <span>Order Again</span>
+                            </button>
+
                             {/* View / Open Card in 3D */}
                             <button
                               onClick={() => setPreviewModalDesign(cardDesign)}
@@ -546,9 +574,18 @@ export const Account: React.FC<AccountProps> = ({
             {addresses.map((addr) => (
               <div
                 key={addr.id}
-                className="bg-white p-5 rounded-3xl border border-slate-200/90 shadow-2xs space-y-2 text-xs"
+                className="bg-white p-5 rounded-3xl border border-slate-200/90 shadow-2xs space-y-2 text-xs relative"
               >
-                <div className="flex justify-between items-start">
+                <button
+                  type="button"
+                  onClick={() => setAddresses(deleteSavedAddress(addr.id))}
+                  title="Delete address"
+                  aria-label={`Delete address for ${addr.name}`}
+                  className="absolute top-4 right-4 p-1.5 rounded-lg text-slate-300 hover:text-rose-600 hover:bg-rose-50 transition"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+                <div className="flex justify-between items-start pr-8">
                   <span className="font-bold text-slate-900">{addr.name}</span>
                   {addr.isDefault && (
                     <span className="px-2 py-0.5 bg-rose-100 text-rose-800 font-bold text-[10px] rounded-md">
@@ -610,14 +647,30 @@ export const Account: React.FC<AccountProps> = ({
                 </div>
 
                 <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Postcode</label>
+                  <label className="block font-semibold text-slate-700 mb-1">{POSTCODE_LABEL}</label>
                   <input
                     type="text"
                     required
+                    placeholder={POSTCODE_HINT}
                     value={newAddr.postcode}
                     onChange={(e) => setNewAddr({ ...newAddr, postcode: e.target.value })}
                     className="w-full p-2 border border-slate-300 rounded-xl uppercase font-mono"
                   />
+                </div>
+
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">Country</label>
+                  <select
+                    value={newAddr.country}
+                    onChange={(e) => setNewAddr({ ...newAddr, country: e.target.value })}
+                    className="w-full p-2 border border-slate-300 rounded-xl bg-white"
+                  >
+                    {SHIPPING_COUNTRIES.map((country) => (
+                      <option key={country} value={country}>
+                        {country}
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
                 <div className="flex justify-end gap-2 pt-2">

@@ -1,6 +1,8 @@
 import React from 'react';
 import { X, Trash2, Plus, Minus, ShoppingBag, ArrowRight, Sparkles, Check, Gift } from 'lucide-react';
 import { useCart } from '../context/CartContext';
+import { formatPrice } from '../utils/currency';
+import { STANDARD_DELIVERY } from '../utils/delivery';
 
 interface CartDrawerProps {
   onNavigate: (route: string) => void;
@@ -145,7 +147,9 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ onNavigate }) => {
                         </div>
 
                         <span className="font-extrabold text-sm text-slate-900">
-                          £{((item.unitPrice + item.addons.reduce((a, b) => a + b.price, 0)) * item.quantity).toFixed(2)}
+                          {formatPrice(
+                            (item.unitPrice + item.addons.reduce((a, b) => a + b.price, 0)) * item.quantity
+                          )}
                         </span>
                       </div>
                     </div>
@@ -160,7 +164,9 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ onNavigate }) => {
                     </div>
                     <div>
                       <div className="text-xs font-bold text-slate-900">Confetti Explosion Bomb</div>
-                      <div className="text-[10px] text-slate-500">Fun surprise when envelope opens (+£1.99)</div>
+                      <div className="text-[10px] text-slate-500">
+                        Fun surprise when envelope opens (+{formatPrice(1.99)})
+                      </div>
                     </div>
                   </div>
                   <span className="text-[10px] font-bold text-rose-600 bg-white px-2 py-1 rounded-md shadow-xs">
@@ -217,24 +223,24 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ onNavigate }) => {
               <div className="space-y-1.5 text-xs text-slate-600 pt-1">
                 <div className="flex justify-between">
                   <span>Subtotal</span>
-                  <span className="font-semibold text-slate-900">£{subtotal.toFixed(2)}</span>
+                  <span className="font-semibold text-slate-900">{formatPrice(subtotal)}</span>
                 </div>
 
                 {discount > 0 && (
                   <div className="flex justify-between text-emerald-600 font-medium">
                     <span>Discount</span>
-                    <span>-£{discount.toFixed(2)}</span>
+                    <span>-{formatPrice(discount)}</span>
                   </div>
                 )}
 
                 <div className="flex justify-between">
-                  <span>Estimated 1st Class Delivery</span>
-                  <span className="font-semibold text-slate-900">£{deliveryFee.toFixed(2)}</span>
+                  <span>Estimated {STANDARD_DELIVERY.name}</span>
+                  <span className="font-semibold text-slate-900">{formatPrice(deliveryFee)}</span>
                 </div>
 
                 <div className="flex justify-between text-base font-extrabold text-slate-900 pt-2 border-t border-slate-200">
                   <span>Total</span>
-                  <span>£{total.toFixed(2)}</span>
+                  <span>{formatPrice(total)}</span>
                 </div>
               </div>
 

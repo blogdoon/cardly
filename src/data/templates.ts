@@ -2676,36 +2676,68 @@ function generateMasterTemplateCatalog(): CardTemplate[] {
   return templates;
 }
 
+/**
+ * The bundled seed catalog. These 300+ cards ship in the JS bundle and are used
+ * to seed Firestore (see `seedCatalogFromBundle` in services/catalogService).
+ * They are NOT the source of truth at runtime — the live catalog in Firestore
+ * is. This array is treated as immutable seed data.
+ */
 export const ALL_TEMPLATES: CardTemplate[] = generateMasterTemplateCatalog();
 
+/**
+ * The live catalog: whatever Firestore last told us, falling back to the bundled
+ * seed (plus any locally created custom templates) when the database is
+ * unavailable or has not been seeded yet.
+ *
+ * Every lookup helper below reads this rather than `ALL_TEMPLATES`, so the whole
+ * app is database-driven without any page needing to know where the data came
+ * from. `CatalogProvider` keeps it in sync via a Firestore snapshot listener.
+ */
+let liveCatalog: CardTemplate[] = [...ALL_TEMPLATES];
+
+/** Replace the live catalog (called by CatalogProvider on every snapshot). */
+export function setLiveCatalog(templates: CardTemplate[]): void {
+  liveCatalog = templates;
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('cardly_templates_updated'));
+  }
+}
+
+/** The catalog the running app should read from. Never mutate the result. */
+export function getLiveCatalog(): CardTemplate[] {
+  return liveCatalog;
+}
+
 export function getTemplateById(id: string): CardTemplate | undefined {
-  return ALL_TEMPLATES.find((t) => t.id === id);
+  return liveCatalog.find((t) => t.id === id);
 }
 
 export function getTemplatesByCategory(category: OccasionType): CardTemplate[] {
-  return ALL_TEMPLATES.filter((t) => t.category.toLowerCase() === category.toLowerCase());
+  return liveCatalog.filter((t) => t.category.toLowerCase() === category.toLowerCase());
 }
 
 export function getTemplatesByRecipient(recipient: RecipientType): CardTemplate[] {
-  return ALL_TEMPLATES.filter((t) => t.recipient.toLowerCase() === recipient.toLowerCase());
+  return liveCatalog.filter((t) => t.recipient.toLowerCase() === recipient.toLowerCase());
 }
 
 export function getPopularTemplates(limit = 12): CardTemplate[] {
-  return ALL_TEMPLATES.filter((t) => t.isPopular || t.isBestSeller).slice(0, limit);
+  return liveCatalog.filter((t) => t.isPopular || t.isBestSeller).slice(0, limit);
 }
 
 export function getPhotoTemplates(limit = 12): CardTemplate[] {
-  return ALL_TEMPLATES.filter((t) => t.isPhotoCard).slice(0, limit);
+  return liveCatalog.filter((t) => t.isPhotoCard).slice(0, limit);
 }
 
 export function registerCustomTemplate(template: CardTemplate): void {
   saveCustomUploadedTemplate(template);
-  const existingIdx = ALL_TEMPLATES.findIndex((t) => t.id === template.id);
+  const existingIdx = liveCatalog.findIndex((t) => t.id === template.id);
+  const next = [...liveCatalog];
   if (existingIdx >= 0) {
-    ALL_TEMPLATES[existingIdx] = template;
+    next[existingIdx] = template;
   } else {
-    ALL_TEMPLATES.unshift(template);
+    next.unshift(template);
   }
+  setLiveCatalog(next);
   if (typeof window !== 'undefined') {
     window.dispatchEvent(new CustomEvent('cardly_templates_updated', { detail: template }));
   }
@@ -2713,10 +2745,7 @@ export function registerCustomTemplate(template: CardTemplate): void {
 
 export function unregisterCustomTemplate(templateId: string): void {
   deleteCustomUploadedTemplate(templateId);
-  const existingIdx = ALL_TEMPLATES.findIndex((t) => t.id === templateId);
-  if (existingIdx >= 0) {
-    ALL_TEMPLATES.splice(existingIdx, 1);
-  }
+  setLiveCatalog(liveCatalog.filter((t) => t.id !== templateId));
   if (typeof window !== 'undefined') {
     window.dispatchEvent(new CustomEvent('cardly_templates_updated', { detail: { id: templateId, deleted: true } }));
   }

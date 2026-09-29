@@ -18,6 +18,7 @@ import { ALL_TEMPLATES, getPopularTemplates, getPhotoTemplates, getTemplatesByCa
 import { OCCASIONS_LIST, RECIPIENTS_LIST } from '../data/categories';
 import { useFavorites } from '../context/FavoritesContext';
 import { getRecentlyViewed } from '../services/cardStorage';
+import { formatPrice } from '../utils/currency';
 import { getPersonalizedFeed } from '../utils/recommendations';
 
 interface HomeProps {
@@ -328,7 +329,7 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, onPersonalize }) => {
                 </div>
                 <div className="mt-2">
                   <h4 className="font-bold text-[11px] text-slate-800 truncate">{card.title}</h4>
-                  <span className="text-[10px] font-extrabold text-rose-600">£{card.price.toFixed(2)}</span>
+                  <span className="text-[10px] font-extrabold text-rose-600">{formatPrice(card.price)}</span>
                 </div>
               </div>
             ))}

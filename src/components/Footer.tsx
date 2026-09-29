@@ -172,7 +172,7 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
               </button>
             </div>
             <div className="text-[11px] text-slate-500 space-y-1">
-              <p>Delivery: Royal Mail 1st Class</p>
+              <p>Delivery: standard letterbox across Europe, 3–5 working days</p>
               <p>Size options: Standard, Large, Giant</p>
             </div>
           </div>

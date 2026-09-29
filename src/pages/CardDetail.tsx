@@ -16,6 +16,7 @@ import {
 import { CardTemplate, CardSize } from '../types/template';
 import { getTemplateById } from '../data/templates';
 import { CARD_SIZES, ENVELOPE_COLORS } from '../data/fonts';
+import { formatPrice } from '../utils/currency';
 import { useFavorites } from '../context/FavoritesContext';
 import { useCart } from '../context/CartContext';
 import { recordRecentlyViewed } from '../services/cardStorage';
@@ -77,6 +78,10 @@ export const CardDetail: React.FC<CardDetailProps> = ({
       ? envelopeConfig.id
       : 'white') as any;
 
+    // `unitPrice` is the card alone. The envelope is carried as an addon so the
+    // cart subtotal (unitPrice + addons) matches the `totalPrice` shown above.
+    // Passing the combined figure as unitPrice *and* listing the envelope as an
+    // addon charged the customer for it twice.
     addItem({
       templateId: template.id,
       title: template.title,
@@ -84,7 +89,7 @@ export const CardDetail: React.FC<CardDetailProps> = ({
       cardSize: selectedSize,
       envelopeColor: validEnvelopeColor,
       quantity: 1,
-      unitPrice: totalPrice,
+      unitPrice: template.price * sizeConfig.priceMultiplier,
       addons: envelopeConfig.price > 0 ? [{ id: envelopeConfig.id, name: envelopeConfig.name, price: envelopeConfig.price, description: 'Luxury Envelope' }] : [],
       customSummary: { recipientName: template.recipient, customMessageSnippet: 'Sent with love' },
     });
@@ -245,7 +250,7 @@ export const CardDetail: React.FC<CardDetailProps> = ({
           <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200/80 flex items-center justify-between">
             <div>
               <span className="text-xs text-slate-400 block font-normal">Total Price</span>
-              <span className="text-2xl font-black text-slate-900">£{totalPrice.toFixed(2)}</span>
+              <span className="text-2xl font-black text-slate-900">{formatPrice(totalPrice)}</span>
             </div>
             <div className="text-right text-xs text-emerald-700 font-semibold flex items-center gap-1">
               <Check className="w-3.5 h-3.5" />
@@ -272,7 +277,7 @@ export const CardDetail: React.FC<CardDetailProps> = ({
                   <div className="font-bold text-xs text-slate-900">{size.name}</div>
                   <div className="text-[10px] text-slate-500 mt-0.5">{size.dimensions}</div>
                   <div className="text-[11px] font-bold text-rose-600 mt-1">
-                    £{(template.price * size.priceMultiplier).toFixed(2)}
+                    {formatPrice(template.price * size.priceMultiplier)}
                   </div>
                 </button>
               ))}
@@ -286,7 +291,7 @@ export const CardDetail: React.FC<CardDetailProps> = ({
                 2. Select Envelope
               </label>
               <span className="text-slate-500 font-medium">
-                {envelopeConfig.name} {envelopeConfig.price > 0 && `(+£${envelopeConfig.price.toFixed(2)})`}
+                {envelopeConfig.name} {envelopeConfig.price > 0 && `(+${formatPrice(envelopeConfig.price)})`}
               </span>
             </div>
             <div className="flex flex-wrap gap-2">
