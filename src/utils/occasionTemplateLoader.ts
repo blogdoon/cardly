@@ -200,16 +200,21 @@ export function generateTemplatesFromOccasionImages(): CardTemplate[] {
     // Every browse facet is derived from the artwork (see utils/templateFacets).
     // The previous hardcoded recipient: 'Anyone' / style: 'Floral' made the
     // recipient, style, photo and milestone filters match nothing.
-    const facets = buildTemplateFacets({ occasion: entry.occasion, imageUrl: entry.imageUrl });
+    const facets = buildTemplateFacets({
+      occasion: entry.occasion,
+      imageUrl: entry.imageUrl,
+    });
 
     return {
       id: templateId,
       title,
       description: desc,
       ...facets,
-      price: 4.29,
+      price: priceForStyles(facets.styles),
       thumbnail: entry.imageUrl,
-      previewColors: ['#faf8f5', occasionMeta.defaultColor, '#d97706'],
+      // The artwork's own palette, which `facets.colors` was derived from — so
+      // the swatches a customer sees and the `?color=` facet cannot disagree.
+      previewColors: facets.palette,
       altText: `${title} - Front cover artwork`,
       defaultPages: {
         front: {
@@ -325,6 +330,32 @@ export function deleteCustomUploadedTemplate(id: string): void {
 }
 
 /**
+ * Base price per style tier, in EUR.
+ *
+ * Every bundled card used to be stamped 4.29, which made `?maxPrice=` a no-op
+ * and hid the price range filter entirely. Tiering by style is a real
+ * merchandising decision — a foil/lacquered luxury card costs more to print than
+ * a flat cartoon — so the price follows the style we already assign rather than
+ * being invented per card. The stored `price` is the *standard* size price;
+ * `priceRangeFor` in utils/templateFacets.ts derives the full band from the
+ * size multipliers.
+ */
+const STYLE_PRICE_TIERS: { styles: CardStyleType[]; price: number }[] = [
+  { styles: ['Luxury', 'Elegant', 'Minimal'], price: 5.49 },
+  { styles: ['Retro', 'Typography', 'Inspirational', 'Floral'], price: 4.29 },
+  { styles: ['Modern', 'Colorful', 'Photo'], price: 4.79 },
+  { styles: ['Cute', 'Cartoon', 'Funny'], price: 3.99 },
+];
+
+/** The standard-size price for a set of styles, cheapest matching tier. */
+export function priceForStyles(styles: readonly CardStyleType[]): number {
+  for (const tier of STYLE_PRICE_TIERS) {
+    if (styles.some((s) => tier.styles.includes(s))) return tier.price;
+  }
+  return 4.29;
+}
+
+/**
  * Creates a complete CardTemplate from an occasion image with customized text, price, and palette.
  */
 export function createTemplateFromOccasionImage(options: {
@@ -338,9 +369,18 @@ export function createTemplateFromOccasionImage(options: {
    */
   textColor?: string;
   price?: number;
-  recipient?: RecipientType;
-  style?: CardStyleType;
+  /** Omit to derive from the artwork (see utils/templateFacets.ts). */
+  recipients?: RecipientType[];
+  styles?: CardStyleType[];
   tags?: string[];
+  /**
+   * Blank template where the customer supplies the cover photo. This is what
+   * `isPhotoCard` and the "Photo Card" badge mean — before, nothing in the app
+   * could ever set it, so `?photo=1` was permanently empty.
+   */
+  customerSuppliesPhoto?: boolean;
+  /** Only for age-specific cards, e.g. 50 for "Turning 50". */
+  milestoneAge?: number;
 }): CardTemplate {
   const occasion = options.occasion;
   const occasionMeta = OCCASION_MESSAGES[occasion] || OCCASION_MESSAGES['Birthday'];
@@ -350,6 +390,8 @@ export function createTemplateFromOccasionImage(options: {
   const textColor = options.textColor || occasionMeta.defaultColor;
   const price = options.price || 4.29;
 
+  const createdAt = new Date().toISOString();
+
   // Facets come from the artwork where we have a reviewed entry for it, and
   // from the admin's explicit choice otherwise. `rating`/`reviewCount` start at
   // zero and are owned by recomputeTemplateRating — the generator used to write
@@ -357,9 +399,17 @@ export function createTemplateFromOccasionImage(options: {
   const facets = buildTemplateFacets({
     occasion,
     imageUrl: options.imageUrl,
+    // The studio's colour choice, over the artwork's own palette, so the
+    // admin's pick is what the swatches and the colour facet both use.
+    palette: ['#faf8f5', textColor, '#d97706'],
+    createdAt,
     existing: {
-      ...(options.recipient ? { recipient: options.recipient } : {}),
-      ...(options.style ? { style: options.style } : {}),
+      ...(options.recipients?.length ? { recipients: options.recipients } : {}),
+      ...(options.styles?.length ? { styles: options.styles } : {}),
+      // A blank photo card is text + photo; pre-printed artwork is text only.
+      ...(options.customerSuppliesPhoto
+        ? { personalization: ['photo', 'text'] as const }
+        : {}),
       ...(options.tags?.length ? { tags: [occasion.toLowerCase(), 'custom', ...options.tags] } : {}),
     },
   });
@@ -371,8 +421,12 @@ export function createTemplateFromOccasionImage(options: {
     ...facets,
     price,
     thumbnail: options.imageUrl,
-    previewColors: ['#faf8f5', textColor, '#d97706'],
+    previewColors: facets.palette,
     altText: `${title} - Front cover artwork`,
+    // Only stamped when the admin asked for an age-specific card; a general
+    // birthday card must not claim to be "Turning 50".
+    ...(options.milestoneAge ? { milestoneAge: options.milestoneAge } : {}),
+    createdAt,
     defaultPages: {
       front: {
         pageType: 'front',

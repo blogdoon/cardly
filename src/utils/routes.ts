@@ -28,23 +28,63 @@ export interface BrowseFacets {
   occasion?: string;
   recipient?: string;
   style?: string;
+  tone?: string;
+  season?: string;
+  color?: string;
+  personalization?: string;
   photoOnly?: boolean;
   maxPrice?: number;
+  minPrice?: number;
 }
 
-const FACET_KEYS = ['q', 'occasion', 'recipient', 'style'] as const;
+/**
+ * List facets are comma-separated in the URL, so a multi-select filter is
+ * still one shareable link: `/browse/?style=Cute,Retro&recipient=Kids,Anyone`.
+ *
+ * Comma is safe as a separator because no facet value contains one (including
+ * "Best Friend", whose space is handled by encodeURIComponent). Values are
+ * matched case-insensitively on read, so a hand-edited URL still works.
+ */
+export const LIST_FACET_KEYS = [
+  'occasion',
+  'recipient',
+  'style',
+  'tone',
+  'season',
+  'color',
+  'personalization',
+] as const;
+
+export type ListFacetKey = (typeof LIST_FACET_KEYS)[number];
+
+/** Split a comma-separated facet value into a clean, de-duplicated list. */
+export function splitFacet(value: string | undefined): string[] {
+  if (!value) return [];
+  return Array.from(
+    new Set(
+      value
+        .split(',')
+        .map((v) => v.trim())
+        .filter(Boolean)
+    )
+  );
+}
 
 /** Read browse facets out of a query string, ignoring anything unrecognised. */
 export function parseFacets(search: string): BrowseFacets {
   const params = new URLSearchParams(search);
   const facets: BrowseFacets = {};
-  for (const key of FACET_KEYS) {
-    const value = params.get(key);
-    if (value) facets[key] = value;
+  const q = params.get('q');
+  if (q) facets.q = q;
+  for (const key of LIST_FACET_KEYS) {
+    const list = splitFacet(params.get(key) ?? undefined);
+    if (list.length) facets[key] = list.join(',');
   }
   if (params.get('photo') === '1') facets.photoOnly = true;
   const maxPrice = Number(params.get('maxPrice'));
   if (Number.isFinite(maxPrice) && maxPrice > 0) facets.maxPrice = maxPrice;
+  const minPrice = Number(params.get('minPrice'));
+  if (Number.isFinite(minPrice) && minPrice > 0) facets.minPrice = minPrice;
   return facets;
 }
 
@@ -97,12 +137,15 @@ export function parsePath(
 export function facetsQuery(facets?: BrowseFacets): string {
   if (!facets) return '';
   const params = new URLSearchParams();
-  for (const key of FACET_KEYS) {
+  for (const key of LIST_FACET_KEYS) {
     const value = facets[key];
     if (value) params.set(key, value);
   }
+  const q = facets.q;
+  if (q) params.set('q', q);
   if (facets.photoOnly) params.set('photo', '1');
   if (facets.maxPrice) params.set('maxPrice', String(facets.maxPrice));
+  if (facets.minPrice) params.set('minPrice', String(facets.minPrice));
   const query = params.toString();
   return query ? `?${query}` : '';
 }

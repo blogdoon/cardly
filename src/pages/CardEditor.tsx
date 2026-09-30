@@ -139,7 +139,7 @@ export const CardEditor: React.FC<CardEditorProps> = ({
 
   // Quick fill fields
   const [quickFields, setQuickFields] = useState({
-    name: template?.recipient || '',
+    name: template?.recipients[0] ?? '',
     message: 'Wishing you a very Happy Birthday! With lots of love x',
   });
 

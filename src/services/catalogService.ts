@@ -45,11 +45,12 @@ export interface CatalogDocument extends CardTemplate {
 
 const toCatalogDocument = (t: CardTemplate): CatalogDocument => {
   // Every browse facet is filled in on write, so a doc written from anywhere
-  // carries a real, filterable recipient/style/season/tags set rather than the
-  // ones the caller happened to remember.
+  // carries a real, filterable recipients/styles/season/tags/colors set rather
+  // than the ones the caller happened to remember.
   const facets = buildTemplateFacets({
     occasion: t.category,
     imageUrl: t.thumbnail,
+    previewColors: t.previewColors,
     existing: t,
   });
   // Page definitions are deep and Firestore rejects `undefined`, so we let the
@@ -64,11 +65,18 @@ const toCatalogDocument = (t: CardTemplate): CatalogDocument => {
  * Templates written before facets were stored (or hand-edited in Firestore) are
  * completed at load time from the artwork, mirroring how `utils/frontCover.ts`
  * cleans up cards stored before the artwork-only-front rule existed. This is why
- * no migration is needed: the data corrects itself on read.
+ * no migration is needed: the data corrects itself on read. A legacy scalar
+ * `recipient`/`style` is widened to an array here, which is how those documents
+ * migrate themselves.
  */
 const withFacets = (t: CardTemplate): CardTemplate => ({
   ...t,
-  ...buildTemplateFacets({ occasion: t.category, imageUrl: t.thumbnail, existing: t }),
+  ...buildTemplateFacets({
+    occasion: t.category,
+    imageUrl: t.thumbnail,
+    previewColors: t.previewColors,
+    existing: t,
+  }),
 });
 
 /** Locally created (Occasion Studio) templates, which have no DB doc yet. */

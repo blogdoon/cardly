@@ -25,6 +25,7 @@ import { formatPrice } from '../utils/currency';
 import { useAuth } from '../context/AuthContext';
 import { useCatalog } from '../context/CatalogContext';
 import { upsertTemplate } from '../services/catalogService';
+import { TemplateFacetEditor } from '../components/Admin/TemplateFacetEditor';
 import { isFirebaseConfigured } from '../services/firebase';
 import { OccasionStudio } from '../components/Admin/OccasionStudio';
 import { AdminOrdersPanel } from '../components/Admin/AdminOrdersPanel';
@@ -280,6 +281,31 @@ export const Admin: React.FC<AdminProps> = ({ onNavigate }) => {
     },
     []
   );
+
+  /**
+   * Save edited browse facets.
+   *
+   * Facets were previously write-only — the only way to fix a card filed in the
+   * wrong bucket was to delete and recreate it, which changes the id that past
+   * orders and saved designs reference. This goes through the same
+   * `upsertTemplate` the studio uses, so there is still one writer.
+   */
+  const handleSaveFacets = useCallback(async (next: CardTemplate) => {
+    setBusyId(next.id);
+    try {
+      await upsertTemplate(next);
+    } catch (e) {
+      setNotice({
+        tone: 'error',
+        text: e instanceof Error ? e.message : 'Could not save those facets.',
+      });
+      // Re-thrown so the editor keeps the dialog open with the user's input
+      // rather than closing over a failed write.
+      throw e;
+    } finally {
+      setBusyId(null);
+    }
+  }, []);
 
   const handleConfirmDelete = useCallback(async () => {
     if (!pendingDelete) return;
@@ -658,6 +684,7 @@ export const Admin: React.FC<AdminProps> = ({ onNavigate }) => {
                         )}
                       </td>
                       <td className="py-2 px-4">
+                        <div className="flex items-center gap-1">
                         <button
                           onClick={() => handleToggleBestSeller(t)}
                           disabled={isBusy || isRetired}
@@ -669,6 +696,13 @@ export const Admin: React.FC<AdminProps> = ({ onNavigate }) => {
                         >
                           {t.isBestSeller ? 'Yes' : 'No'}
                         </button>
+                        <TemplateFacetEditor
+                          template={t}
+                          onSave={handleSaveFacets}
+                          onError={(text) => setNotice({ tone: 'error', text })}
+                          onNotice={(text) => setNotice({ tone: 'ok', text })}
+                        />
+                        </div>
                       </td>
                       <td className="py-2 px-4 font-medium text-slate-700">★ {t.rating}</td>
                       <td className="py-2 px-4">

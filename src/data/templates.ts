@@ -52,7 +52,11 @@ export function getTemplatesByCategory(category: OccasionType): CardTemplate[] {
 }
 
 export function getTemplatesByRecipient(recipient: RecipientType): CardTemplate[] {
-  return liveCatalog.filter((t) => t.recipient.toLowerCase() === recipient.toLowerCase());
+  // `recipients` is an array, so a card for a "Friend" is also returned for
+  // "Best Friend" when it lists both.
+  return liveCatalog.filter((t) =>
+    t.recipients.some((r) => r.toLowerCase() === recipient.toLowerCase())
+  );
 }
 
 export function getPopularTemplates(limit = 12): CardTemplate[] {

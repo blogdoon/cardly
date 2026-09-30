@@ -118,9 +118,18 @@ import type {
   CardStyleType,
   CardToneType,
   CardSeasonType,
+  PersonalizationType,
+  ColorFamily,
 } from '../utils/templateFacets';
 
-export type { RecipientType, CardStyleType, CardToneType, CardSeasonType };
+export type {
+  RecipientType,
+  CardStyleType,
+  CardToneType,
+  CardSeasonType,
+  PersonalizationType,
+  ColorFamily,
+};
 
 export interface CardTemplate {
   id: string;
@@ -128,9 +137,18 @@ export interface CardTemplate {
   description: string;
   category: OccasionType;
   subcategory?: string;
-  recipient: RecipientType;
-  style: CardStyleType;
+  /**
+   * Multi-valued on purpose. A card for a friend is also for a "Best Friend",
+   * and a felt-craft card is both "Cute" and "Retro"; a single value made those
+   * cards unreachable from half the facets. Values already on the card win, and
+   * a stored scalar `recipient`/`style` is widened to a one-element array on
+   * read, so templates written before this change keep working.
+   */
+  recipients: RecipientType[];
+  styles: CardStyleType[];
   tone: CardToneType;
+  /** What the customer personalises. Drives the "Photo Card" badge. */
+  personalization: PersonalizationType[];
   tags: string[];
   price: number;
   rating: number;
@@ -139,11 +157,19 @@ export interface CardTemplate {
   isPopular?: boolean;
   isNew?: boolean;
   isBestSeller?: boolean;
+  /** Set for age-specific cards ("Turning 50"). Omitted for general art. */
   milestoneAge?: number;
   altText?: string;
   season?: CardSeasonType;
   thumbnail: string;
   previewColors: string[];
+  /**
+   * Filterable colour facets, derived from `previewColors`. Stored so a
+   * `?color=` query is an indexable equality match rather than a scan.
+   */
+  colors?: ColorFamily[];
+  /** ISO timestamp. `isNew` is derived from this rather than latched on. */
+  createdAt?: string;
   defaultPages: {
     front: CardPageDefinition;
     insideLeft?: CardPageDefinition;

@@ -168,4 +168,11 @@ export const STYLES_LIST: { id: CardStyleType; name: string }[] = [
   { id: 'Inspirational', name: 'Inspirational' },
 ];
 
-export const MILESTONE_AGES = [1, 16, 18, 21, 30, 40, 50, 60, 70, 80, 90, 100];
+/**
+ * The ages the Milestone Age facet offers.
+ *
+ * Re-exported from `utils/templateFacets.ts` rather than restated: that module
+ * validates a template's `milestoneAge` against this list, and two copies would
+ * silently drift — a card could then store an age the storefront cannot filter.
+ */
+export { MILESTONE_AGE_VALUES as MILESTONE_AGES } from '../utils/templateFacets';

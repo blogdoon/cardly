@@ -110,7 +110,7 @@ export const CardTile: React.FC<CardTileProps> = ({ template, onSelect, onPerson
             {template.title}
           </h3>
           <p className="text-xs text-slate-500 mt-0.5 line-clamp-1">
-            For {template.recipient} • {template.style}
+            For {template.recipients.join(' / ')} • {template.styles.join(' / ')}
           </p>
         </div>
 

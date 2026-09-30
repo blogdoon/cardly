@@ -105,7 +105,7 @@ export const CardDetail: React.FC<CardDetailProps> = ({
           ? [{ id: finishConfig.id, name: finishConfig.name, price: finishConfig.price, description: 'Paper Finish' }]
           : []),
       ],
-      customSummary: { recipientName: template.recipient, customMessageSnippet: 'Sent with love' },
+      customSummary: { recipientName: template.recipients[0] ?? 'Someone special', customMessageSnippet: 'Sent with love' },
     });
   };
 

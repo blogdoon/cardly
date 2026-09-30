@@ -5,7 +5,93 @@ import { getLiveCatalog } from '../data/templates';
 import { OCCASIONS_LIST, RECIPIENTS_LIST, STYLES_LIST, MILESTONE_AGES } from '../data/categories';
 import { CardTemplate, OccasionType, RecipientType, CardStyleType } from '../types/template';
 import { formatPriceCompact } from '../utils/currency';
-import type { BrowseFacets } from '../utils/routes';
+import {
+  TONE_TYPES,
+  SEASON_TYPES,
+  PERSONALIZATION_TYPES,
+  COLOR_FAMILIES,
+  COLOR_FAMILY_LABELS,
+  priceRangeFor,
+  type ColorFamily,
+} from '../utils/templateFacets';
+import { splitFacet, type BrowseFacets } from '../utils/routes';
+
+/** Top of the price slider. Above the dearest card at every size tier. */
+const PRICE_CEILING = 12;
+const PRICE_STEP = 0.5;
+
+/**
+ * Does any chosen facet value match any of the template's values?
+ *
+ * Case-insensitive, because a hand-edited or pasted URL should not silently
+ * return nothing. OR within a facet, AND across facets.
+ */
+const anyMatches = (selected: readonly string[], values: readonly string[]): boolean => {
+  const wanted = selected.map((v) => v.toLowerCase());
+  return values.some((v) => wanted.includes(v.toLowerCase()));
+};
+
+/**
+ * One multi-select facet group.
+ *
+ * Every list facet uses this, so the OR-within/AND-across rule is stated once
+ * and behaves identically everywhere: tapping a second value widens the result
+ * set rather than replacing it.
+ */
+const FacetGroup: React.FC<{
+  label: string;
+  selected: string[];
+  options: { value: string; label: string }[];
+  onToggle: (value: string) => void;
+  onClear: () => void;
+  maxHeight?: string;
+}> = ({ label, selected, options, onToggle, onClear, maxHeight = '' }) => (
+  <div className="space-y-2 pt-3 border-t border-slate-100 first:border-0 first:pt-0">
+    <div className="flex items-center justify-between">
+      <h4 className="font-bold text-slate-900 text-xs uppercase tracking-wider">{label}</h4>
+      {selected.length > 1 && (
+        <button
+          onClick={onClear}
+          className="text-[10px] font-semibold text-rose-600 hover:underline"
+        >
+          clear
+        </button>
+      )}
+    </div>
+    <div className={`space-y-1 overflow-y-auto pr-1 ${maxHeight}`}>
+      <button
+        onClick={onClear}
+        className={`w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-medium transition ${
+          selected.length === 0
+            ? 'bg-rose-50 text-rose-600 font-bold'
+            : 'text-slate-600 hover:bg-slate-50'
+        }`}
+      >
+        Any {label.toLowerCase()}
+      </button>
+      {options.map((opt) => {
+        const on = selected.some((v) => v.toLowerCase() === opt.value.toLowerCase());
+        return (
+          <button
+            key={opt.value}
+            onClick={() => onToggle(opt.value)}
+            aria-pressed={on}
+            className={`w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-medium transition flex items-center justify-between ${
+              on
+                ? 'bg-rose-50 text-rose-600 font-bold'
+                : 'text-slate-600 hover:bg-slate-50'
+            }`}
+          >
+            <span>{opt.label}</span>
+            {selected.length > 1 && (
+              <span className="text-[10px] text-rose-500">+</span>
+            )}
+          </button>
+        );
+      })}
+    </div>
+  </div>
+);
 
 interface BrowseProps {
   /**
@@ -25,12 +111,26 @@ export const Browse: React.FC<BrowseProps> = ({
   onPersonalize,
 }) => {
   const [search, setSearch] = useState(initialFacets?.q || '');
-  const [selectedOccasion, setSelectedOccasion] = useState<string>(initialFacets?.occasion || 'All');
-  const [selectedRecipient, setSelectedRecipient] = useState<string>(initialFacets?.recipient || 'All');
-  const [selectedStyle, setSelectedStyle] = useState<string>(initialFacets?.style || 'All');
+  // Every list facet is multi-select and ORs within itself ("Cute" *or* "Retro"),
+  // while different facets AND together. A card matches when it lists at least
+  // one of the chosen values — which is only expressible because the template
+  // stores arrays rather than a single value.
+  const [selectedOccasions, setSelectedOccasions] = useState<string[]>(splitFacet(initialFacets?.occasion));
+  const [selectedRecipients, setSelectedRecipients] = useState<string[]>(splitFacet(initialFacets?.recipient));
+  const [selectedStyles, setSelectedStyles] = useState<string[]>(splitFacet(initialFacets?.style));
+  const [selectedTones, setSelectedTones] = useState<string[]>(splitFacet(initialFacets?.tone));
+  const [selectedSeasons, setSelectedSeasons] = useState<string[]>(splitFacet(initialFacets?.season));
+  const [selectedColors, setSelectedColors] = useState<string[]>(splitFacet(initialFacets?.color));
+  const [selectedPersonalization, setSelectedPersonalization] = useState<string[]>(
+    splitFacet(initialFacets?.personalization)
+  );
   const [photoOnly, setPhotoOnly] = useState<boolean>(Boolean(initialFacets?.photoOnly));
   const [selectedMilestone, setSelectedMilestone] = useState<number | 'All'>('All');
-  const [maxPrice, setMaxPrice] = useState<number>(initialFacets?.maxPrice || 5.0);
+  // A range, not just a ceiling: the cheapest size of a card is well below its
+  // standard price, so a max-only slider hid cheap cards and `?maxPrice=` could
+  // not express "under €4".
+  const [minPrice, setMinPrice] = useState<number>(initialFacets?.minPrice || 0);
+  const [maxPrice, setMaxPrice] = useState<number>(initialFacets?.maxPrice || PRICE_CEILING);
   const [sortBy, setSortBy] = useState<'popular' | 'rating' | 'price-asc' | 'price-desc' | 'newest'>('popular');
 
   const [visibleCount, setVisibleCount] = useState(24);
@@ -50,33 +150,48 @@ export const Browse: React.FC<BrowseProps> = ({
   // fresh navigation into /browse/ all land on the same result set.
   useEffect(() => {
     setSearch(initialFacets?.q || '');
-    setSelectedOccasion(initialFacets?.occasion || 'All');
-    setSelectedRecipient(initialFacets?.recipient || 'All');
-    setSelectedStyle(initialFacets?.style || 'All');
+    setSelectedOccasions(splitFacet(initialFacets?.occasion));
+    setSelectedRecipients(splitFacet(initialFacets?.recipient));
+    setSelectedStyles(splitFacet(initialFacets?.style));
+    setSelectedTones(splitFacet(initialFacets?.tone));
+    setSelectedSeasons(splitFacet(initialFacets?.season));
+    setSelectedColors(splitFacet(initialFacets?.color));
+    setSelectedPersonalization(splitFacet(initialFacets?.personalization));
     setPhotoOnly(Boolean(initialFacets?.photoOnly));
-    setMaxPrice(initialFacets?.maxPrice || 5.0);
+    setMinPrice(initialFacets?.minPrice || 0);
+    setMaxPrice(initialFacets?.maxPrice || PRICE_CEILING);
     setVisibleCount(24);
   }, [initialFacets]);
 
   const clearAllFilters = () => {
     setSearch('');
-    setSelectedOccasion('All');
-    setSelectedRecipient('All');
-    setSelectedStyle('All');
+    setSelectedOccasions([]);
+    setSelectedRecipients([]);
+    setSelectedStyles([]);
+    setSelectedTones([]);
+    setSelectedSeasons([]);
+    setSelectedColors([]);
+    setSelectedPersonalization([]);
     setPhotoOnly(false);
     setSelectedMilestone('All');
-    setMaxPrice(5.0);
+    setMinPrice(0);
+    setMaxPrice(PRICE_CEILING);
     setSortBy('popular');
   };
 
   const hasActiveFilters =
     search !== '' ||
-    selectedOccasion !== 'All' ||
-    selectedRecipient !== 'All' ||
-    selectedStyle !== 'All' ||
+    selectedOccasions.length > 0 ||
+    selectedRecipients.length > 0 ||
+    selectedStyles.length > 0 ||
+    selectedTones.length > 0 ||
+    selectedSeasons.length > 0 ||
+    selectedColors.length > 0 ||
+    selectedPersonalization.length > 0 ||
     photoOnly ||
     selectedMilestone !== 'All' ||
-    maxPrice < 5.0;
+    minPrice > 0 ||
+    maxPrice < PRICE_CEILING;
 
   // Filter logic
   const filteredTemplates = useMemo(() => {
@@ -87,7 +202,7 @@ export const Browse: React.FC<BrowseProps> = ({
         const matchTitle = template.title.toLowerCase().includes(q);
         const matchDesc = template.description.toLowerCase().includes(q);
         const matchCategory = template.category.toLowerCase().includes(q);
-        const matchRecipient = template.recipient.toLowerCase().includes(q);
+        const matchRecipient = template.recipients.some((r) => r.toLowerCase().includes(q));
         const matchTags = template.tags.some((tag: string) => tag.toLowerCase().includes(q));
         if (!matchTitle && !matchDesc && !matchCategory && !matchRecipient && !matchTags) {
           return false;
@@ -95,17 +210,43 @@ export const Browse: React.FC<BrowseProps> = ({
       }
 
       // Occasion filter
-      if (selectedOccasion !== 'All' && template.category.toLowerCase() !== selectedOccasion.toLowerCase()) {
+      if (
+        selectedOccasions.length > 0 &&
+        !anyMatches(selectedOccasions, [template.category])
+      ) {
         return false;
       }
 
-      // Recipient filter
-      if (selectedRecipient !== 'All' && template.recipient.toLowerCase() !== selectedRecipient.toLowerCase()) {
+      // Recipient filter — OR within the facet, so a card listed for both
+      // "Kids" and "Anyone" is returned by either selection.
+      if (
+        selectedRecipients.length > 0 &&
+        !anyMatches(selectedRecipients, template.recipients)
+      ) {
         return false;
       }
 
       // Style filter
-      if (selectedStyle !== 'All' && template.style.toLowerCase() !== selectedStyle.toLowerCase()) {
+      if (selectedStyles.length > 0 && !anyMatches(selectedStyles, template.styles)) {
+        return false;
+      }
+
+      if (selectedTones.length > 0 && !anyMatches(selectedTones, [template.tone])) {
+        return false;
+      }
+
+      if (selectedSeasons.length > 0 && !anyMatches(selectedSeasons, [template.season ?? 'all-year'])) {
+        return false;
+      }
+
+      if (selectedColors.length > 0 && !anyMatches(selectedColors, template.colors ?? [])) {
+        return false;
+      }
+
+      if (
+        selectedPersonalization.length > 0 &&
+        !anyMatches(selectedPersonalization, template.personalization)
+      ) {
         return false;
       }
 
@@ -119,8 +260,11 @@ export const Browse: React.FC<BrowseProps> = ({
         return false;
       }
 
-      // Price filter
-      if (template.price > maxPrice) {
+      // Price filter, against the whole size range rather than just the
+      // standard price, so a "under €4" filter reaches the postcard size of a
+      // €4.79 card. A card matches when its band *overlaps* the chosen range.
+      const band = priceRangeFor(template.price);
+      if (band.max < minPrice || band.min > maxPrice) {
         return false;
       }
 
@@ -132,9 +276,32 @@ export const Browse: React.FC<BrowseProps> = ({
       if (sortBy === 'newest') return (b.isNew ? 1 : 0) - (a.isNew ? 1 : 0);
       return (b.isPopular ? 1 : 0) - (a.isPopular ? 1 : 0);
     });
-  }, [search, selectedOccasion, selectedRecipient, selectedStyle, photoOnly, selectedMilestone, maxPrice, sortBy]);
+  }, [
+    search,
+    selectedOccasions,
+    selectedRecipients,
+    selectedStyles,
+    selectedTones,
+    selectedSeasons,
+    selectedColors,
+    selectedPersonalization,
+    photoOnly,
+    selectedMilestone,
+    minPrice,
+    maxPrice,
+    sortBy,
+    templateList,
+  ]);
 
   const displayedTemplates = filteredTemplates.slice(0, visibleCount);
+
+  /** Toggle one value in a multi-select facet list. */
+  const toggleFacet = (
+    selected: string[],
+    value: string,
+    set: (next: string[]) => void
+  ) =>
+    set(selected.includes(value) ? selected.filter((v) => v !== value) : [...selected, value]);
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
@@ -142,10 +309,10 @@ export const Browse: React.FC<BrowseProps> = ({
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-slate-200">
         <div>
           <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
-            {selectedOccasion !== 'All'
-              ? `${selectedOccasion} Cards`
-              : selectedStyle !== 'All'
-              ? `${selectedStyle} Greeting Cards`
+            {selectedOccasions.length === 1
+              ? `${selectedOccasions[0]} Cards`
+              : selectedStyles.length === 1
+              ? `${selectedStyles[0]} Greeting Cards`
               : 'Browse All Greeting Cards'}
           </h1>
           <p className="text-xs text-slate-500 mt-1">
@@ -194,24 +361,80 @@ export const Browse: React.FC<BrowseProps> = ({
             </span>
           )}
 
-          {selectedOccasion !== 'All' && (
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-rose-50 border border-rose-200 text-rose-700 text-xs font-medium rounded-full">
-              Occasion: {selectedOccasion}
-              <X className="w-3.5 h-3.5 cursor-pointer" onClick={() => setSelectedOccasion('All')} />
+          {selectedOccasions.map((v) => (
+            <span key={`occ-${v}`} className="inline-flex items-center gap-1.5 px-3 py-1 bg-rose-50 border border-rose-200 text-rose-700 text-xs font-medium rounded-full">
+              Occasion: {v}
+              <X
+                className="w-3.5 h-3.5 cursor-pointer"
+                onClick={() => toggleFacet(selectedOccasions, v, setSelectedOccasions)}
+              />
             </span>
-          )}
+          ))}
 
-          {selectedRecipient !== 'All' && (
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-rose-50 border border-rose-200 text-rose-700 text-xs font-medium rounded-full">
-              Recipient: {selectedRecipient}
-              <X className="w-3.5 h-3.5 cursor-pointer" onClick={() => setSelectedRecipient('All')} />
+          {selectedRecipients.map((v) => (
+            <span key={`rec-${v}`} className="inline-flex items-center gap-1.5 px-3 py-1 bg-rose-50 border border-rose-200 text-rose-700 text-xs font-medium rounded-full">
+              Recipient: {v}
+              <X
+                className="w-3.5 h-3.5 cursor-pointer"
+                onClick={() => toggleFacet(selectedRecipients, v, setSelectedRecipients)}
+              />
             </span>
-          )}
+          ))}
 
-          {selectedStyle !== 'All' && (
+          {selectedStyles.map((v) => (
+            <span key={`sty-${v}`} className="inline-flex items-center gap-1.5 px-3 py-1 bg-rose-50 border border-rose-200 text-rose-700 text-xs font-medium rounded-full">
+              Style: {v}
+              <X
+                className="w-3.5 h-3.5 cursor-pointer"
+                onClick={() => toggleFacet(selectedStyles, v, setSelectedStyles)}
+              />
+            </span>
+          ))}
+
+          {selectedTones.map((v) => (
+            <span key={`ton-${v}`} className="inline-flex items-center gap-1.5 px-3 py-1 bg-rose-50 border border-rose-200 text-rose-700 text-xs font-medium rounded-full">
+              Tone: {v}
+              <X
+                className="w-3.5 h-3.5 cursor-pointer"
+                onClick={() => toggleFacet(selectedTones, v, setSelectedTones)}
+              />
+            </span>
+          ))}
+
+          {selectedSeasons.map((v) => (
+            <span key={`sea-${v}`} className="inline-flex items-center gap-1.5 px-3 py-1 bg-rose-50 border border-rose-200 text-rose-700 text-xs font-medium rounded-full">
+              Season: {v}
+              <X
+                className="w-3.5 h-3.5 cursor-pointer"
+                onClick={() => toggleFacet(selectedSeasons, v, setSelectedSeasons)}
+              />
+            </span>
+          ))}
+
+          {selectedColors.map((v) => (
+            <span key={`col-${v}`} className="inline-flex items-center gap-1.5 px-3 py-1 bg-rose-50 border border-rose-200 text-rose-700 text-xs font-medium rounded-full">
+              Colour: {COLOR_FAMILY_LABELS[v as ColorFamily] ?? v}
+              <X
+                className="w-3.5 h-3.5 cursor-pointer"
+                onClick={() => toggleFacet(selectedColors, v, setSelectedColors)}
+              />
+            </span>
+          ))}
+
+          {selectedPersonalization.map((v) => (
+            <span key={`per-${v}`} className="inline-flex items-center gap-1.5 px-3 py-1 bg-rose-50 border border-rose-200 text-rose-700 text-xs font-medium rounded-full">
+              Personalise: {v}
+              <X
+                className="w-3.5 h-3.5 cursor-pointer"
+                onClick={() => toggleFacet(selectedPersonalization, v, setSelectedPersonalization)}
+              />
+            </span>
+          ))}
+
+          {selectedMilestone !== 'All' && (
             <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-rose-50 border border-rose-200 text-rose-700 text-xs font-medium rounded-full">
-              Style: {selectedStyle}
-              <X className="w-3.5 h-3.5 cursor-pointer" onClick={() => setSelectedStyle('All')} />
+              Turning {selectedMilestone}
+              <X className="w-3.5 h-3.5 cursor-pointer" onClick={() => setSelectedMilestone('All')} />
             </span>
           )}
 
@@ -254,94 +477,72 @@ export const Browse: React.FC<BrowseProps> = ({
           )}
 
           {/* Occasion Filter */}
-          <div className="space-y-2">
-            <h4 className="font-bold text-slate-900 text-xs uppercase tracking-wider">Occasion</h4>
-            <div className="space-y-1 max-h-48 overflow-y-auto pr-1">
-              <button
-                onClick={() => setSelectedOccasion('All')}
-                className={`w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-medium transition ${
-                  selectedOccasion === 'All'
-                    ? 'bg-rose-50 text-rose-600 font-bold'
-                    : 'text-slate-600 hover:bg-slate-50'
-                }`}
-              >
-                All Occasions
-              </button>
-              {OCCASIONS_LIST.map((occ) => (
-                <button
-                  key={occ.id}
-                  onClick={() => setSelectedOccasion(occ.name)}
-                  className={`w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-medium transition flex items-center justify-between ${
-                    selectedOccasion.toLowerCase() === occ.name.toLowerCase()
-                      ? 'bg-rose-50 text-rose-600 font-bold'
-                      : 'text-slate-600 hover:bg-slate-50'
-                  }`}
-                >
-                  <span>{occ.name}</span>
-                </button>
-              ))}
-            </div>
-          </div>
+          <FacetGroup
+            label="Occasion"
+            selected={selectedOccasions}
+            onToggle={(v) => toggleFacet(selectedOccasions, v, setSelectedOccasions)}
+            onClear={() => setSelectedOccasions([])}
+            options={OCCASIONS_LIST.map((occ) => ({ value: occ.name, label: occ.name }))}
+            maxHeight="max-h-48"
+          />
 
           {/* Recipient Filter */}
-          <div className="space-y-2 pt-3 border-t border-slate-100">
-            <h4 className="font-bold text-slate-900 text-xs uppercase tracking-wider">Recipient</h4>
-            <div className="space-y-1 max-h-44 overflow-y-auto pr-1">
-              <button
-                onClick={() => setSelectedRecipient('All')}
-                className={`w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-medium transition ${
-                  selectedRecipient === 'All'
-                    ? 'bg-rose-50 text-rose-600 font-bold'
-                    : 'text-slate-600 hover:bg-slate-50'
-                }`}
-              >
-                Anyone
-              </button>
-              {RECIPIENTS_LIST.map((rec) => (
-                <button
-                  key={rec.id}
-                  onClick={() => setSelectedRecipient(rec.id)}
-                  className={`w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-medium transition ${
-                    selectedRecipient === rec.id
-                      ? 'bg-rose-50 text-rose-600 font-bold'
-                      : 'text-slate-600 hover:bg-slate-50'
-                  }`}
-                >
-                  {rec.name}
-                </button>
-              ))}
-            </div>
-          </div>
+          <FacetGroup
+            label="Recipient"
+            selected={selectedRecipients}
+            onToggle={(v) => toggleFacet(selectedRecipients, v, setSelectedRecipients)}
+            onClear={() => setSelectedRecipients([])}
+            options={RECIPIENTS_LIST.map((rec) => ({ value: rec.id, label: rec.name }))}
+            maxHeight="max-h-44"
+          />
 
           {/* Style Filter */}
-          <div className="space-y-2 pt-3 border-t border-slate-100">
-            <h4 className="font-bold text-slate-900 text-xs uppercase tracking-wider">Style</h4>
-            <div className="space-y-1 max-h-40 overflow-y-auto pr-1">
-              <button
-                onClick={() => setSelectedStyle('All')}
-                className={`w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-medium transition ${
-                  selectedStyle === 'All'
-                    ? 'bg-rose-50 text-rose-600 font-bold'
-                    : 'text-slate-600 hover:bg-slate-50'
-                }`}
-              >
-                All Styles
-              </button>
-              {STYLES_LIST.map((st) => (
-                <button
-                  key={st.id}
-                  onClick={() => setSelectedStyle(st.id)}
-                  className={`w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-medium transition ${
-                    selectedStyle === st.id
-                      ? 'bg-rose-50 text-rose-600 font-bold'
-                      : 'text-slate-600 hover:bg-slate-50'
-                  }`}
-                >
-                  {st.name}
-                </button>
-              ))}
-            </div>
-          </div>
+          <FacetGroup
+            label="Style"
+            selected={selectedStyles}
+            onToggle={(v) => toggleFacet(selectedStyles, v, setSelectedStyles)}
+            onClear={() => setSelectedStyles([])}
+            options={STYLES_LIST.map((st) => ({ value: st.id, label: st.name }))}
+            maxHeight="max-h-40"
+          />
+
+          {/* Tone / Season were stored on every template but had no control, so
+              they could not be reached. */}
+          <FacetGroup
+            label="Tone"
+            selected={selectedTones}
+            onToggle={(v) => toggleFacet(selectedTones, v, setSelectedTones)}
+            onClear={() => setSelectedTones([])}
+            options={TONE_TYPES.map((t) => ({ value: t, label: t }))}
+          />
+
+          <FacetGroup
+            label="Season"
+            selected={selectedSeasons}
+            onToggle={(v) => toggleFacet(selectedSeasons, v, setSelectedSeasons)}
+            onClear={() => setSelectedSeasons([])}
+            options={SEASON_TYPES.map((s) => ({ value: s, label: s }))}
+          />
+
+          <FacetGroup
+            label="Colour"
+            selected={selectedColors}
+            onToggle={(v) => toggleFacet(selectedColors, v, setSelectedColors)}
+            onClear={() => setSelectedColors([])}
+            options={COLOR_FAMILIES.map((c) => ({ value: c, label: COLOR_FAMILY_LABELS[c] }))}
+            maxHeight="max-h-40"
+          />
+
+          <FacetGroup
+            label="Personalisation"
+            selected={selectedPersonalization}
+            onToggle={(v) => toggleFacet(selectedPersonalization, v, setSelectedPersonalization)}
+            onClear={() => setSelectedPersonalization([])}
+            options={PERSONALIZATION_TYPES.map((p) => ({
+              value: p,
+              label: p === 'photo' ? 'Photo upload' : p === 'text' ? 'Written message' : 'No personalisation',
+            }))}
+          />
 
           {/* Photo Cards Toggle */}
           <div className="pt-3 border-t border-slate-100">
@@ -389,21 +590,50 @@ export const Browse: React.FC<BrowseProps> = ({
             </div>
           </div>
 
-          {/* Price Range Slider */}
+          {/* Price range. Two sliders rather than a max only, so "under €4" is
+              expressible and cheap size tiers are not hidden. The band is the
+              card's full size range, so a card matches on overlap. */}
           <div className="space-y-2 pt-3 border-t border-slate-100">
             <div className="flex justify-between items-center text-xs">
-              <h4 className="font-bold text-slate-900 uppercase tracking-wider text-[11px]">Max Price</h4>
-              <span className="font-bold text-rose-600">{formatPriceCompact(maxPrice)}</span>
+              <h4 className="font-bold text-slate-900 uppercase tracking-wider text-[11px]">Price</h4>
+              <span className="font-bold text-rose-600">
+                {minPrice > 0 ? `${formatPriceCompact(minPrice)} – ` : ''}
+                {maxPrice >= PRICE_CEILING ? `${formatPriceCompact(PRICE_CEILING)}+` : formatPriceCompact(maxPrice)}
+              </span>
             </div>
+            <label className="block text-[10px] text-slate-500">Min</label>
             <input
               type="range"
-              min={3.49}
-              max={5.0}
-              step={0.1}
-              value={maxPrice}
-              onChange={(e) => setMaxPrice(Number(e.target.value))}
+              min={0}
+              max={PRICE_CEILING}
+              step={PRICE_STEP}
+              value={minPrice}
+              onChange={(e) => {
+                const next = Number(e.target.value);
+                setMinPrice(next);
+                // Keep the two handles from crossing over.
+                if (next > maxPrice) setMaxPrice(next);
+              }}
               className="w-full accent-rose-500"
             />
+            <label className="block text-[10px] text-slate-500">Max</label>
+            <input
+              type="range"
+              min={0}
+              max={PRICE_CEILING}
+              step={PRICE_STEP}
+              value={maxPrice}
+              onChange={(e) => {
+                const next = Number(e.target.value);
+                setMaxPrice(next);
+                if (next < minPrice) setMinPrice(next);
+              }}
+              className="w-full accent-rose-500"
+            />
+            <p className="text-[10px] text-slate-500 leading-snug">
+              Matched against each card's full size range, not just its standard
+              price.
+            </p>
           </div>
 
           {isMobileFilterOpen && (

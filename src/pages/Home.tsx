@@ -37,7 +37,7 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, onPersonalize }) => {
   const popularCards = getPopularTemplates(8);
   const photoCards = getPhotoTemplates(8);
   const birthdayCards = getTemplatesByCategory('Birthday').slice(0, 8);
-  const funnyCards = getLiveCatalog().filter((t) => t.style === 'Funny').slice(0, 8);
+  const funnyCards = getLiveCatalog().filter((t) => t.styles.includes('Funny')).slice(0, 8);
   const personalizedFeed = getPersonalizedFeed(favorites, 8);
 
   const recentIds = getRecentlyViewed();

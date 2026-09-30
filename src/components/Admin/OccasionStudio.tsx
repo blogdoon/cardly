@@ -28,11 +28,11 @@ import {
   OccasionImageEntry
 } from '../../utils/occasionTemplateLoader';
 import { registerCustomTemplate, unregisterCustomTemplate } from '../../data/templates';
-import { buildTemplateFacets } from '../../utils/templateFacets';
+import { buildTemplateFacets, priceRangeFor } from '../../utils/templateFacets';
 import { upsertTemplate } from '../../services/catalogService';
 import { useCatalog } from '../../context/CatalogContext';
 import { formatPrice } from '../../utils/currency';
-import { OCCASIONS_LIST, RECIPIENTS_LIST, STYLES_LIST } from '../../data/categories';
+import { OCCASIONS_LIST, RECIPIENTS_LIST, STYLES_LIST, MILESTONE_AGES } from '../../data/categories';
 import type { BrowseFacets } from '../../utils/routes';
 
 interface OccasionStudioProps {
@@ -67,17 +67,27 @@ export const OccasionStudio: React.FC<OccasionStudioProps> = ({ onNavigate, onTe
   // These deliberately do NOT default to a value: a preset default would be
   // sent as an explicit override and would stamp every new card with the same
   // recipient/style, which is what made the Browse facets useless.
-  const [recipient, setRecipient] = useState<RecipientType | ''>('');
-  const [style, setStyle] = useState<CardStyleType | ''>('');
+  const [recipients, setRecipients] = useState<RecipientType[]>([]);
+  const [styles, setStyles] = useState<CardStyleType[]>([]);
+  // `photo` makes this a blank template where the customer supplies the cover
+  // image, which is what isPhotoCard and the "Photo Card" badge mean.
+  const [customerSuppliesPhoto, setCustomerSuppliesPhoto] = useState(false);
+  // Only for age-specific cards ("Turning 50"). Left blank for general art.
+  const [milestoneAge, setMilestoneAge] = useState<number | ''>('');
+
+  const toggleIn = <T,>(list: T[], value: T, set: (next: T[]) => void) =>
+    set(list.includes(value) ? list.filter((v) => v !== value) : [...list, value]);
 
   // What will actually be stored, so the admin can see the derived value rather
   // than having to remember it.
   const derivedFacets = buildTemplateFacets({
     occasion: selectedOccasion,
     imageUrl: uploadedImageUrl || '/src/assets/images/occasions/birthday/warm_ivory_balloons.jpg',
+    previewColors: ['#faf8f5', textColor, '#d97706'],
     existing: {
-      ...(recipient ? { recipient } : {}),
-      ...(style ? { style } : {}),
+      ...(recipients.length ? { recipients } : {}),
+      ...(styles.length ? { styles } : {}),
+      ...(customerSuppliesPhoto ? { personalization: ['photo', 'text'] as const } : {}),
     },
   });
 
@@ -163,10 +173,12 @@ export const OccasionStudio: React.FC<OccasionStudioProps> = ({ onNavigate, onTe
       title: cardTitle || `${selectedOccasion} Artisan Stationery Card`,
       textColor,
       price,
-      // Only send these when the admin actually chose one — '' means "derive it
-      // from the artwork" and must not become a stored facet.
-      ...(recipient ? { recipient } : {}),
-      ...(style ? { style } : {}),
+      // Only send these when the admin actually chose one — an empty list means
+      // "derive it from the artwork" and must not become a stored facet.
+      ...(recipients.length ? { recipients } : {}),
+      ...(styles.length ? { styles } : {}),
+      ...(customerSuppliesPhoto ? { customerSuppliesPhoto: true } : {}),
+      ...(milestoneAge !== '' ? { milestoneAge } : {}),
       tags: [selectedSlug, 'occasion-folder-generator'],
     });
 
@@ -475,36 +487,119 @@ export const OccasionStudio: React.FC<OccasionStudioProps> = ({ onNavigate, onTe
 
                   <div>
                     <label className="block text-[11px] font-semibold text-slate-600 mb-1">
-                      Recipient
+                      Customer supplies the cover photo
                     </label>
-                    <select
-                      value={recipient}
-                      onChange={(e) => setRecipient(e.target.value as RecipientType)}
-                      className="w-full px-2 py-2 text-xs border border-slate-300 rounded-xl bg-white outline-hidden font-medium"
-                    >
-                      <option value="">Auto — {derivedFacets.recipient}</option>
-                      {RECIPIENTS_LIST.map((r) => (
-                        <option key={r.id} value={r.id}>
-                          {r.name}
-                        </option>
-                      ))}
-                    </select>
+                    <label className="flex items-center gap-2 px-2 py-2 text-xs border border-slate-300 rounded-xl bg-white cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={customerSuppliesPhoto}
+                        onChange={(e) => setCustomerSuppliesPhoto(e.target.checked)}
+                        className="accent-rose-600"
+                      />
+                      <span className="text-slate-700 font-medium">
+                        Make this a blank Photo Card
+                      </span>
+                    </label>
+                    <p className="text-[10px] text-slate-500 mt-1 leading-snug">
+                      Leave off for pre-printed artwork. Turning it on stores{' '}
+                      <code className="font-mono">isPhotoCard: true</code>, which is
+                      what the Photo Card badge and <code className="font-mono">?photo=1</code> match on.
+                    </p>
                   </div>
 
                   <div>
-                    <label className="block text-[11px] font-semibold text-slate-600 mb-1">Style</label>
+                    <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                      Milestone age
+                    </label>
                     <select
-                      value={style}
-                      onChange={(e) => setStyle(e.target.value as CardStyleType)}
+                      value={milestoneAge}
+                      onChange={(e) =>
+                        setMilestoneAge(e.target.value === '' ? '' : Number(e.target.value))
+                      }
                       className="w-full px-2 py-2 text-xs border border-slate-300 rounded-xl bg-white outline-hidden font-medium"
                     >
-                      <option value="">Auto — {derivedFacets.style}</option>
-                      {STYLES_LIST.map((s) => (
-                        <option key={s.id} value={s.id}>
-                          {s.name}
+                      <option value="">None — suits any age</option>
+                      {MILESTONE_AGES.map((age) => (
+                        <option key={age} value={age}>
+                          Turning {age}
                         </option>
                       ))}
                     </select>
+                    <p className="text-[10px] text-slate-500 mt-1 leading-snug">
+                      Only for age-specific cards. A general birthday card should
+                      leave this blank — the badge would otherwise claim an age
+                      the card does not target.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Recipients and styles are multi-select: a card can honestly be
+                    for a "Friend" and a "Best Friend", and both "Cute" and
+                    "Retro". Single-select made half of those cards unreachable.
+                    Nothing ticked means "use the derived value". */}
+                <div className="rounded-xl border border-slate-200 p-3 space-y-3">
+                  <div>
+                    <div className="flex items-baseline justify-between mb-1">
+                      <label className="text-[11px] font-semibold text-slate-600">
+                        Recipients
+                      </label>
+                      <span className="text-[10px] text-slate-400">
+                        {recipients.length
+                          ? recipients.join(', ')
+                          : `Auto — ${derivedFacets.recipients.join(', ')}`}
+                      </span>
+                    </div>
+                    <div className="flex flex-wrap gap-1">
+                      {RECIPIENTS_LIST.map((r) => {
+                        const on = recipients.includes(r.id);
+                        return (
+                          <button
+                            key={r.id}
+                            type="button"
+                            onClick={() => toggleIn(recipients, r.id, setRecipients)}
+                            className={`px-2 py-1 rounded-lg text-[11px] font-medium border transition-colors ${
+                              on
+                                ? 'bg-rose-600 text-white border-rose-600'
+                                : 'bg-white text-slate-600 border-slate-300 hover:border-rose-300'
+                            }`}
+                          >
+                            {r.name}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="flex items-baseline justify-between mb-1">
+                      <label className="text-[11px] font-semibold text-slate-600">
+                        Styles
+                      </label>
+                      <span className="text-[10px] text-slate-400">
+                        {styles.length
+                          ? styles.join(', ')
+                          : `Auto — ${derivedFacets.styles.join(', ')}`}
+                      </span>
+                    </div>
+                    <div className="flex flex-wrap gap-1">
+                      {STYLES_LIST.map((s) => {
+                        const on = styles.includes(s.id);
+                        return (
+                          <button
+                            key={s.id}
+                            type="button"
+                            onClick={() => toggleIn(styles, s.id, setStyles)}
+                            className={`px-2 py-1 rounded-lg text-[11px] font-medium border transition-colors ${
+                              on
+                                ? 'bg-rose-600 text-white border-rose-600'
+                                : 'bg-white text-slate-600 border-slate-300 hover:border-rose-300'
+                            }`}
+                          >
+                            {s.name}
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
                 </div>
 
@@ -519,10 +614,14 @@ export const OccasionStudio: React.FC<OccasionStudioProps> = ({ onNavigate, onTe
                     {(
                       [
                         ['Occasion', derivedFacets.category],
-                        ['Recipient', derivedFacets.recipient],
-                        ['Style', derivedFacets.style],
+                        ['Recipients', derivedFacets.recipients.join(', ')],
+                        ['Styles', derivedFacets.styles.join(', ')],
                         ['Tone', derivedFacets.tone],
                         ['Season', derivedFacets.season],
+                        ['Colours', derivedFacets.colors.join(', ') || '—'],
+                        ['Personalisation', derivedFacets.personalization.join(', ')],
+                        ['Photo card', derivedFacets.isPhotoCard ? 'yes' : 'no'],
+                        ['Price band', `${formatPrice(priceRangeFor(price).min)} – ${formatPrice(priceRangeFor(price).max)}`],
                         ['Rating', `${derivedFacets.rating} from ${derivedFacets.reviewCount} reviews`],
                       ] as const
                     ).map(([k, v]) => (

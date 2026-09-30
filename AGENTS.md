@@ -57,7 +57,35 @@ npm run build    # vite build + scripts/prerender.mjs (static HTML per card, rob
   style/recipient and that nothing fabricates a rating.
   `milestoneAge` is deliberately left unset for generic art — it means "Turning 50"-style
   age-specific cards (see `utils/occasions.ts`), so putting it on a general birthday card would
-  badge it with an age it does not target.
+  badge it with an age it does not target. The only ages accepted are `MILESTONE_AGE_VALUES`,
+  which `data/categories.ts` re-exports as `MILESTONE_AGES` so there is one list, not two.
+- **`recipients` and `styles` are arrays; the Browse facets multi-select.** A card for a "Friend"
+  is also for a "Best Friend", and a felt-craft card is both "Cute" and "Retro" — a single value
+  made those cards unreachable from half the facets. `Browse.tsx` ORs *within* a facet and ANDs
+  *across* them. List facets are comma-separated in the URL (`?style=Cute,Retro`) so a
+  multi-select is still one shareable link; `splitFacet` in `utils/routes.ts` is the only reader.
+  `q` is a single phrase and must never be comma-split. A stored scalar `recipient`/`style` from
+  before this change is widened to an array on read, which is how those documents migrate.
+- **`isPhotoCard` is derived from `personalization`, never set by hand.** They were independent
+  fields that could disagree, and nothing in the app ever set it true — so `?photo=1` was
+  permanently empty. A card is a photo card iff `personalization` includes `photo`, which only the
+  studio's "blank Photo Card" toggle (or the facet editor) sets.
+- **`isNew` is a time box, not a latch.** `isNewWithin(createdAt)` is true for 90 days
+  (`NEW_FOR_DAYS`); the generators no longer hardcode `isNew: true`, so the badge actually expires.
+- **The colour facet is derived from the card's palette, and the palette is a design choice.**
+  `colorsFrom()` buckets each swatch into a `ColorFamily` via HSL. Each entry in `ARTWORK_FACETS`
+  carries its own `palette`; without it every card shared one brand palette, so `?color=` was
+  *populated but useless* (all 17 cards matched `orange`) — worse than empty, because it looked
+  like it worked. `templateGenerator.check.mjs` asserts the palettes are not all identical.
+- **Prices vary by style tier.** `priceForStyles()` in `occasionTemplateLoader.ts`; every card was
+  4.29, which made `?maxPrice=` a no-op. Stored `price` is the *standard* size price, and
+  `priceRangeFor()` derives the full band from the size multipliers rather than storing a range
+  that could drift from the checkout.
+- **Facets are editable in the admin.** `TemplateFacetEditor` writes through the same
+  `upsertTemplate` the studio uses, so `adminOrderService`-style single-writer discipline holds.
+  Before it, the only admin mutation was the bestseller toggle, so a card filed in the wrong bucket
+  could only be fixed by delete-and-recreate — which changes the id that past orders, saved designs
+  and favourites reference. If you add a facet field, add a control for it here too.
 - **Reviews require a purchase and moderation.** The review doc id is pinned to
   `${orderId}_${templateId}` (one review per order per card) and every review is created as
   `pending`; only an admin may publish. Known gap, documented in `firestore.rules`: rules cannot
