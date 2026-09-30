@@ -77,20 +77,22 @@ export const TemplateFacetEditor: React.FC<TemplateFacetEditorProps> = ({
 
   // Edits are held locally until Save, so an accidental click is not a Firestore
   // write — and the catalog cannot change underneath a half-finished edit.
-  const [recipients, setRecipients] = useState<string[]>(template.recipients);
-  const [styles, setStyles] = useState<string[]>(template.styles);
+  const [recipients, setRecipients] = useState<string[]>(template.recipients ?? [template.recipient]);
+  const [styles, setStyles] = useState<string[]>(template.styles ?? [template.style]);
   const [tone, setTone] = useState<string>(template.tone);
   const [season, setSeason] = useState<string>(template.season ?? 'all-year');
-  const [personalization, setPersonalization] = useState<string[]>(template.personalization);
+  const [personalization, setPersonalization] = useState<string[]>(
+    template.personalization ?? (template.isPhotoCard ? ['photo', 'text'] : ['text'])
+  );
   const [milestoneAge, setMilestoneAge] = useState<number | ''>(template.milestoneAge ?? '');
   const [price, setPrice] = useState<number>(template.price);
 
   const reset = () => {
-    setRecipients(template.recipients);
-    setStyles(template.styles);
+    setRecipients(template.recipients ?? [template.recipient]);
+    setStyles(template.styles ?? [template.style]);
     setTone(template.tone);
     setSeason(template.season ?? 'all-year');
-    setPersonalization(template.personalization);
+    setPersonalization(template.personalization ?? (template.isPhotoCard ? ['photo', 'text'] : ['text']));
     setMilestoneAge(template.milestoneAge ?? '');
     setPrice(template.price);
   };
@@ -281,7 +283,7 @@ export const TemplateFacetEditor: React.FC<TemplateFacetEditorProps> = ({
           <p className="text-[10px] text-slate-500">
             Colours are derived from the card&rsquo;s swatches
             {template.colors?.length
-              ? `: ${template.colors.map((c) => COLOR_FAMILY_LABELS[c as ColorFamily] ?? c).join(', ')}`
+              ? `: ${template.colors.map((c: string) => COLOR_FAMILY_LABELS[c as ColorFamily] ?? c).join(', ')}`
               : ''}
             . Rating and review count are owned by approved reviews and are not
             editable here.

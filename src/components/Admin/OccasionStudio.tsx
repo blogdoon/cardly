@@ -16,7 +16,9 @@ import {
   CheckCircle2,
   Info,
   ChevronRight,
-  Layers
+  Layers,
+  Loader2,
+  AlertCircle
 } from 'lucide-react';
 import { CardTemplate, OccasionType, RecipientType, CardStyleType } from '../../types/template';
 import {
@@ -28,15 +30,12 @@ import {
   OccasionImageEntry
 } from '../../utils/occasionTemplateLoader';
 import { registerCustomTemplate, unregisterCustomTemplate } from '../../data/templates';
-import { buildTemplateFacets, priceRangeFor } from '../../utils/templateFacets';
-import { upsertTemplate } from '../../services/catalogService';
+import { OCCASIONS_LIST, RECIPIENTS_LIST, STYLES_LIST } from '../../data/categories';
 import { useCatalog } from '../../context/CatalogContext';
 import { formatPrice } from '../../utils/currency';
-import { OCCASIONS_LIST, RECIPIENTS_LIST, STYLES_LIST, MILESTONE_AGES } from '../../data/categories';
-import type { BrowseFacets } from '../../utils/routes';
 
 interface OccasionStudioProps {
-  onNavigate: (route: string, param?: string, facets?: BrowseFacets) => void;
+  onNavigate: (route: string, param?: string) => void;
   onTemplateCreated?: (template: CardTemplate) => void;
 }
 
@@ -52,52 +51,31 @@ const PRESET_SWATCHES = [
 ];
 
 export const OccasionStudio: React.FC<OccasionStudioProps> = ({ onNavigate, onTemplateCreated }) => {
-  const { deleteTemplate } = useCatalog();
+  const { upsertTemplate, deleteTemplate, status: catalogStatus } = useCatalog();
   const [occasionEntries, setOccasionEntries] = useState<OccasionImageEntry[]>(() => getOccasionImageEntries());
   const [customTemplates, setCustomTemplates] = useState<CardTemplate[]>(() => getCustomUploadedTemplates());
+  const [isSavingDb, setIsSavingDb] = useState(false);
+  const [isBatchInserting, setIsBatchInserting] = useState(false);
+  const [dbSuccessMsg, setDbSuccessMsg] = useState<string | null>(null);
+  const [dbErrorMsg, setDbErrorMsg] = useState<string | null>(null);
 
   // Form State
   const [selectedOccasion, setSelectedOccasion] = useState<OccasionType>('Birthday');
   const [uploadedImageUrl, setUploadedImageUrl] = useState<string>('');
   const [imageFileName, setImageFileName] = useState<string>('');
   const [cardTitle, setCardTitle] = useState<string>('');
+  const [headlineText, setHeadlineText] = useState<string>(OCCASION_MESSAGES['Birthday'].headline);
+  const [subText, setSubText] = useState<string>(OCCASION_MESSAGES['Birthday'].sub);
   const [textColor, setTextColor] = useState<string>(OCCASION_MESSAGES['Birthday'].defaultColor);
   const [price, setPrice] = useState<number>(4.29);
-  // Empty means "derive it from the artwork" — see utils/templateFacets.ts.
-  // These deliberately do NOT default to a value: a preset default would be
-  // sent as an explicit override and would stamp every new card with the same
-  // recipient/style, which is what made the Browse facets useless.
-  const [recipients, setRecipients] = useState<RecipientType[]>([]);
-  const [styles, setStyles] = useState<CardStyleType[]>([]);
-  // `photo` makes this a blank template where the customer supplies the cover
-  // image, which is what isPhotoCard and the "Photo Card" badge mean.
-  const [customerSuppliesPhoto, setCustomerSuppliesPhoto] = useState(false);
-  // Only for age-specific cards ("Turning 50"). Left blank for general art.
-  const [milestoneAge, setMilestoneAge] = useState<number | ''>('');
-
-  const toggleIn = <T,>(list: T[], value: T, set: (next: T[]) => void) =>
-    set(list.includes(value) ? list.filter((v) => v !== value) : [...list, value]);
-
-  // What will actually be stored, so the admin can see the derived value rather
-  // than having to remember it.
-  const derivedFacets = buildTemplateFacets({
-    occasion: selectedOccasion,
-    imageUrl: uploadedImageUrl || '/src/assets/images/occasions/birthday/warm_ivory_balloons.jpg',
-    previewColors: ['#faf8f5', textColor, '#d97706'],
-    existing: {
-      ...(recipients.length ? { recipients } : {}),
-      ...(styles.length ? { styles } : {}),
-      ...(customerSuppliesPhoto ? { personalization: ['photo', 'text'] as const } : {}),
-    },
-  });
+  const [recipient, setRecipient] = useState<RecipientType>('Anyone');
+  const [style, setStyle] = useState<CardStyleType>('Floral');
 
   // Preview / UI states
   const [showSafeOverlay, setShowSafeOverlay] = useState<boolean>(true);
   const [previewTab, setPreviewTab] = useState<'front' | 'inside'>('front');
   const [copiedPath, setCopiedPath] = useState<string | null>(null);
   const [latestCreatedTemplate, setLatestCreatedTemplate] = useState<CardTemplate | null>(null);
-  const [isPublishing, setIsPublishing] = useState(false);
-  const [publishError, setPublishError] = useState<string | null>(null);
   const [activePresetFilter, setActivePresetFilter] = useState<string>('All');
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -111,6 +89,8 @@ export const OccasionStudio: React.FC<OccasionStudioProps> = ({ onNavigate, onTe
   const handleOccasionChange = (occ: OccasionType) => {
     setSelectedOccasion(occ);
     const meta = OCCASION_MESSAGES[occ] || OCCASION_MESSAGES['Birthday'];
+    setHeadlineText(meta.headline);
+    setSubText(meta.sub);
     setTextColor(meta.defaultColor);
     if (!cardTitle || cardTitle.includes('Artisan Stationery Card')) {
       setCardTitle(`${occ} Artisan Stationery Card`);
@@ -151,74 +131,107 @@ export const OccasionStudio: React.FC<OccasionStudioProps> = ({ onNavigate, onTe
     setImageFileName(entry.fileName);
     setCardTitle(`${entry.cleanName} ${entry.occasion} Card`);
     const meta = OCCASION_MESSAGES[entry.occasion] || OCCASION_MESSAGES['Birthday'];
+    setHeadlineText(meta.headline);
+    setSubText(meta.sub);
     setTextColor(meta.defaultColor);
   };
 
-  // Generate & Publish Template
-  //
-  // The catalog now lives in Firestore and nothing is bundled, so "publish" must
-  // actually write to the database — otherwise a card created here would only
-  // ever exist in this browser. We register locally first so the UI updates
-  // instantly, then persist; a failed write is reported rather than swallowed.
+  // Generate & Insert Template into Firestore Database
   const handleGenerateTemplate = async () => {
     if (!uploadedImageUrl) {
-      alert('Please upload an image or select a bundled artwork first.');
+      alert('Please upload an image or select a curated artwork first.');
       return;
     }
-    if (isPublishing) return;
+
+    setIsSavingDb(true);
+    setDbSuccessMsg(null);
+    setDbErrorMsg(null);
 
     const newTemplate = createTemplateFromOccasionImage({
       occasion: selectedOccasion,
       imageUrl: uploadedImageUrl,
       title: cardTitle || `${selectedOccasion} Artisan Stationery Card`,
+      headline: headlineText,
+      subText,
       textColor,
       price,
-      // Only send these when the admin actually chose one — an empty list means
-      // "derive it from the artwork" and must not become a stored facet.
-      ...(recipients.length ? { recipients } : {}),
-      ...(styles.length ? { styles } : {}),
-      ...(customerSuppliesPhoto ? { customerSuppliesPhoto: true } : {}),
-      ...(milestoneAge !== '' ? { milestoneAge } : {}),
-      tags: [selectedSlug, 'occasion-folder-generator'],
+      recipient,
+      style,
+      tags: [selectedSlug, 'curated-card'],
     });
 
-    setIsPublishing(true);
-    registerCustomTemplate(newTemplate);
-    setCustomTemplates(getCustomUploadedTemplates());
-    setLatestCreatedTemplate(newTemplate);
-
     try {
+      // 1. Insert directly into Firestore database
       await upsertTemplate(newTemplate);
-      setPublishError(null);
-    } catch (e) {
-      console.error('Could not publish template to Firestore:', e);
-      setPublishError(
-        e instanceof Error
-          ? `Saved in this browser only — publishing to the database failed: ${e.message}`
-          : 'Saved in this browser only — publishing to the database failed.'
-      );
-    } finally {
-      setIsPublishing(false);
+      registerCustomTemplate(newTemplate);
+      setCustomTemplates(getCustomUploadedTemplates());
+      setLatestCreatedTemplate(newTemplate);
+      setDbSuccessMsg(`Template "${newTemplate.title}" was successfully saved to the database!`);
       if (onTemplateCreated) {
         onTemplateCreated(newTemplate);
       }
+    } catch (err) {
+      console.warn('Firestore upsert warning (stored locally as fallback):', err);
+      registerCustomTemplate(newTemplate);
+      setCustomTemplates(getCustomUploadedTemplates());
+      setLatestCreatedTemplate(newTemplate);
+      setDbErrorMsg(
+        err instanceof Error
+          ? `Saved locally: ${err.message}`
+          : 'Saved locally. Please ensure you are signed in as admin to sync to cloud DB.'
+      );
+    } finally {
+      setIsSavingDb(false);
     }
   };
 
   const handleDeleteCustomTemplate = async (id: string) => {
-    // Drop the local copy first so the list updates, then retire it in the
-    // database (if it was ever published) so it leaves the storefront for
-    // everyone. A card that never reached Firestore has nothing to retire.
+    try {
+      await deleteTemplate(id);
+    } catch (e) {
+      console.warn('DB delete error:', e);
+    }
     unregisterCustomTemplate(id);
     setCustomTemplates(getCustomUploadedTemplates());
     if (latestCreatedTemplate?.id === id) {
       setLatestCreatedTemplate(null);
     }
+  };
 
+  const handleBatchInsertCuratedToDb = async () => {
+    if (occasionEntries.length === 0) {
+      alert('No curated images found in occasion folders.');
+      return;
+    }
+    setIsBatchInserting(true);
+    setDbSuccessMsg(null);
+    setDbErrorMsg(null);
+    let count = 0;
     try {
-      await deleteTemplate(id);
-    } catch (e) {
-      console.warn(`Could not retire ${id} in Firestore:`, e);
+      for (const entry of occasionEntries) {
+        const meta = OCCASION_MESSAGES[entry.occasion] || OCCASION_MESSAGES['Birthday'];
+        const t = createTemplateFromOccasionImage({
+          occasion: entry.occasion,
+          imageUrl: entry.imageUrl,
+          title: `${entry.cleanName} ${entry.occasion} Card`,
+          headline: meta.headline,
+          subText: meta.sub,
+          textColor: meta.defaultColor,
+          price: 3.99,
+          recipient: 'Anyone',
+          style: 'Cute',
+          tags: [entry.folderName, 'curated-folder-art'],
+        });
+        await upsertTemplate(t);
+        registerCustomTemplate(t);
+        count++;
+      }
+      setDbSuccessMsg(`Successfully inserted ${count} curated card template(s) into the Firestore database!`);
+      setCustomTemplates(getCustomUploadedTemplates());
+    } catch (err) {
+      setDbErrorMsg(err instanceof Error ? err.message : 'Batch insert error');
+    } finally {
+      setIsBatchInserting(false);
     }
   };
 
@@ -428,11 +441,33 @@ export const OccasionStudio: React.FC<OccasionStudioProps> = ({ onNavigate, onTe
                   />
                 </div>
 
-                <p className="text-[11px] text-slate-500 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 leading-relaxed">
-                  The front cover is <strong>artwork only</strong> — customers add their own wording
-                  when they personalise the card, so there is nothing to typeset here. The title above
-                  is the catalog name shown in the shop.
-                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                      Front Headline (Safe Area)
+                    </label>
+                    <input
+                      type="text"
+                      value={headlineText}
+                      onChange={(e) => setHeadlineText(e.target.value)}
+                      placeholder="e.g. Happiest of Birthdays"
+                      className="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 outline-hidden font-serif"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                      Front Subtext (Optional)
+                    </label>
+                    <input
+                      type="text"
+                      value={subText}
+                      onChange={(e) => setSubText(e.target.value)}
+                      placeholder="e.g. Wishing you a wonderful celebration."
+                      className="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 outline-hidden font-serif"
+                    />
+                  </div>
+                </div>
 
                 {/* Typography Color Swatches */}
                 <div>
@@ -473,7 +508,7 @@ export const OccasionStudio: React.FC<OccasionStudioProps> = ({ onNavigate, onTe
                 {/* Price, Recipient, Style */}
                 <div className="grid grid-cols-3 gap-3">
                   <div>
-                    <label className="block text-[11px] font-semibold text-slate-600 mb-1">Price (EUR)</label>
+                    <label className="block text-[11px] font-semibold text-slate-600 mb-1">Price (€)</label>
                     <input
                       type="number"
                       step="0.10"
@@ -486,203 +521,110 @@ export const OccasionStudio: React.FC<OccasionStudioProps> = ({ onNavigate, onTe
                   </div>
 
                   <div>
-                    <label className="block text-[11px] font-semibold text-slate-600 mb-1">
-                      Customer supplies the cover photo
-                    </label>
-                    <label className="flex items-center gap-2 px-2 py-2 text-xs border border-slate-300 rounded-xl bg-white cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={customerSuppliesPhoto}
-                        onChange={(e) => setCustomerSuppliesPhoto(e.target.checked)}
-                        className="accent-rose-600"
-                      />
-                      <span className="text-slate-700 font-medium">
-                        Make this a blank Photo Card
-                      </span>
-                    </label>
-                    <p className="text-[10px] text-slate-500 mt-1 leading-snug">
-                      Leave off for pre-printed artwork. Turning it on stores{' '}
-                      <code className="font-mono">isPhotoCard: true</code>, which is
-                      what the Photo Card badge and <code className="font-mono">?photo=1</code> match on.
-                    </p>
-                  </div>
-
-                  <div>
-                    <label className="block text-[11px] font-semibold text-slate-600 mb-1">
-                      Milestone age
-                    </label>
+                    <label className="block text-[11px] font-semibold text-slate-600 mb-1">Recipient</label>
                     <select
-                      value={milestoneAge}
-                      onChange={(e) =>
-                        setMilestoneAge(e.target.value === '' ? '' : Number(e.target.value))
-                      }
+                      value={recipient}
+                      onChange={(e) => setRecipient(e.target.value as RecipientType)}
                       className="w-full px-2 py-2 text-xs border border-slate-300 rounded-xl bg-white outline-hidden font-medium"
                     >
-                      <option value="">None — suits any age</option>
-                      {MILESTONE_AGES.map((age) => (
-                        <option key={age} value={age}>
-                          Turning {age}
+                      <option value="Anyone">Anyone</option>
+                      {RECIPIENTS_LIST.map((r) => (
+                        <option key={r.id} value={r.id}>
+                          {r.name}
                         </option>
                       ))}
                     </select>
-                    <p className="text-[10px] text-slate-500 mt-1 leading-snug">
-                      Only for age-specific cards. A general birthday card should
-                      leave this blank — the badge would otherwise claim an age
-                      the card does not target.
-                    </p>
-                  </div>
-                </div>
-
-                {/* Recipients and styles are multi-select: a card can honestly be
-                    for a "Friend" and a "Best Friend", and both "Cute" and
-                    "Retro". Single-select made half of those cards unreachable.
-                    Nothing ticked means "use the derived value". */}
-                <div className="rounded-xl border border-slate-200 p-3 space-y-3">
-                  <div>
-                    <div className="flex items-baseline justify-between mb-1">
-                      <label className="text-[11px] font-semibold text-slate-600">
-                        Recipients
-                      </label>
-                      <span className="text-[10px] text-slate-400">
-                        {recipients.length
-                          ? recipients.join(', ')
-                          : `Auto — ${derivedFacets.recipients.join(', ')}`}
-                      </span>
-                    </div>
-                    <div className="flex flex-wrap gap-1">
-                      {RECIPIENTS_LIST.map((r) => {
-                        const on = recipients.includes(r.id);
-                        return (
-                          <button
-                            key={r.id}
-                            type="button"
-                            onClick={() => toggleIn(recipients, r.id, setRecipients)}
-                            className={`px-2 py-1 rounded-lg text-[11px] font-medium border transition-colors ${
-                              on
-                                ? 'bg-rose-600 text-white border-rose-600'
-                                : 'bg-white text-slate-600 border-slate-300 hover:border-rose-300'
-                            }`}
-                          >
-                            {r.name}
-                          </button>
-                        );
-                      })}
-                    </div>
                   </div>
 
                   <div>
-                    <div className="flex items-baseline justify-between mb-1">
-                      <label className="text-[11px] font-semibold text-slate-600">
-                        Styles
-                      </label>
-                      <span className="text-[10px] text-slate-400">
-                        {styles.length
-                          ? styles.join(', ')
-                          : `Auto — ${derivedFacets.styles.join(', ')}`}
-                      </span>
-                    </div>
-                    <div className="flex flex-wrap gap-1">
-                      {STYLES_LIST.map((s) => {
-                        const on = styles.includes(s.id);
-                        return (
-                          <button
-                            key={s.id}
-                            type="button"
-                            onClick={() => toggleIn(styles, s.id, setStyles)}
-                            className={`px-2 py-1 rounded-lg text-[11px] font-medium border transition-colors ${
-                              on
-                                ? 'bg-rose-600 text-white border-rose-600'
-                                : 'bg-white text-slate-600 border-slate-300 hover:border-rose-300'
-                            }`}
-                          >
-                            {s.name}
-                          </button>
-                        );
-                      })}
-                    </div>
+                    <label className="block text-[11px] font-semibold text-slate-600 mb-1">Style</label>
+                    <select
+                      value={style}
+                      onChange={(e) => setStyle(e.target.value as CardStyleType)}
+                      className="w-full px-2 py-2 text-xs border border-slate-300 rounded-xl bg-white outline-hidden font-medium"
+                    >
+                      {STYLES_LIST.map((s) => (
+                        <option key={s.id} value={s.id}>
+                          {s.name}
+                        </option>
+                      ))}
+                    </select>
                   </div>
-                </div>
-
-                {/* The facets that will be written to templates/{id}. These drive
-                    the storefront filters, so they are shown before publishing
-                    rather than discovered by a customer clicking an empty grid. */}
-                <div className="rounded-xl bg-slate-50 border border-slate-200 p-3">
-                  <h4 className="text-[11px] font-semibold text-slate-600 mb-2">
-                    Browse facets to be stored
-                  </h4>
-                  <dl className="grid grid-cols-2 gap-x-3 gap-y-1 text-[11px]">
-                    {(
-                      [
-                        ['Occasion', derivedFacets.category],
-                        ['Recipients', derivedFacets.recipients.join(', ')],
-                        ['Styles', derivedFacets.styles.join(', ')],
-                        ['Tone', derivedFacets.tone],
-                        ['Season', derivedFacets.season],
-                        ['Colours', derivedFacets.colors.join(', ') || '—'],
-                        ['Personalisation', derivedFacets.personalization.join(', ')],
-                        ['Photo card', derivedFacets.isPhotoCard ? 'yes' : 'no'],
-                        ['Price band', `${formatPrice(priceRangeFor(price).min)} – ${formatPrice(priceRangeFor(price).max)}`],
-                        ['Rating', `${derivedFacets.rating} from ${derivedFacets.reviewCount} reviews`],
-                      ] as const
-                    ).map(([k, v]) => (
-                      <div key={k} className="flex gap-1 min-w-0">
-                        <dt className="text-slate-500 shrink-0">{k}:</dt>
-                        <dd className="font-semibold text-slate-800 truncate">{v}</dd>
-                      </div>
-                    ))}
-                  </dl>
-                  <p className="text-[10px] text-slate-500 mt-2 leading-snug">
-                    Rating starts at 0 and is owned by the approved reviews — a new
-                    card can never advertise ratings it does not have.
-                  </p>
-                  <p className="text-[10px] text-slate-500 mt-1 leading-snug truncate">
-                    Tags: {derivedFacets.tags.join(', ')}
-                  </p>
                 </div>
               </div>
             </div>
-
-            {publishError && (
-              <p className="mb-3 px-3 py-2.5 rounded-xl bg-amber-50 border border-amber-200 text-[11px] text-amber-800 font-semibold">
-                {publishError}
-              </p>
-            )}
 
             {/* Action buttons */}
             <div className="pt-4 border-t border-slate-200 flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
               <button
                 type="button"
+                disabled={isSavingDb}
                 onClick={handleGenerateTemplate}
-                disabled={isPublishing}
-                className="flex-1 py-3 px-6 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs sm:text-sm rounded-xl shadow-xs transition flex items-center justify-center gap-2 disabled:opacity-60"
+                className="flex-1 py-3 px-6 bg-rose-600 hover:bg-rose-700 disabled:bg-rose-400 text-white font-bold text-xs sm:text-sm rounded-xl shadow-xs transition flex items-center justify-center gap-2 cursor-pointer"
               >
-                {isPublishing ? (
+                {isSavingDb ? (
                   <>
-                    <RefreshCw className="w-4 h-4 animate-spin" />
-                    Publishing to database…
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Inserting into Database...
                   </>
                 ) : (
                   <>
                     <Sparkles className="w-4 h-4" />
-                    Generate & Publish Card Template
+                    Insert & Publish Template to Database
                   </>
                 )}
               </button>
+
+              {occasionEntries.length > 0 && (
+                <button
+                  type="button"
+                  disabled={isBatchInserting}
+                  onClick={handleBatchInsertCuratedToDb}
+                  className="py-3 px-4 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400 text-white font-bold text-xs rounded-xl transition flex items-center justify-center gap-1.5 cursor-pointer"
+                  title="Insert all scanned curated images as card templates directly in Firestore"
+                >
+                  {isBatchInserting ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      Saving {occasionEntries.length} cards...
+                    </>
+                  ) : (
+                    <>
+                      <Layers className="w-3.5 h-3.5" />
+                      Insert All Curated ({occasionEntries.length}) to DB
+                    </>
+                  )}
+                </button>
+              )}
 
               <button
                 type="button"
                 onClick={() =>
                   copyToClipboard(
-                    `# 1. Place your image:\ncp your_image.jpg src/assets/images/occasions/${selectedSlug}/\n\n# 2. Vite will auto-discover it on next build!`,
+                    `# 1. Place your curated image:\ncp your_image.jpg src/assets/images/occasions/${selectedSlug}/\n\n# 2. Vite will auto-discover it and it will appear in the studio below!`,
                     'cli-instructions'
                   )
                 }
                 className="py-3 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition flex items-center justify-center gap-1.5"
               >
                 <Copy className="w-3.5 h-3.5" />
-                {copiedPath === 'cli-instructions' ? 'Copied CLI Command!' : 'Copy Codebase Instructions'}
+                {copiedPath === 'cli-instructions' ? 'Copied CLI Command!' : 'Copy Folder Guide'}
               </button>
             </div>
+
+            {/* DB Status Messages */}
+            {dbSuccessMsg && (
+              <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-800 flex items-center gap-2 animate-in fade-in">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                <span>{dbSuccessMsg}</span>
+              </div>
+            )}
+            {dbErrorMsg && (
+              <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800 flex items-center gap-2 animate-in fade-in">
+                <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+                <span>{dbErrorMsg}</span>
+              </div>
+            )}
 
             {/* Success Feedback Toast */}
             {latestCreatedTemplate && (
@@ -690,7 +632,7 @@ export const OccasionStudio: React.FC<OccasionStudioProps> = ({ onNavigate, onTe
                 <div className="flex items-center gap-2">
                   <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
                   <div>
-                    <strong className="font-bold">{latestCreatedTemplate.title}</strong> is now live in the store!
+                    <strong className="font-bold">{latestCreatedTemplate.title}</strong> is active in the database!
                     <div className="text-[11px] text-emerald-700">Template ID: {latestCreatedTemplate.id}</div>
                   </div>
                 </div>
@@ -761,13 +703,8 @@ export const OccasionStudio: React.FC<OccasionStudioProps> = ({ onNavigate, onTe
                   )}
 
                   {/* Asymmetric Text-Safe Area Box (Center-Left 46% width x 42% height, 8% from left, 30% from top) */}
-                  {/*
-                    The safe-zone guide is still useful — it shows customers where
-                    their own text will sit well on this artwork — but the cover
-                    ships blank, so nothing is rendered into it.
-                  */}
                   <div
-                    className={`absolute left-[8%] top-[30%] w-[46%] h-[42%] transition ${
+                    className={`absolute left-[8%] top-[30%] w-[46%] h-[42%] flex flex-col justify-center transition ${
                       showSafeOverlay ? 'outline-1 outline-dashed outline-rose-400/80 bg-rose-500/5' : ''
                     }`}
                   >
@@ -775,6 +712,22 @@ export const OccasionStudio: React.FC<OccasionStudioProps> = ({ onNavigate, onTe
                       <span className="absolute -top-4 left-0 text-[8px] font-mono font-bold text-rose-600 bg-white/90 px-1 py-0.2 rounded shadow-2xs">
                         Safe Text Zone (46% × 42%)
                       </span>
+                    )}
+
+                    <h4
+                      style={{ color: textColor, fontFamily: "'Playfair Display', serif" }}
+                      className="text-base sm:text-lg font-bold leading-tight drop-shadow-2xs line-clamp-3"
+                    >
+                      {headlineText || 'Happiest of Birthdays'}
+                    </h4>
+
+                    {subText && (
+                      <p
+                        style={{ fontFamily: "'Playfair Display', serif" }}
+                        className="text-[10px] sm:text-xs text-slate-600 mt-1.5 leading-snug line-clamp-2"
+                      >
+                        {subText}
+                      </p>
                     )}
                   </div>
 

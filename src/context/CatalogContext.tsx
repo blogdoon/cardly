@@ -20,6 +20,7 @@ import {
   bulkDeleteTemplate,
   bulkRestoreTemplate,
   purgeTemplate,
+  upsertTemplate,
   fetchAllCatalogDocuments,
   type CatalogDocument,
   type CatalogStatus,
@@ -34,6 +35,7 @@ interface CatalogContextValue {
   /** True while the first snapshot is in flight. */
   loading: boolean;
   refreshDocuments: () => Promise<void>;
+  upsertTemplate: (template: CardTemplate) => Promise<void>;
   deleteTemplate: (id: string) => Promise<void>;
   restoreTemplate: (id: string) => Promise<void>;
   /** Soft delete many at once; resolves with the number retired. */
@@ -82,6 +84,7 @@ export const CatalogProvider: React.FC<{ children: React.ReactNode }> = ({ child
       status,
       loading,
       refreshDocuments,
+      upsertTemplate,
       // Stamp the acting admin onto the tombstone so it is auditable which
       // account removed a card.
       deleteTemplate: (id: string) => deleteTemplate(id, actorEmail ?? 'unknown'),

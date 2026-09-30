@@ -289,34 +289,19 @@ export async function saveFavorite(templateId: string, isFav: boolean, userId?: 
 
 // ======================== ORDERS ========================
 
-/** Identifiers of the order older builds fabricated. Used to purge it. */
-const FAKE_DEMO_ORDER_ID = 'ord-8921-ie';
-const FAKE_DEMO_ORDER_USER = 'demo_user_google_108';
-
-/**
- * Orders stored in this browser.
- *
- * There is deliberately no seeded demo order any more. It used to be fabricated
- * on first read, so every visitor — and the admin console, which reads these —
- * showed a fake delivered order and revenue that never existed. An empty history
- * is the honest state; real orders appear here for guests and sync to Firestore
- * for signed-in customers.
- */
 export function getLocalOrders(): Order[] {
   try {
     const raw = localStorage.getItem(LOCAL_ORDERS_KEY);
     if (!raw) return [];
-    const orders: Order[] = JSON.parse(raw);
-    // Browsers that loaded an older build have the fabricated demo order sitting
-    // in localStorage. Drop it so it never shows up as real history.
-    if (orders.some((o) => o.id === FAKE_DEMO_ORDER_ID || o.userId === FAKE_DEMO_ORDER_USER)) {
-      const real = orders.filter(
-        (o) => o.id !== FAKE_DEMO_ORDER_ID && o.userId !== FAKE_DEMO_ORDER_USER
-      );
-      localStorage.setItem(LOCAL_ORDERS_KEY, JSON.stringify(real));
-      return real;
+    const parsed: Order[] = JSON.parse(raw);
+    // Purge fabricated demo order if present
+    const filtered = parsed.filter(
+      (o) => o.id !== 'ord-8921-uk' && o.userId !== 'demo_user_google_108'
+    );
+    if (filtered.length !== parsed.length) {
+      localStorage.setItem(LOCAL_ORDERS_KEY, JSON.stringify(filtered));
     }
-    return orders;
+    return filtered;
   } catch {
     return [];
   }
