@@ -36,7 +36,28 @@ npm run build    # vite build + scripts/prerender.mjs (static HTML per card, rob
 - **No fabricated data.** There is no seeded demo order (it is purged from existing localStorage on
   read) and no hardcoded ratings. `template.rating` / `reviewCount` are recomputed from **approved**
   reviews by `recomputeTemplateRating`, so pending reviews never move what customers see. If you add
-  marketing numbers ("4.9/5 from 12,000+ reviews"), they must come from a real aggregate.
+  marketing numbers ("4.9/5 from 12,000+ reviews"), they must come from a real aggregate. The
+  generators used to violate this (`rating: 4.9, reviewCount: 45 + (i*13)%180`, and
+  `5.0/1 + isPopular: true` on create); they now emit `0/0` and `isPopular: false`, and
+  `buildTemplateFacets` preserves whatever is stored rather than resetting it — the database is the
+  source of truth and this runs on the read path.
+- **Every browse facet is a real, queryable field on `templates/{id}`.** `Browse.tsx` filters on
+  `category`, `recipient`, `style`, `isPhotoCard`, `milestoneAge` and `price`; since the catalog is
+  Firestore-backed, each one must be stored rather than inferred at render. `buildTemplateFacets` in
+  `utils/templateFacets.ts` is the single place that decides them:
+  `ARTWORK_FACETS` is a hand-assigned slug → `{style, recipient, tone, season, tags}` map (keyed by
+  artwork filename, separator-agnostic), `DEFAULT_FACETS` covers admin uploads, and every value is
+  coerced against the `RECIPIENT_TYPES` / `STYLE_TYPES` / `TONE_TYPES` / `SEASON_TYPES` arrays so a
+  hand-edited doc can't hold a value no filter accepts. Both generators call it, `toCatalogDocument`
+  enforces it on write, and `mergeCatalog` backfills on read — so templates stored before facets
+  existed correct themselves with no migration (the `frontCover.ts` pattern). **Never reintroduce a
+  blanket `recipient: 'Anyone'` / `style: 'Floral'` default** — that is what made the recipient,
+  style, photo and milestone facets match nothing. Covered by `scripts/templateFacets.check.ts` and
+  `scripts/templateGenerator.check.mjs`; the generator check asserts the artwork is *not* all one
+  style/recipient and that nothing fabricates a rating.
+  `milestoneAge` is deliberately left unset for generic art — it means "Turning 50"-style
+  age-specific cards (see `utils/occasions.ts`), so putting it on a general birthday card would
+  badge it with an age it does not target.
 - **Reviews require a purchase and moderation.** The review doc id is pinned to
   `${orderId}_${templateId}` (one review per order per card) and every review is created as
   `pending`; only an admin may publish. Known gap, documented in `firestore.rules`: rules cannot

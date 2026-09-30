@@ -1,4 +1,5 @@
 import { CardTemplate, OccasionType, RecipientType, CardStyleType } from '../types/template';
+import { buildTemplateFacets } from './templateFacets';
 
 export const FOLDER_OCCASION_MAP: Record<string, OccasionType> = {
   'birthday': 'Birthday',
@@ -188,7 +189,7 @@ export const OCCASION_MESSAGES: Record<OccasionType, { inside: string; defaultCo
 export function generateTemplatesFromOccasionImages(): CardTemplate[] {
   const entries = getOccasionImageEntries();
 
-  return entries.map((entry, index) => {
+  return entries.map((entry) => {
     const slug = entry.cleanName.toLowerCase().replace(/[^a-z0-9]+/g, '-');
     const templateId = `occ-${entry.folderName}-${slug}`;
     const occasionMeta = OCCASION_MESSAGES[entry.occasion] || OCCASION_MESSAGES['Birthday'];
@@ -196,37 +197,20 @@ export function generateTemplatesFromOccasionImages(): CardTemplate[] {
     const title = `${entry.cleanName} ${entry.occasion}`;
     const desc = `Handcrafted ${entry.occasion.toLowerCase()} greeting card featuring artisanal artwork from the ${entry.occasion} collection.`;
 
-    const recipient: RecipientType = 'Anyone';
-    const style: CardStyleType = 'Floral';
+    // Every browse facet is derived from the artwork (see utils/templateFacets).
+    // The previous hardcoded recipient: 'Anyone' / style: 'Floral' made the
+    // recipient, style, photo and milestone filters match nothing.
+    const facets = buildTemplateFacets({ occasion: entry.occasion, imageUrl: entry.imageUrl });
 
     return {
       id: templateId,
       title,
       description: desc,
-      category: entry.occasion,
-      subcategory: 'Artisan Collection',
-      recipient,
-      style,
-      tone: 'Heartfelt',
-      tags: [
-        entry.occasion.toLowerCase(),
-        'artisan',
-        'stationery',
-        'botanical',
-        'personalized',
-        ...entry.cleanName.toLowerCase().split(' '),
-      ],
+      ...facets,
       price: 4.29,
-      rating: 4.9,
-      reviewCount: 45 + (index * 13) % 180,
-      isPhotoCard: false,
-      isPopular: index % 2 === 0,
-      isBestSeller: index === 0,
-      isNew: true,
       thumbnail: entry.imageUrl,
       previewColors: ['#faf8f5', occasionMeta.defaultColor, '#d97706'],
       altText: `${title} - Front cover artwork`,
-      season: 'all-year',
       defaultPages: {
         front: {
           pageType: 'front',
@@ -365,37 +349,30 @@ export function createTemplateFromOccasionImage(options: {
   const id = `occ-user-${slug}-${Date.now().toString(36)}`;
   const textColor = options.textColor || occasionMeta.defaultColor;
   const price = options.price || 4.29;
-  const recipient = options.recipient || 'Anyone';
-  const style = options.style || 'Floral';
+
+  // Facets come from the artwork where we have a reviewed entry for it, and
+  // from the admin's explicit choice otherwise. `rating`/`reviewCount` start at
+  // zero and are owned by recomputeTemplateRating — the generator used to write
+  // `5.0 from 1 review` and `isPopular: true` for a card nobody had bought.
+  const facets = buildTemplateFacets({
+    occasion,
+    imageUrl: options.imageUrl,
+    existing: {
+      ...(options.recipient ? { recipient: options.recipient } : {}),
+      ...(options.style ? { style: options.style } : {}),
+      ...(options.tags?.length ? { tags: [occasion.toLowerCase(), 'custom', ...options.tags] } : {}),
+    },
+  });
 
   return {
     id,
     title,
     description: `Handcrafted ${occasion.toLowerCase()} card with premium artwork from the ${occasion} collection.`,
-    category: occasion,
-    subcategory: 'Artisan Collection',
-    recipient,
-    style,
-    tone: 'Heartfelt',
-    tags: [
-      occasion.toLowerCase(),
-      'artisan',
-      'stationery',
-      'botanical',
-      'custom',
-      ...(options.tags || []),
-    ],
+    ...facets,
     price,
-    rating: 5.0,
-    reviewCount: 1,
-    isPhotoCard: false,
-    isPopular: true,
-    isBestSeller: false,
-    isNew: true,
     thumbnail: options.imageUrl,
     previewColors: ['#faf8f5', textColor, '#d97706'],
     altText: `${title} - Front cover artwork`,
-    season: 'all-year',
     defaultPages: {
       front: {
         pageType: 'front',

@@ -28,6 +28,7 @@ import {
   OccasionImageEntry
 } from '../../utils/occasionTemplateLoader';
 import { registerCustomTemplate, unregisterCustomTemplate } from '../../data/templates';
+import { buildTemplateFacets } from '../../utils/templateFacets';
 import { upsertTemplate } from '../../services/catalogService';
 import { useCatalog } from '../../context/CatalogContext';
 import { formatPrice } from '../../utils/currency';
@@ -62,8 +63,23 @@ export const OccasionStudio: React.FC<OccasionStudioProps> = ({ onNavigate, onTe
   const [cardTitle, setCardTitle] = useState<string>('');
   const [textColor, setTextColor] = useState<string>(OCCASION_MESSAGES['Birthday'].defaultColor);
   const [price, setPrice] = useState<number>(4.29);
-  const [recipient, setRecipient] = useState<RecipientType>('Anyone');
-  const [style, setStyle] = useState<CardStyleType>('Floral');
+  // Empty means "derive it from the artwork" — see utils/templateFacets.ts.
+  // These deliberately do NOT default to a value: a preset default would be
+  // sent as an explicit override and would stamp every new card with the same
+  // recipient/style, which is what made the Browse facets useless.
+  const [recipient, setRecipient] = useState<RecipientType | ''>('');
+  const [style, setStyle] = useState<CardStyleType | ''>('');
+
+  // What will actually be stored, so the admin can see the derived value rather
+  // than having to remember it.
+  const derivedFacets = buildTemplateFacets({
+    occasion: selectedOccasion,
+    imageUrl: uploadedImageUrl || '/src/assets/images/occasions/birthday/warm_ivory_balloons.jpg',
+    existing: {
+      ...(recipient ? { recipient } : {}),
+      ...(style ? { style } : {}),
+    },
+  });
 
   // Preview / UI states
   const [showSafeOverlay, setShowSafeOverlay] = useState<boolean>(true);
@@ -147,8 +163,10 @@ export const OccasionStudio: React.FC<OccasionStudioProps> = ({ onNavigate, onTe
       title: cardTitle || `${selectedOccasion} Artisan Stationery Card`,
       textColor,
       price,
-      recipient,
-      style,
+      // Only send these when the admin actually chose one — '' means "derive it
+      // from the artwork" and must not become a stored facet.
+      ...(recipient ? { recipient } : {}),
+      ...(style ? { style } : {}),
       tags: [selectedSlug, 'occasion-folder-generator'],
     });
 
@@ -456,13 +474,15 @@ export const OccasionStudio: React.FC<OccasionStudioProps> = ({ onNavigate, onTe
                   </div>
 
                   <div>
-                    <label className="block text-[11px] font-semibold text-slate-600 mb-1">Recipient</label>
+                    <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                      Recipient
+                    </label>
                     <select
                       value={recipient}
                       onChange={(e) => setRecipient(e.target.value as RecipientType)}
                       className="w-full px-2 py-2 text-xs border border-slate-300 rounded-xl bg-white outline-hidden font-medium"
                     >
-                      <option value="Anyone">Anyone</option>
+                      <option value="">Auto — {derivedFacets.recipient}</option>
                       {RECIPIENTS_LIST.map((r) => (
                         <option key={r.id} value={r.id}>
                           {r.name}
@@ -478,6 +498,7 @@ export const OccasionStudio: React.FC<OccasionStudioProps> = ({ onNavigate, onTe
                       onChange={(e) => setStyle(e.target.value as CardStyleType)}
                       className="w-full px-2 py-2 text-xs border border-slate-300 rounded-xl bg-white outline-hidden font-medium"
                     >
+                      <option value="">Auto — {derivedFacets.style}</option>
                       {STYLES_LIST.map((s) => (
                         <option key={s.id} value={s.id}>
                           {s.name}
@@ -485,6 +506,39 @@ export const OccasionStudio: React.FC<OccasionStudioProps> = ({ onNavigate, onTe
                       ))}
                     </select>
                   </div>
+                </div>
+
+                {/* The facets that will be written to templates/{id}. These drive
+                    the storefront filters, so they are shown before publishing
+                    rather than discovered by a customer clicking an empty grid. */}
+                <div className="rounded-xl bg-slate-50 border border-slate-200 p-3">
+                  <h4 className="text-[11px] font-semibold text-slate-600 mb-2">
+                    Browse facets to be stored
+                  </h4>
+                  <dl className="grid grid-cols-2 gap-x-3 gap-y-1 text-[11px]">
+                    {(
+                      [
+                        ['Occasion', derivedFacets.category],
+                        ['Recipient', derivedFacets.recipient],
+                        ['Style', derivedFacets.style],
+                        ['Tone', derivedFacets.tone],
+                        ['Season', derivedFacets.season],
+                        ['Rating', `${derivedFacets.rating} from ${derivedFacets.reviewCount} reviews`],
+                      ] as const
+                    ).map(([k, v]) => (
+                      <div key={k} className="flex gap-1 min-w-0">
+                        <dt className="text-slate-500 shrink-0">{k}:</dt>
+                        <dd className="font-semibold text-slate-800 truncate">{v}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                  <p className="text-[10px] text-slate-500 mt-2 leading-snug">
+                    Rating starts at 0 and is owned by the approved reviews — a new
+                    card can never advertise ratings it does not have.
+                  </p>
+                  <p className="text-[10px] text-slate-500 mt-1 leading-snug truncate">
+                    Tags: {derivedFacets.tags.join(', ')}
+                  </p>
                 </div>
               </div>
             </div>

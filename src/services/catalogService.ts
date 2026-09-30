@@ -32,6 +32,7 @@ import { db, isFirebaseConfigured } from './firebase';
 import { getLiveCatalog, setLiveCatalog } from '../data/templates';
 import { getCustomUploadedTemplates } from '../utils/occasionTemplateLoader';
 import { CardTemplate } from '../types/template';
+import { buildTemplateFacets } from '../utils/templateFacets';
 
 const COLLECTION = 'templates';
 
@@ -43,11 +44,32 @@ export interface CatalogDocument extends CardTemplate {
 }
 
 const toCatalogDocument = (t: CardTemplate): CatalogDocument => {
-  // Only copy known fields — page definitions are deep and Firestore rejects
-  // `undefined`, so we let the SDK serialise what is actually present.
-  const doc: CatalogDocument = { ...t };
+  // Every browse facet is filled in on write, so a doc written from anywhere
+  // carries a real, filterable recipient/style/season/tags set rather than the
+  // ones the caller happened to remember.
+  const facets = buildTemplateFacets({
+    occasion: t.category,
+    imageUrl: t.thumbnail,
+    existing: t,
+  });
+  // Page definitions are deep and Firestore rejects `undefined`, so we let the
+  // SDK serialise what is actually present.
+  const doc: CatalogDocument = { ...t, ...facets };
   return doc;
 };
+
+/**
+ * Fill in any facet a stored doc is missing.
+ *
+ * Templates written before facets were stored (or hand-edited in Firestore) are
+ * completed at load time from the artwork, mirroring how `utils/frontCover.ts`
+ * cleans up cards stored before the artwork-only-front rule existed. This is why
+ * no migration is needed: the data corrects itself on read.
+ */
+const withFacets = (t: CardTemplate): CardTemplate => ({
+  ...t,
+  ...buildTemplateFacets({ occasion: t.category, imageUrl: t.thumbnail, existing: t }),
+});
 
 /** Locally created (Occasion Studio) templates, which have no DB doc yet. */
 const localCustomTemplates = (): CardTemplate[] => {
@@ -66,11 +88,11 @@ const isRetired = (d: CatalogDocument): boolean => Boolean(d.deletedAt);
  */
 const mergeCatalog = (remote: CatalogDocument[]): CardTemplate[] => {
   const byId = new Map<string, CardTemplate>();
-  for (const t of localCustomTemplates()) byId.set(t.id, t);
+  for (const t of localCustomTemplates()) byId.set(t.id, withFacets(t));
   for (const d of remote) {
     if (isRetired(d)) continue;
     const { deletedAt, deletedBy, updatedAt, ...template } = d;
-    byId.set(template.id, template as CardTemplate);
+    byId.set(template.id, withFacets(template as CardTemplate));
   }
   return Array.from(byId.values());
 };

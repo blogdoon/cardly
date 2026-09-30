@@ -10,7 +10,7 @@
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit",
-    "test": "node --experimental-strip-types scripts/addressBook.check.ts && node --experimental-strip-types scripts/delivery.check.ts && node --experimental-strip-types scripts/frontCover.check.ts && node --experimental-strip-types scripts/orderReview.check.ts && node scripts/catalogSelect.check.mjs && node scripts/routes.check.ts && node scripts/covers.check.mjs && node scripts/templateGenerator.check.mjs"
+    "test": "node --experimental-strip-types scripts/addressBook.check.ts && node --experimental-strip-types scripts/delivery.check.ts && node --experimental-strip-types scripts/frontCover.check.ts && node --experimental-strip-types scripts/orderReview.check.ts && node --experimental-strip-types scripts/templateFacets.check.ts && node scripts/catalogSelect.check.mjs && node scripts/routes.check.ts && node scripts/covers.check.mjs && node scripts/templateGenerator.check.mjs"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",

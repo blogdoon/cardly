@@ -108,39 +108,19 @@ export type OccasionType =
   | 'Graduation'
   | 'Housewarming';
 
-export type RecipientType =
-  | 'Her'
-  | 'Him'
-  | 'Mum'
-  | 'Dad'
-  | 'Sister'
-  | 'Brother'
-  | 'Wife'
-  | 'Husband'
-  | 'Partner'
-  | 'Daughter'
-  | 'Son'
-  | 'Grandparent'
-  | 'Friend'
-  | 'Best Friend'
-  | 'Colleague'
-  | 'Kids'
-  | 'Anyone';
+// The recipient/style/tone/season vocabularies are declared once as runtime
+// arrays in `utils/templateFacets.ts` — the catalog is Firestore-backed now, so
+// these double as the set of values the Browse facets will accept, and a stored
+// value outside them would silently drop a card from that filter. The types
+// below are derived from those arrays so the two cannot drift.
+import type {
+  RecipientType,
+  CardStyleType,
+  CardToneType,
+  CardSeasonType,
+} from '../utils/templateFacets';
 
-export type CardStyleType =
-  | 'Funny'
-  | 'Cute'
-  | 'Modern'
-  | 'Elegant'
-  | 'Floral'
-  | 'Minimal'
-  | 'Retro'
-  | 'Colorful'
-  | 'Photo'
-  | 'Typography'
-  | 'Luxury'
-  | 'Cartoon'
-  | 'Inspirational';
+export type { RecipientType, CardStyleType, CardToneType, CardSeasonType };
 
 export interface CardTemplate {
   id: string;
@@ -150,7 +130,7 @@ export interface CardTemplate {
   subcategory?: string;
   recipient: RecipientType;
   style: CardStyleType;
-  tone: 'Humorous' | 'Heartfelt' | 'Cheeky' | 'Sweet' | 'Formal' | 'Playful';
+  tone: CardToneType;
   tags: string[];
   price: number;
   rating: number;
@@ -161,7 +141,7 @@ export interface CardTemplate {
   isBestSeller?: boolean;
   milestoneAge?: number;
   altText?: string;
-  season?: 'spring' | 'summer' | 'autumn' | 'winter' | 'all-year';
+  season?: CardSeasonType;
   thumbnail: string;
   previewColors: string[];
   defaultPages: {

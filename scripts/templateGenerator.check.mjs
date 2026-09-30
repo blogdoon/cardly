@@ -81,6 +81,63 @@ if (fromBundle.length === 0) {
   );
 }
 
+// --- facets are derived, not hardcoded --------------------------------------
+//
+// The generators used to stamp `recipient: 'Anyone'` and `style: 'Floral'` on
+// every card, so Browse's recipient and style facets matched nothing. Every
+// browse field must now be a real value the storefront can filter on.
+const RECIPIENTS = new Set([
+  'Her', 'Him', 'Mum', 'Dad', 'Sister', 'Brother', 'Wife', 'Husband', 'Partner',
+  'Daughter', 'Son', 'Grandparent', 'Friend', 'Best Friend', 'Colleague', 'Kids', 'Anyone',
+]);
+const STYLES = new Set([
+  'Funny', 'Cute', 'Modern', 'Elegant', 'Floral', 'Minimal', 'Retro',
+  'Colorful', 'Photo', 'Typography', 'Luxury', 'Cartoon', 'Inspirational',
+]);
+const SEASONS = new Set(['spring', 'summer', 'autumn', 'winter', 'all-year']);
+
+const facetsValid = (t) =>
+  typeof t.category === 'string' && t.category.length > 0 &&
+  RECIPIENTS.has(t.recipient) && STYLES.has(t.style) && SEASONS.has(t.season) &&
+  Array.isArray(t.tags) && t.tags.length > 0;
+
+eq('a generated template has filterable facets', facetsValid(created), true);
+eq('a generated template gets no fabricated rating', created.rating, 0);
+eq('a generated template gets no fabricated review count', created.reviewCount, 0);
+eq('a new template is not popular by default', created.isPopular, false);
+
+if (fromBundle.length > 0) {
+  eq(
+    'all bundled templates have filterable facets',
+    fromBundle.filter((t) => !facetsValid(t)).length,
+    0
+  );
+  // The blanket 'Floral' default is the specific regression being guarded: if
+  // every card is one style, the style facet is decorative.
+  eq(
+    'bundled artwork is not all filed under a single style',
+    new Set(fromBundle.map((t) => t.style)).size > 1,
+    true
+  );
+  eq(
+    'bundled artwork is not all filed for a single recipient',
+    new Set(fromBundle.map((t) => t.recipient)).size > 1,
+    true
+  );
+  eq('no bundled template fabricates a rating', fromBundle.filter((t) => t.rating !== 0).length, 0);
+  eq(
+    'no bundled template fabricates a review count',
+    fromBundle.filter((t) => t.reviewCount !== 0).length,
+    0
+  );
+  eq('no bundled template is popular by default', fromBundle.filter((t) => t.isPopular).length, 0);
+  eq(
+    'no bundled template claims to be a bestseller',
+    fromBundle.filter((t) => t.isBestSeller).length,
+    0
+  );
+}
+
 if (failures > 0) {
   throw new Error(`${failures} template generator check(s) failed`);
 }
