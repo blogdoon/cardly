@@ -15,7 +15,7 @@ import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { DeliveryAddress, DeliveryMethod, Order } from '../types/order';
 import { createOrder } from '../services/cardStorage';
-import { DELIVERY_METHODS } from '../utils/delivery';
+import { DELIVERY_METHODS, deliveryWindow } from '../utils/delivery';
 
 interface CheckoutProps {
   onNavigate: (route: string) => void;
@@ -78,6 +78,12 @@ export const Checkout: React.FC<CheckoutProps> = ({ onNavigate }) => {
       status: 'processing',
       shippingAddress: address,
       deliveryMethod: selectedMethod,
+      // The finished card goes to the recipient, not back to the customer.
+      deliveryType: 'direct_to_recipient',
+      // Derived from the delivery method's own production window rather than
+      // hardcoded, so the order row cannot disagree with the estimate the
+      // customer was shown (see utils/delivery.ts).
+      estimatedArrival: deliveryWindow(selectedMethod).arrivalDate.toISOString(),
       dispatchDate: new Date(Date.now() + 1000 * 60 * 60 * 4).toISOString(),
       paymentSummary: {
         method: paymentMethod,

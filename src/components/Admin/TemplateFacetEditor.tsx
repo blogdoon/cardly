@@ -77,22 +77,22 @@ export const TemplateFacetEditor: React.FC<TemplateFacetEditorProps> = ({
 
   // Edits are held locally until Save, so an accidental click is not a Firestore
   // write — and the catalog cannot change underneath a half-finished edit.
-  const [recipients, setRecipients] = useState<string[]>(template.recipients ?? [template.recipient]);
-  const [styles, setStyles] = useState<string[]>(template.styles ?? [template.style]);
+  // These read the arrays directly: a legacy scalar `recipient`/`style` was
+  // already widened by `withFacets` in catalogService before this component saw it.
+  const [recipients, setRecipients] = useState<string[]>(template.recipients);
+  const [styles, setStyles] = useState<string[]>(template.styles);
   const [tone, setTone] = useState<string>(template.tone);
   const [season, setSeason] = useState<string>(template.season ?? 'all-year');
-  const [personalization, setPersonalization] = useState<string[]>(
-    template.personalization ?? (template.isPhotoCard ? ['photo', 'text'] : ['text'])
-  );
+  const [personalization, setPersonalization] = useState<string[]>(template.personalization);
   const [milestoneAge, setMilestoneAge] = useState<number | ''>(template.milestoneAge ?? '');
   const [price, setPrice] = useState<number>(template.price);
 
   const reset = () => {
-    setRecipients(template.recipients ?? [template.recipient]);
-    setStyles(template.styles ?? [template.style]);
+    setRecipients(template.recipients);
+    setStyles(template.styles);
     setTone(template.tone);
     setSeason(template.season ?? 'all-year');
-    setPersonalization(template.personalization ?? (template.isPhotoCard ? ['photo', 'text'] : ['text']));
+    setPersonalization(template.personalization);
     setMilestoneAge(template.milestoneAge ?? '');
     setPrice(template.price);
   };

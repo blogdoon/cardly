@@ -19,7 +19,7 @@ import { Admin } from './pages/Admin';
 import { UserDesign } from './types/design';
 import { getUserDesigns, getDesignById, getActiveDraftId } from './services/cardStorage';
 import { getTemplateById } from './data/templates';
-import { RouteType, parsePath, routePath, ROUTE_META } from './utils/routes';
+import { RouteType, parsePath, routePath, ROUTE_META, type BrowseFacets } from './utils/routes';
 import { initAnalytics, trackPageview } from './utils/analytics';
 
 function setPageMeta(title: string, desc: string) {
@@ -67,6 +67,12 @@ function AppRoutes() {
   );
   const [routeParam, setRouteParam] = useState<string | undefined>(
     () => parsePath(window.location.pathname, window.location.search).param
+  );
+  // Typed browse facets (?q=, ?occasion=, ?style=Cute,Retro, …). Kept in state
+  // rather than re-read from the URL so a filter change updates the address bar
+  // and the grid in one step, and so the back button restores the result set.
+  const [routeFacets, setRouteFacets] = useState<BrowseFacets | undefined>(
+    () => parsePath(window.location.pathname, window.location.search).facets
   );
   const [activeDesign, setActiveDesign] = useState<UserDesign | null>(null);
   const { user, loading } = useAuth();
@@ -161,10 +167,11 @@ function AppRoutes() {
   // Keep UI state in sync with the back/forward buttons.
   React.useEffect(() => {
     const onPopState = () => {
-      const { route, param } = parsePath(window.location.pathname, window.location.search);
+      const { route, param, facets } = parsePath(window.location.pathname, window.location.search);
       setActiveDesign(null);
       setCurrentRoute(route);
       setRouteParam(param);
+      setRouteFacets(facets);
     };
     window.addEventListener('popstate', onPopState);
     return () => window.removeEventListener('popstate', onPopState);
@@ -187,22 +194,23 @@ function AppRoutes() {
     trackPageview(window.location.pathname + window.location.search);
   }, [currentRoute, routeParam]);
 
-  const navigate = (route: RouteType, param?: string) => {
+  const navigate = (route: RouteType, param?: string, facets?: BrowseFacets) => {
     // A pushed URL replaces any previous editor session's ?design=, so a fresh
     // "Personalize" never resumes the card that was saved last time.
     try {
-      window.history.pushState({}, '', routePath(route, param));
+      window.history.pushState({}, '', routePath(route, param, facets));
     } catch (e) {
       console.warn(e);
     }
     setCurrentRoute(route);
     setRouteParam(param);
+    setRouteFacets(facets);
     setActiveDesign(null);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const handleNavigate = (route: string, param?: string) => {
-    navigate(route as RouteType, param);
+  const handleNavigate = (route: string, param?: string, facets?: BrowseFacets) => {
+    navigate(route as RouteType, param, facets);
   };
 
   const handlePersonalize = (templateId: string) => {
@@ -245,7 +253,7 @@ function AppRoutes() {
 
             {currentRoute === 'browse' && (
               <Browse
-                initialCategory={routeParam}
+                initialFacets={routeFacets}
                 onSelectCard={(id) => handleNavigate('card', id)}
                 onPersonalize={handlePersonalize}
               />

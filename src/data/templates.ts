@@ -39,10 +39,11 @@ export function getTemplatesByCategory(category: OccasionType): CardTemplate[] {
 }
 
 export function getTemplatesByRecipient(recipient: RecipientType): CardTemplate[] {
-  return liveCatalog.filter(
-    (t) =>
-      t.recipient.toLowerCase() === recipient.toLowerCase() ||
-      t.recipients?.some((r) => r.toLowerCase() === recipient.toLowerCase())
+  // `recipients` is an array, so a card for a "Friend" is also returned for
+  // "Best Friend" when it lists both. A legacy scalar `recipient` is widened to
+  // an array by `withFacets` in catalogService, so no fallback is needed here.
+  return liveCatalog.filter((t) =>
+    t.recipients.some((r) => r.toLowerCase() === recipient.toLowerCase())
   );
 }
 
