@@ -289,222 +289,34 @@ export async function saveFavorite(templateId: string, isFav: boolean, userId?: 
 
 // ======================== ORDERS ========================
 
+/** Identifiers of the order older builds fabricated. Used to purge it. */
+const FAKE_DEMO_ORDER_ID = 'ord-8921-ie';
+const FAKE_DEMO_ORDER_USER = 'demo_user_google_108';
+
+/**
+ * Orders stored in this browser.
+ *
+ * There is deliberately no seeded demo order any more. It used to be fabricated
+ * on first read, so every visitor — and the admin console, which reads these —
+ * showed a fake delivered order and revenue that never existed. An empty history
+ * is the honest state; real orders appear here for guests and sync to Firestore
+ * for signed-in customers.
+ */
 export function getLocalOrders(): Order[] {
   try {
     const raw = localStorage.getItem(LOCAL_ORDERS_KEY);
-    if (raw) return JSON.parse(raw);
-
-    // Initial demo order with realistic design snapshots so customer has an order history out of the box
-    const demoOrder: Order = {
-      id: 'ord-8921-ie',
-      orderNumber: 'CRD-2026-8921',
-      userId: 'demo_user_google_108',
-      items: [
-        {
-          id: 'item-demo-1',
-          templateId: 'card-001',
-          title: 'Thirty, Flirty & Thriving',
-          thumbnail: 'https://images.unsplash.com/photo-1513151233558-d860c5398176?w=600&auto=format&fit=crop&q=80',
-          cardSize: 'standard',
-          envelopeColor: 'blush',
-          quantity: 1,
-          unitPrice: 3.99,
-          addons: [
-            {
-              id: 'addon-env',
-              name: 'Luxury Blush Envelope',
-              price: 0.5,
-              description: 'Premium pearlescent paper',
-            },
-          ],
-          customSummary: {
-            recipientName: 'Sophie',
-            customMessageSnippet: 'Wishing you the happiest 30th birthday Sophie! Hope this year brings you love, joy, and endless champagne celebrations xoxo',
-          },
-          designSnapshot: {
-            id: 'design_demo_sophie_30th',
-            templateId: 'card-001',
-            userId: 'demo_user_google_108',
-            title: 'Thirty, Flirty & Thriving for Sophie',
-            previewThumbnail: 'https://images.unsplash.com/photo-1513151233558-d860c5398176?w=600&auto=format&fit=crop&q=80',
-            createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 7).toISOString(),
-            updatedAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 7).toISOString(),
-            pages: {
-              front: {
-                pageType: 'front',
-                backgroundColor: '#fff1f2',
-                elements: [
-                  {
-                    id: 'front_title',
-                    type: 'text',
-                    x: 50,
-                    y: 28,
-                    width: 75,
-                    height: 20,
-                    rotation: 0,
-                    zIndex: 1,
-                    text: 'THIRTY,\nFLIRTY &\nTHRIVING',
-                    fontFamily: 'Playfair Display',
-                    fontSize: 34,
-                    color: '#e11d48',
-                    textAlign: 'center',
-                    fontWeight: 'bold',
-                  },
-                  {
-                    id: 'front_name',
-                    type: 'text',
-                    x: 50,
-                    y: 65,
-                    width: 60,
-                    height: 12,
-                    rotation: 0,
-                    zIndex: 2,
-                    text: 'Happy Birthday Sophie!',
-                    fontFamily: 'Montserrat',
-                    fontSize: 20,
-                    color: '#881337',
-                    textAlign: 'center',
-                    fontWeight: 'bold',
-                  },
-                  {
-                    id: 'front_sticker',
-                    type: 'sticker',
-                    x: 50,
-                    y: 82,
-                    width: 20,
-                    height: 20,
-                    rotation: 0,
-                    zIndex: 3,
-                    stickerId: 'sparkles',
-                    emoji: '✨',
-                    name: 'Sparkles',
-                  },
-                ],
-              },
-              insideLeft: {
-                pageType: 'inside-left',
-                backgroundColor: '#ffffff',
-                elements: [
-                  {
-                    id: 'left_photo',
-                    type: 'photo',
-                    x: 50,
-                    y: 45,
-                    width: 65,
-                    height: 50,
-                    rotation: -2,
-                    zIndex: 1,
-                    imageUrl: 'https://images.unsplash.com/photo-1527529482837-4698179dc6ce?w=600&auto=format&fit=crop&q=80',
-                    borderRadius: 16,
-                    scale: 1,
-                  },
-                  {
-                    id: 'left_caption',
-                    type: 'text',
-                    x: 50,
-                    y: 82,
-                    width: 70,
-                    height: 10,
-                    rotation: 0,
-                    zIndex: 2,
-                    text: 'Best friends forever 🥂',
-                    fontFamily: 'Caveat',
-                    fontSize: 22,
-                    color: '#64748b',
-                    textAlign: 'center',
-                  },
-                ],
-              },
-              insideRight: {
-                pageType: 'inside-right',
-                backgroundColor: '#ffffff',
-                elements: [
-                  {
-                    id: 'right_msg',
-                    type: 'text',
-                    x: 50,
-                    y: 46,
-                    width: 80,
-                    height: 50,
-                    rotation: 0,
-                    zIndex: 1,
-                    text: 'Dearest Sophie,\n\nWishing you the happiest 30th birthday! Can not believe how many wonderful memories we have made together. Here is to thriving and shining brighter than ever in your fabulous thirties!\n\nLots of love always,\nAlex & Maya xxx',
-                    fontFamily: 'Caveat',
-                    fontSize: 22,
-                    color: '#334155',
-                    textAlign: 'center',
-                  },
-                  {
-                    id: 'right_sticker',
-                    type: 'sticker',
-                    x: 50,
-                    y: 84,
-                    width: 18,
-                    height: 18,
-                    rotation: 0,
-                    zIndex: 2,
-                    stickerId: 'party',
-                    emoji: '🎉',
-                    name: 'Party Popper',
-                  },
-                ],
-              },
-              back: {
-                pageType: 'back',
-                backgroundColor: '#fafafa',
-                elements: [
-                  {
-                    id: 'back_brand',
-                    type: 'text',
-                    x: 50,
-                    y: 86,
-                    width: 50,
-                    height: 8,
-                    rotation: 0,
-                    zIndex: 1,
-                    text: 'Handcrafted on Cardly • cardly.app',
-                    fontFamily: 'Montserrat',
-                    fontSize: 11,
-                    color: '#94a3b8',
-                    textAlign: 'center',
-                  },
-                ],
-              },
-            },
-          },
-        },
-      ],
-      subtotal: 4.49,
-      deliveryFee: 1.25,
-      discount: 0,
-      total: 5.74,
-      status: 'delivered',
-      shippingAddress: {
-        id: 'addr-1',
-        name: 'Alex Morgan',
-        line1: '12 Merrion Square',
-        city: 'Dublin',
-        postcode: 'D02 AF30',
-        country: 'Ireland',
-      },
-      deliveryMethod: {
-        id: 'letterbox-standard',
-        name: 'Standard Letterbox',
-        price: 1.45,
-        estimatedDelivery: 'Delivered',
-        description: 'Delivered through letterbox',
-        transitDays: 4,
-      },
-      deliveryType: 'direct_to_recipient',
-      estimatedArrival: new Date(Date.now() - 1000 * 60 * 60 * 24 * 3).toISOString(),
-      dispatchDate: new Date(Date.now() - 1000 * 60 * 60 * 24 * 5).toISOString(),
-      paymentSummary: { method: 'google_pay', last4: '4242', brand: 'Visa' },
-      createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 7).toISOString(),
-      updatedAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 5).toISOString(),
-    };
-
-    localStorage.setItem(LOCAL_ORDERS_KEY, JSON.stringify([demoOrder]));
-    return [demoOrder];
+    if (!raw) return [];
+    const orders: Order[] = JSON.parse(raw);
+    // Browsers that loaded an older build have the fabricated demo order sitting
+    // in localStorage. Drop it so it never shows up as real history.
+    if (orders.some((o) => o.id === FAKE_DEMO_ORDER_ID || o.userId === FAKE_DEMO_ORDER_USER)) {
+      const real = orders.filter(
+        (o) => o.id !== FAKE_DEMO_ORDER_ID && o.userId !== FAKE_DEMO_ORDER_USER
+      );
+      localStorage.setItem(LOCAL_ORDERS_KEY, JSON.stringify(real));
+      return real;
+    }
+    return orders;
   } catch {
     return [];
   }

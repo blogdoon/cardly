@@ -1,21 +1,19 @@
 /**
  * Firestore-backed catalog service.
  *
- * The card catalog used to live entirely in the JS bundle (`data/templates.ts`),
- * which meant an admin could not add, edit or delete a card for real — the
- * Occasion Studio only mutated the current browser's memory. Firestore
- * `templates/` is now the source of truth and this module is the only place
- * that talks to it.
+ * The catalog is the database. There is no bundled fallback any more — the 340
+ * templates that used to ship in `data/templates.ts` were removed, so if
+ * Firestore is empty or unreachable the storefront is genuinely empty and says
+ * so, rather than silently showing a stale copy of the seed.
  *
- * Reads:  `subscribeToCatalog` keeps `data/templates.ts` live catalog in sync
- *         and gives callers a snapshot stream (used by CatalogContext).
+ * Reads:  `subscribeToCatalog` keeps the in-memory live catalog in sync and
+ *         gives callers a snapshot stream (used by CatalogContext).
  * Writes: `upsertTemplate` / `deleteTemplate` / `restoreTemplate` are the admin
  *         operations. Delete is a SOFT delete — it stamps `deletedAt` instead of
  *         removing the document, because past orders, saved designs and
  *         favourites all reference `templateId` and would otherwise 404.
  *
- * Fallback: if the collection is empty (never seeded) or the read fails, the
- * bundled `ALL_TEMPLATES` seed keeps the storefront working offline.
+ * Bulk writes are batched (Firestore caps a batch at 500 operations).
  */
 
 import {
@@ -28,40 +26,14 @@ import {
   writeBatch,
   query,
   where,
-  serverTimestamp,
   type Unsubscribe,
 } from 'firebase/firestore';
 import { db, isFirebaseConfigured } from './firebase';
-import { ALL_TEMPLATES, getLiveCatalog, setLiveCatalog } from '../data/templates';
+import { getLiveCatalog, setLiveCatalog } from '../data/templates';
 import { getCustomUploadedTemplates } from '../utils/occasionTemplateLoader';
 import { CardTemplate } from '../types/template';
 
 const COLLECTION = 'templates';
-
-/** Fields owned by the seed bundle; the admin-owned `deletedAt` is not one. */
-const SEED_FIELDS = [
-  'id',
-  'title',
-  'description',
-  'category',
-  'recipient',
-  'style',
-  'price',
-  'rating',
-  'reviewCount',
-  'thumbnail',
-  'coverImage',
-  'isPhotoCard',
-  'isPopular',
-  'isBestSeller',
-  'isNew',
-  'milestoneAge',
-  'tags',
-  'pages',
-  'cardSizes',
-  'envelopeColors',
-  'textStyle',
-] as const;
 
 /** A stored template plus the admin lifecycle fields. */
 export interface CatalogDocument extends CardTemplate {
@@ -94,7 +66,6 @@ const isRetired = (d: CatalogDocument): boolean => Boolean(d.deletedAt);
  */
 const mergeCatalog = (remote: CatalogDocument[]): CardTemplate[] => {
   const byId = new Map<string, CardTemplate>();
-  for (const t of ALL_TEMPLATES) byId.set(t.id, t);
   for (const t of localCustomTemplates()) byId.set(t.id, t);
   for (const d of remote) {
     if (isRetired(d)) continue;
@@ -108,21 +79,19 @@ const mergeCatalog = (remote: CatalogDocument[]): CardTemplate[] => {
  * Subscribe to the live catalog.
  *
  * @param onTemplates Called with the merged, retired-filtered catalog. Fires
- *   immediately with the bundled seed if the database is empty, then again on
- *   every change.
- * @param onStatus Optional status callback so the admin UI can show whether the
- *   catalog is database-backed or still on the seed.
+ *   immediately with any locally created templates, then again on every change.
+ * @param onStatus Optional status callback so the admin UI can report whether the
+ *   catalog is database-backed, empty, or unreachable.
  */
 export function subscribeToCatalog(
   onTemplates: (templates: CardTemplate[]) => void,
   onStatus?: (status: CatalogStatus) => void
 ): Unsubscribe {
-  const fallback = mergeCatalog([]);
-  onTemplates(fallback);
-  onStatus?.({ source: 'seed', templateCount: fallback.length });
+  const initial = mergeCatalog([]);
+  onTemplates(initial);
+  onStatus?.({ source: isFirebaseConfigured ? 'loading' : 'offline', templateCount: initial.length });
 
   if (!isFirebaseConfigured) {
-    onStatus?.({ source: 'offline', templateCount: fallback.length });
     return () => {};
   }
 
@@ -134,35 +103,36 @@ export function subscribeToCatalog(
       (snap) => {
         if (cancelled) return;
         const docs = snap.docs.map((d) => ({ id: d.id, ...d.data() }) as CatalogDocument);
-        if (docs.length === 0) {
-          // Collection exists but is empty: still on the bundled seed.
-          onStatus?.({ source: 'seed', templateCount: 0 });
-          onTemplates(fallback);
-          return;
-        }
         const merged = mergeCatalog(docs);
         setLiveCatalog(merged);
         onTemplates(merged);
-        onStatus?.({ source: 'database', templateCount: merged.length });
+        // An empty collection is a real, reportable state now that there is no
+        // bundled seed to fall back to.
+        onStatus?.({
+          source: docs.length === 0 ? 'empty' : 'database',
+          templateCount: merged.length,
+        });
       },
       (err) => {
         if (cancelled) return;
-        // Permission denied / offline: keep serving the seed rather than a blank store.
-        console.warn('Catalog subscription failed, serving bundled catalog:', err.message);
-        onTemplates(fallback);
-        onStatus?.({ source: 'error', templateCount: fallback.length, error: err.message });
+        // Permission denied / offline: report it rather than pretending. The
+        // storefront shows the empty state and the admin console shows why.
+        console.warn('Catalog subscription failed:', err.message);
+        onTemplates(initial);
+        onStatus?.({ source: 'error', templateCount: initial.length, error: err.message });
       }
     );
     return unsub;
   } catch (err) {
     const message = err instanceof Error ? err.message : 'unknown error';
-    onStatus?.({ source: 'error', templateCount: fallback.length, error: message });
+    onStatus?.({ source: 'error', templateCount: initial.length, error: message });
     return () => {};
   }
 }
 
 export interface CatalogStatus {
-  source: 'database' | 'seed' | 'offline' | 'error';
+  /** `loading` until the first snapshot; `empty` when the collection has no docs. */
+  source: 'loading' | 'database' | 'empty' | 'offline' | 'error';
   templateCount: number;
   error?: string;
 }
@@ -198,6 +168,65 @@ export async function restoreTemplate(templateId: string): Promise<void> {
   );
 }
 
+/** Firestore accepts at most 500 writes per batch. */
+const MAX_BATCH = 500;
+
+/**
+ * Soft delete many templates in as few round trips as possible.
+ *
+ * @param templateIds Ids to retire.
+ * @param actorEmail Recorded on each tombstone.
+ * @param onProgress Called after each batch with (completed, total).
+ * @returns How many ids were retired.
+ */
+export async function bulkDeleteTemplate(
+  templateIds: string[],
+  actorEmail: string,
+  onProgress?: (completed: number, total: number) => void
+): Promise<number> {
+  if (templateIds.length === 0) return 0;
+  const stamp = new Date().toISOString();
+  let done = 0;
+
+  for (let i = 0; i < templateIds.length; i += MAX_BATCH) {
+    const slice = templateIds.slice(i, i + MAX_BATCH);
+    const batch = writeBatch(db);
+    for (const id of slice) {
+      batch.set(doc(db, COLLECTION, id), { deletedAt: stamp, deletedBy: actorEmail }, { merge: true });
+    }
+    await batch.commit();
+    done += slice.length;
+    onProgress?.(done, templateIds.length);
+  }
+  return done;
+}
+
+/** Restore many retired templates. Same batching as `bulkDeleteTemplate`. */
+export async function bulkRestoreTemplate(
+  templateIds: string[],
+  onProgress?: (completed: number, total: number) => void
+): Promise<number> {
+  if (templateIds.length === 0) return 0;
+  const stamp = new Date().toISOString();
+  let done = 0;
+
+  for (let i = 0; i < templateIds.length; i += MAX_BATCH) {
+    const slice = templateIds.slice(i, i + MAX_BATCH);
+    const batch = writeBatch(db);
+    for (const id of slice) {
+      batch.set(
+        doc(db, COLLECTION, id),
+        { deletedAt: null, deletedBy: null, updatedAt: stamp },
+        { merge: true }
+      );
+    }
+    await batch.commit();
+    done += slice.length;
+    onProgress?.(done, templateIds.length);
+  }
+  return done;
+}
+
 /**
  * Irreversibly remove the document. Only safe for templates that were never
  * sold, customised or favourited — prefer `deleteTemplate`.
@@ -216,41 +245,6 @@ export async function fetchAllCatalogDocuments(): Promise<CatalogDocument[]> {
 export async function fetchRetiredTemplateIds(): Promise<string[]> {
   const snap = await getDocs(query(collection(db, COLLECTION), where('deletedAt', '!=', null)));
   return snap.docs.map((d) => d.id);
-}
-
-/**
- * One-time: write the bundled catalog into Firestore so it becomes
- * admin-manageable. Batched (Firestore caps writes at 500 per batch).
- * Existing documents are left alone — this seeds, it does not overwrite.
- *
- * @param onProgress Called with (written, total) as the batches land.
- */
-export async function seedCatalogFromBundle(
-  onProgress?: (written: number, total: number) => void
-): Promise<number> {
-  const existing = await fetchAllCatalogDocuments();
-  const existingIds = new Set(existing.map((d) => d.id));
-  const toWrite = ALL_TEMPLATES.filter((t) => !existingIds.has(t.id));
-
-  const BATCH_SIZE = 400;
-  let written = 0;
-
-  for (let i = 0; i < toWrite.length; i += BATCH_SIZE) {
-    const slice = toWrite.slice(i, i + BATCH_SIZE);
-    const batch = writeBatch(db);
-    for (const t of slice) {
-      batch.set(
-        doc(db, COLLECTION, t.id),
-        { ...toCatalogDocument(t), createdAt: serverTimestamp(), updatedAt: new Date().toISOString() },
-        { merge: true }
-      );
-    }
-    await batch.commit();
-    written += slice.length;
-    onProgress?.(written, toWrite.length);
-  }
-
-  return written;
 }
 
 /** The catalog currently in use, for callers that need it outside React. */

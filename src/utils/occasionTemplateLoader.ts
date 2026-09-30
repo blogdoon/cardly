@@ -91,124 +91,91 @@ export function getOccasionImageEntries(): OccasionImageEntry[] {
 }
 
 // Occasion-specific default messages for generated templates
-export const OCCASION_MESSAGES: Record<OccasionType, { headline: string; sub: string; inside: string; defaultColor: string }> = {
+/**
+ * Occasion defaults for generated templates.
+ *
+ * `headline` and `sub` were removed along with front-cover copy: the front is
+ * artwork only and the customer writes their own wording (see
+ * utils/frontCover.ts). Only the inside message and the accent colour remain.
+ */
+export const OCCASION_MESSAGES: Record<OccasionType, { inside: string; defaultColor: string }> = {
   'Birthday': {
-    headline: 'Happiest of Birthdays',
-    sub: 'Wishing you a wonderful celebration.',
     inside: 'May your day be filled with happiness, laughter, and everything you wished for!\n\nWith lots of love,\n[Your Name]',
     defaultColor: '#881337',
   },
   'Anniversary': {
-    headline: 'Happy Anniversary',
-    sub: 'Celebrating your beautiful love story.',
     inside: 'Wishing you both another incredible year of love, companionship, and joy.\n\nWarmest wishes,\n[Your Name]',
     defaultColor: '#4c1d95',
   },
   'Wedding': {
-    headline: 'A Lifetime of Love',
-    sub: 'Warmest congratulations on your marriage.',
     inside: 'May your life together be blessed with endless happiness, understanding, and affection.\n\nWith all our love,\n[Your Name]',
     defaultColor: '#1c1917',
   },
   'New Baby': {
-    headline: 'Welcome to the World',
-    sub: 'Congratulations on your new arrival.',
     inside: 'Wishing your growing family endless joy, sweet snuggles, and magical moments together.\n\nLots of love,\n[Your Name]',
     defaultColor: '#0f766e',
   },
   'Congratulations': {
-    headline: 'Huge Congratulations!',
-    sub: 'So proud of your achievement.',
     inside: 'Your hard work and dedication truly paid off. Wishing you continued success!\n\nBest wishes,\n[Your Name]',
     defaultColor: '#1e3a8a',
   },
   'Thank You': {
-    headline: 'With Sincere Thanks',
-    sub: 'Your kindness meant so much to me.',
     inside: 'Thank you from the bottom of my heart for your generosity and thoughtfulness.\n\nGratefully,\n[Your Name]',
     defaultColor: '#1e3a8a',
   },
   "Valentine's Day": {
-    headline: 'Forever My Valentine',
-    sub: 'With all my heart, today and always.',
     inside: 'Thank you for making my life brighter and fuller every single day. I love you!\n\nYours always,\n[Your Name]',
     defaultColor: '#be123c',
   },
   "Mother's Day": {
-    headline: "Happy Mother's Day",
-    sub: 'To the most wonderful Mum in the world.',
     inside: 'Thank you for your endless love, patience, and warmth. You are simply the best.\n\nWith all my love,\n[Your Name]',
     defaultColor: '#9d174d',
   },
   "Father's Day": {
-    headline: "Happy Father's Day",
-    sub: 'To an incredible Dad and role model.',
     inside: 'Thank you for always being there with great advice, warm hugs, and steady support.\n\nCheers Dad,\n[Your Name]',
     defaultColor: '#1e293b',
   },
   'Get Well': {
-    headline: 'Thinking of You',
-    sub: 'Sending warm hugs and healing thoughts.',
     inside: 'Rest up and take gentle care. Looking forward to seeing you back on your feet soon!\n\nGet well soon,\n[Your Name]',
     defaultColor: '#0369a1',
   },
   'Christmas': {
-    headline: 'Merry & Bright',
-    sub: 'Warmest holiday wishes to you and yours.',
     inside: 'May the peace and joy of the holiday season stay with you throughout the coming year.\n\nMerry Christmas,\n[Your Name]',
     defaultColor: '#166534',
   },
   'Friendship': {
-    headline: 'Grateful for You',
-    sub: 'To my absolute favourite person.',
     inside: 'Life is so much more fun with you as my friend. Thank you for always being you!\n\nCheers,\n[Your Name]',
     defaultColor: '#92400e',
   },
   'Good Luck': {
-    headline: 'Best of Luck!',
-    sub: 'You have got this completely.',
     inside: 'Cheering you on every step of the way! You have worked hard and you will do great.\n\nRooting for you,\n[Your Name]',
     defaultColor: '#15803d',
   },
   'Retirement': {
-    headline: 'Happy Retirement',
-    sub: 'Cheers to your well-deserved next chapter.',
     inside: 'Congratulations on a stellar career! May this new season be filled with fun, rest, and travel.\n\nBest wishes,\n[Your Name]',
     defaultColor: '#334155',
   },
   'Thinking of You': {
-    headline: 'Just A Little Note',
-    sub: 'Sending love across the miles.',
     inside: 'Holding you close in our thoughts today. Whenever you need a chat, I am right here.\n\nMuch love,\n[Your Name]',
     defaultColor: '#6b21a8',
   },
   'Sympathy': {
-    headline: 'In Loving Thought',
-    sub: 'Holding you close in our prayers.',
     inside: 'May the cherished memories of your loved one bring you comfort, peace, and solace.\n\nWith deepest sympathy,\n[Your Name]',
     defaultColor: '#334155',
   },
   'Graduation': {
-    headline: 'Congratulations Graduate!',
-    sub: 'The future is yours to shape.',
     inside: 'Caps off to you! So excited to see all the extraordinary things you will accomplish.\n\nProudly,\n[Your Name]',
     defaultColor: '#1e3a8a',
   },
   'Engagement': {
-    headline: 'Congratulations on Your Engagement!',
-    sub: 'Here is to your beautiful journey together.',
     inside: 'Wishing you both a lifetime of shared laughter, adventure, and boundless love!\n\nCheers to you both,\n[Your Name]',
     defaultColor: '#7c3aed',
   },
   'Easter': {
-    headline: 'Happy Easter Wishes',
-    sub: 'May your spring season bloom with joy.',
     inside: 'Wishing you a bright, sunny Easter filled with peace, sweet treats, and family warmth.\n\nWarmly,\n[Your Name]',
     defaultColor: '#ca8a04',
   },
   'Housewarming': {
-    headline: 'Home Sweet Home',
-    sub: 'Warmest wishes on your new home.',
     inside: 'May your new home be filled with warmth, wonderful memories, and lots of laughter!\n\nCongratulations,\n[Your Name]',
     defaultColor: '#9a3412',
   },
@@ -265,46 +232,8 @@ export function generateTemplatesFromOccasionImages(): CardTemplate[] {
           pageType: 'front',
           backgroundColor: '#faf8f5',
           backgroundImage: entry.imageUrl,
-          elements: [
-            {
-              id: 'headline-1',
-              type: 'text',
-              x: 32,
-              y: 40,
-              width: 44,
-              height: 24,
-              rotation: 0,
-              zIndex: 10,
-              text: occasionMeta.headline,
-              fontFamily: "'Playfair Display', serif",
-              fontSize: 28,
-              color: occasionMeta.defaultColor,
-              textAlign: 'left',
-              fontWeight: 'bold',
-              personalizationField: 'message',
-              hasBackground: false,
-              textShadow: 'none',
-            },
-            {
-              id: 'subtext-1',
-              type: 'text',
-              x: 32,
-              y: 56,
-              width: 44,
-              height: 16,
-              rotation: 0,
-              zIndex: 11,
-              text: occasionMeta.sub,
-              fontFamily: "'Playfair Display', serif",
-              fontSize: 16,
-              color: '#334155',
-              textAlign: 'left',
-              fontWeight: 'normal',
-              personalizationField: 'name',
-              hasBackground: false,
-              textShadow: 'none',
-            },
-          ],
+          // Artwork only. The customer adds their own wording on the front.
+          elements: [],
         },
         insideLeft: {
           pageType: 'inside-left',
@@ -361,7 +290,7 @@ export function generateTemplatesFromOccasionImages(): CardTemplate[] {
               height: 8,
               rotation: 0,
               zIndex: 1,
-              text: 'cardly. • Handcrafted in Great Britain',
+              text: 'cardly. • Handcrafted in Europe',
               fontFamily: "'Outfit', sans-serif",
               fontSize: 13,
               color: '#64748b',
@@ -418,8 +347,11 @@ export function createTemplateFromOccasionImage(options: {
   occasion: OccasionType;
   imageUrl: string;
   title?: string;
-  headline?: string;
-  subText?: string;
+  /**
+   * There is deliberately no headline/subtext option: the front cover ships as
+   * artwork only and the customer writes their own wording (see
+   * utils/frontCover.ts). `textColor` is still used for the catalog swatches.
+   */
   textColor?: string;
   price?: number;
   recipient?: RecipientType;
@@ -431,8 +363,6 @@ export function createTemplateFromOccasionImage(options: {
   const title = options.title || `${occasion} Artisan Stationery Card`;
   const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, '-');
   const id = `occ-user-${slug}-${Date.now().toString(36)}`;
-  const headline = options.headline || occasionMeta.headline;
-  const subText = options.subText || occasionMeta.sub;
   const textColor = options.textColor || occasionMeta.defaultColor;
   const price = options.price || 4.29;
   const recipient = options.recipient || 'Anyone';
@@ -471,46 +401,8 @@ export function createTemplateFromOccasionImage(options: {
         pageType: 'front',
         backgroundColor: '#faf8f5',
         backgroundImage: options.imageUrl,
-        elements: [
-          {
-            id: 'headline-1',
-            type: 'text',
-            x: 32,
-            y: 40,
-            width: 44,
-            height: 24,
-            rotation: 0,
-            zIndex: 10,
-            text: headline,
-            fontFamily: "'Playfair Display', serif",
-            fontSize: 28,
-            color: textColor,
-            textAlign: 'left',
-            fontWeight: 'bold',
-            personalizationField: 'message',
-            hasBackground: false,
-            textShadow: 'none',
-          },
-          {
-            id: 'subtext-1',
-            type: 'text',
-            x: 32,
-            y: 56,
-            width: 44,
-            height: 16,
-            rotation: 0,
-            zIndex: 11,
-            text: subText,
-            fontFamily: "'Playfair Display', serif",
-            fontSize: 16,
-            color: '#334155',
-            textAlign: 'left',
-            fontWeight: 'normal',
-            personalizationField: 'name',
-            hasBackground: false,
-            textShadow: 'none',
-          },
-        ],
+        // Artwork only — the customer writes their own message on the front.
+        elements: [],
       },
       insideLeft: {
         pageType: 'inside-left',
@@ -567,7 +459,7 @@ export function createTemplateFromOccasionImage(options: {
             height: 8,
             rotation: 0,
             zIndex: 1,
-            text: 'cardly. • Handcrafted in Great Britain',
+            text: 'cardly. • Handcrafted in Europe',
             fontFamily: "'Outfit', sans-serif",
             fontSize: 13,
             color: '#64748b',

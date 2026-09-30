@@ -382,6 +382,33 @@ export const CARD_SIZES = [
   },
 ];
 
+export const CARD_FINISHES = [
+  {
+    id: 'satin' as const,
+    name: 'Satin Silk',
+    price: 0,
+    description: 'Our signature 350gsm uncoated stock. Included as standard.',
+  },
+  {
+    id: 'matte' as const,
+    name: 'Soft-Touch Matte',
+    price: 0.75,
+    description: 'Velvet lamination with a suede-like feel.',
+  },
+  {
+    id: 'gloss' as const,
+    name: 'High Gloss',
+    price: 0.50,
+    description: 'Shimmering photographic gloss. Best for photo cards.',
+  },
+  {
+    id: 'foil' as const,
+    name: 'Gold Foil Accent',
+    price: 1.50,
+    description: 'Hand-applied gold foil border on the cover.',
+  },
+];
+
 export const ENVELOPE_COLORS = [
   { id: 'white', name: 'Classic White', hex: '#ffffff', price: 0 },
   { id: 'kraft', name: 'Kraft Brown', hex: '#d7ba89', price: 0 },

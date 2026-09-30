@@ -1,17 +1,18 @@
 import React from 'react';
+import type { BrowseFacets } from '../utils/routes';
 import { Heart, Sparkles, ArrowLeft } from 'lucide-react';
 import { useFavorites } from '../context/FavoritesContext';
-import { ALL_TEMPLATES } from '../data/templates';
+import { getLiveCatalog } from '../data/templates';
 import { CardTile } from '../components/CardTile';
 
 interface FavoritesProps {
-  onNavigate: (route: string, param?: string) => void;
+  onNavigate: (route: string, param?: string, facets?: BrowseFacets) => void;
   onPersonalize: (templateId: string) => void;
 }
 
 export const Favorites: React.FC<FavoritesProps> = ({ onNavigate, onPersonalize }) => {
   const { favorites } = useFavorites();
-  const favoritedCards = ALL_TEMPLATES.filter((t) => favorites.includes(t.id));
+  const favoritedCards = getLiveCatalog().filter((t) => favorites.includes(t.id));
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">

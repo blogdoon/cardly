@@ -1,3 +1,4 @@
+import { handleImageError } from '../utils/imageFallback';
 import React, { useState } from 'react';
 import confetti from 'canvas-confetti';
 import {
@@ -16,7 +17,15 @@ import { useAuth } from '../context/AuthContext';
 import { DeliveryAddress, Order } from '../types/order';
 import { createOrder } from '../services/cardStorage';
 import { getSavedAddresses, saveAddress } from '../utils/addressBook';
-import { DELIVERY_METHODS, STANDARD_DELIVERY } from '../utils/delivery';
+import {
+  DELIVERY_METHODS,
+  STANDARD_DELIVERY,
+  canArriveBy,
+  deliveryWindow,
+  earliestRequestableDate,
+  toDateInput
+} from '../utils/delivery';
+import type { BrowseFacets } from '../utils/routes';
 import {
   DEFAULT_SHIPPING_COUNTRY,
   POSTCODE_HINT,
@@ -27,7 +36,7 @@ import {
 } from '../utils/currency';
 
 interface CheckoutProps {
-  onNavigate: (route: string) => void;
+  onNavigate: (route: string, param?: string, facets?: BrowseFacets) => void;
 }
 
 export const Checkout: React.FC<CheckoutProps> = ({ onNavigate }) => {
@@ -63,6 +72,11 @@ export const Checkout: React.FC<CheckoutProps> = ({ onNavigate }) => {
 
   const [selectedMethod, setSelectedMethod] = useState(STANDARD_DELIVERY);
 
+  // "Needed by" date. Optional, but if set the chosen tier must actually make it.
+  const [requestedDate, setRequestedDate] = useState('');
+  const [dateError, setDateError] = useState('');
+  const minDate = earliestRequestableDate();
+
   // Payment Form State
   const [paymentMethod, setPaymentMethod] = useState<'google_pay' | 'card'>('google_pay');
   const [cardNumber, setCardNumber] = useState('•••• •••• •••• 4242');
@@ -81,17 +95,17 @@ export const Checkout: React.FC<CheckoutProps> = ({ onNavigate }) => {
       alert(`Please fill out the recipient name, street address, and ${POSTCODE_LABEL.toLowerCase()}.`);
       return;
     }
+    if (requestedDate && !canArriveBy(selectedMethod, requestedDate)) {
+      setDateError(`${selectedMethod.name} cannot arrive by that date. Please choose a faster tier.`);
+      return;
+    }
 
     setIsPlacing(true);
 
     const orderNumber = `CRD-2026-${Math.floor(1000 + Math.random() * 9000)}`;
-    // Print + dispatch window: 1 working day of production, then the carrier's
-    // transit time. Express is same-day production, everything else is next day.
-    const productionDays = selectedMethod.id === 'express-courier' ? 0 : 1;
-    const dispatchDate = new Date();
-    dispatchDate.setDate(dispatchDate.getDate() + productionDays);
-    const estimatedArrival = new Date(dispatchDate);
-    estimatedArrival.setDate(estimatedArrival.getDate() + selectedMethod.transitDays);
+    // Print + dispatch window comes from delivery.ts so the date promised in the
+    // UI and the date stored on the order are computed by the same code.
+    const { dispatchDate, arrivalDate: estimatedArrival } = deliveryWindow(selectedMethod);
 
     const newOrder: Order = {
       id: `ord_${Date.now()}`,
@@ -108,6 +122,7 @@ export const Checkout: React.FC<CheckoutProps> = ({ onNavigate }) => {
       deliveryType,
       estimatedArrival: estimatedArrival.toISOString(),
       dispatchDate: dispatchDate.toISOString(),
+      requestedDeliveryDate: requestedDate || undefined,
       paymentSummary: {
         method: paymentMethod,
         last4: paymentMethod === 'card' ? cardNumber.slice(-4) : '4242',
@@ -188,6 +203,18 @@ export const Checkout: React.FC<CheckoutProps> = ({ onNavigate }) => {
             <div className="flex justify-between">
               <span>Delivery:</span>
               <span className="font-semibold text-slate-800">{placedOrder.deliveryMethod.name}</span>
+            </div>
+            {placedOrder.requestedDeliveryDate && (
+              <div className="flex justify-between">
+                <span>You asked for:</span>
+                <span className="font-semibold text-slate-800">{placedOrder.requestedDeliveryDate}</span>
+              </div>
+            )}
+            <div className="flex justify-between">
+              <span>Estimated arrival:</span>
+              <span className="font-semibold text-slate-800">
+                {new Date(placedOrder.estimatedArrival).toLocaleDateString()}
+              </span>
             </div>
             <div className="flex justify-between">
               <span>Ship to:</span>
@@ -396,28 +423,72 @@ export const Checkout: React.FC<CheckoutProps> = ({ onNavigate }) => {
               3. Delivery Option
             </h2>
 
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
+                Needed by (optional)
+              </label>
+              <input
+                type="date"
+                value={requestedDate}
+                min={minDate}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setRequestedDate(value);
+                  setDateError('');
+                  // Upgrade to the cheapest tier that still makes the date, so
+                  // the customer is never left holding an unmeetable selection.
+                  if (value && !canArriveBy(selectedMethod, value)) {
+                    const fastest = [...deliveryOptions]
+                      .sort((a, b) => a.transitDays - b.transitDays)
+                      .find((m) => canArriveBy(m, value));
+                    if (fastest) setSelectedMethod(fastest);
+                    else setDateError('No delivery tier can meet that date.');
+                  }
+                }}
+                className="w-full sm:w-64 px-3 py-2 border border-slate-300 rounded-xl focus:outline-rose-500 bg-white text-xs"
+              />
+              <p className="text-[11px] text-slate-500 mt-1">
+                {requestedDate
+                  ? 'We will only show tiers that arrive on or before this date.'
+                  : `Earliest possible arrival is ${minDate}.`}
+              </p>
+              {dateError && <p className="text-[11px] text-rose-600 font-semibold mt-1">{dateError}</p>}
+            </div>
+
             <div className="space-y-2.5">
               {deliveryOptions.map((opt) => (
                 <label
                   key={opt.id}
-                  onClick={() => setSelectedMethod(opt)}
+                  onClick={() => {
+                    setSelectedMethod(opt);
+                    setDateError('');
+                  }}
                   className={`p-3.5 rounded-2xl border flex items-center justify-between cursor-pointer transition ${
                     selectedMethod.id === opt.id
                       ? 'border-rose-500 bg-rose-50/50 ring-2 ring-rose-200'
                       : 'border-slate-200 hover:bg-slate-50'
-                  }`}
+                  } ${!canArriveBy(opt, requestedDate) ? 'opacity-50' : ''}`}
                 >
                   <div className="flex items-center gap-3">
                     <input
                       type="radio"
                       name="deliveryMethod"
                       checked={selectedMethod.id === opt.id}
-                      onChange={() => setSelectedMethod(opt)}
+                      onChange={() => {
+                        setSelectedMethod(opt);
+                        setDateError('');
+                      }}
+                      disabled={!canArriveBy(opt, requestedDate)}
                       className="text-rose-600 focus:ring-rose-500"
                     />
                     <div>
                       <div className="font-bold text-xs text-slate-900">{opt.name}</div>
                       <div className="text-[11px] text-slate-500">{opt.estimatedDelivery} • {opt.description}</div>
+                      <div className="text-[11px] font-semibold text-emerald-700 mt-0.5">
+                        {canArriveBy(opt, requestedDate)
+                          ? `Arrives by ${toDateInput(deliveryWindow(opt).arrivalDate)}`
+                          : `Too slow for ${requestedDate}`}
+                      </div>
                     </div>
                   </div>
                   <span className="font-bold text-xs text-slate-900">{formatPrice(opt.price)}</span>
@@ -511,7 +582,7 @@ export const Checkout: React.FC<CheckoutProps> = ({ onNavigate }) => {
               <div key={item.id} className="flex gap-3 text-xs">
                 <div className="w-12 h-16 bg-slate-100 rounded-lg overflow-hidden shrink-0 border border-slate-200 flex items-center justify-center">
                   {item.thumbnail ? (
-                    <img src={item.thumbnail} alt={item.title} className="w-full h-full object-contain" />
+                    <img src={item.thumbnail} alt={item.title} onError={handleImageError} className="w-full h-full object-contain" />
                   ) : (
                     <Sparkles className="w-4 h-4 text-rose-500" />
                   )}

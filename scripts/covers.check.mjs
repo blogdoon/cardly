@@ -1,18 +1,27 @@
 // Runnable check that template cover art stays varied: `npm test`.
 // Guards the bug where the pool index was locked by the parity gate, so every photo card
 // of an occasion got the identical picture.
-import { createServer } from 'vite';
+//
+// Reads scripts/catalog.manifest.json — the catalog itself now lives in Firestore and is
+// not part of the app bundle, so the build needs a manifest to check against. Regenerate
+// it with `node scripts/export-manifest.mjs`.
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const server = await createServer({
-  server: { middlewareMode: true },
-  appType: 'custom',
-  logLevel: 'error',
-});
-const { ALL_TEMPLATES } = await server.ssrLoadModule('/src/data/templates.ts');
-await server.close();
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const MANIFEST = path.join(root, 'scripts', 'catalog.manifest.json');
+
+if (!fs.existsSync(MANIFEST)) {
+  throw new Error(
+    `covers check: ${path.relative(root, MANIFEST)} is missing. ` +
+      'Regenerate it with `node scripts/export-manifest.mjs`.'
+  );
+}
+const ALL_TEMPLATES = JSON.parse(fs.readFileSync(MANIFEST, 'utf8'));
 
 // thumbnail is either a studio cover image (bundled asset path) or a generated design SVG
-const photoCards = ALL_TEMPLATES.filter((t) => t.thumbnail.includes('assets/images'));
+const photoCards = ALL_TEMPLATES.filter((t) => String(t.thumbnail).includes('assets/images'));
 
 const byOccasion = new Map();
 for (const t of photoCards) {

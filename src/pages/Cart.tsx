@@ -1,3 +1,4 @@
+import { handleImageError } from '../utils/imageFallback';
 import React, { useState } from 'react';
 import {
   Trash2,
@@ -16,9 +17,10 @@ import { useCart } from '../context/CartContext';
 import { CardAddon } from '../types/cart';
 import { formatPrice } from '../utils/currency';
 import { STANDARD_DELIVERY } from '../utils/delivery';
+import type { BrowseFacets } from '../utils/routes';
 
 interface CartProps {
-  onNavigate: (route: string) => void;
+  onNavigate: (route: string, param?: string, facets?: BrowseFacets) => void;
 }
 
 export const Cart: React.FC<CartProps> = ({ onNavigate }) => {
@@ -126,7 +128,7 @@ export const Cart: React.FC<CartProps> = ({ onNavigate }) => {
               {/* Thumbnail */}
               <div className="w-24 h-32 sm:w-28 sm:h-36 bg-slate-50 rounded-2xl overflow-hidden shrink-0 border border-slate-100 p-2 flex items-center justify-center">
                 {item.thumbnail ? (
-                  <img src={item.thumbnail} alt={item.title} className="w-full h-full object-contain" />
+                  <img src={item.thumbnail} alt={item.title} onError={handleImageError} className="w-full h-full object-contain" />
                 ) : (
                   <Sparkles className="w-8 h-8 text-rose-400" />
                 )}
@@ -145,7 +147,22 @@ export const Cart: React.FC<CartProps> = ({ onNavigate }) => {
                         <span className="capitalize font-medium text-slate-700 bg-slate-100 px-2 py-0.5 rounded-md">
                           Envelope: {item.envelopeColor}
                         </span>
+                        {item.finish && item.finish !== 'satin' && (
+                          <span className="capitalize font-medium text-slate-700 bg-slate-100 px-2 py-0.5 rounded-md">
+                            Finish: {item.finish}
+                          </span>
+                        )}
                       </div>
+                      {item.addons.length > 0 && (
+                        <ul className="mt-1.5 space-y-0.5">
+                          {item.addons.map((a) => (
+                            <li key={a.id} className="text-[11px] text-slate-500 flex justify-between max-w-xs">
+                              <span>{a.name}</span>
+                              <span>+{formatPrice(a.price)}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
                     </div>
 
                     <button

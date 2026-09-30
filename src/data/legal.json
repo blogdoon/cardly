@@ -1,0 +1,174 @@
+{
+  "lastUpdated": "1 October 2026",
+  "entity": {
+    "name": "Cardly Ltd",
+    "address": "[Registered company address]",
+    "companyNumber": "[Company registration number]",
+    "vatNumber": "[VAT / EORI number]",
+    "privacyEmail": "[privacy@yourdomain.com]",
+    "regulator": "Data Protection Commission (Ireland)"
+  },
+  "docs": {
+    "privacy": {
+      "title": "Privacy Policy",
+      "description": "How Cardly collects, uses and protects your personal data, including the processors we rely on and the rights you have over it.",
+      "intro": "This policy explains what Cardly Ltd (\"Cardly\", \"we\", \"us\") does with your personal data when you use cardly.app. It covers what we collect, who processes it on our behalf, how long we keep it, and the rights you have over it.",
+      "sections": [
+        {
+          "heading": "Who is responsible for your data",
+          "body": [
+            "Cardly Ltd, [Registered company address] (company number [Company registration number], VAT [VAT / EORI number]), is the data controller for the personal data described in this policy. Questions, access requests and complaints can be sent to [privacy@yourdomain.com].",
+            "If you are in the EEA or UK and want to complain about how we handle your data, you can also contact the Data Protection Commission (Ireland) or the ICO (UK) in addition to, or instead of, contacting us."
+          ]
+        },
+        {
+          "heading": "What we collect",
+          "body": [
+            "Account data — if you sign in with Google, we receive your name, email address and profile photo from Google. We never see or store your Google password.",
+            "Your designs — the card layouts you create, the text and photos you place on them, and the thumbnails we generate. If you are signed in these are stored against your account so you can reopen them on another device. If you are not signed in they stay in your own browser.",
+            "Photos you upload — images you add to a card. These are stored so your saved design keeps working; they are not published anywhere.",
+            "Order data — the cards you order, the personalization you entered, the delivery address you supplied, the delivery tier you chose, and any \"needed by\" date you asked for. We keep the last four digits of a payment reference; we never receive or store full card numbers.",
+            "Addresses — addresses you save to your address book, so you do not have to type them again at checkout.",
+            "Technical data — your basket and favourites are kept in your browser's local storage. Our host may record standard server logs (IP address, user agent, requested path)."
+          ]
+        },
+        {
+          "heading": "Why we use it, and on what legal basis",
+          "body": [
+            "To perform our contract with you (GDPR Art. 6(1)(b)) — creating, storing and delivering the cards you order, and handling payment for them.",
+            "To save you time (GDPR Art. 6(1)(b)) — keeping your saved designs, favourites and address book so you can reuse them.",
+            "To secure the service (legitimate interests, Art. 6(1)(f)) — preventing fraud and abuse, and restricting administrative access to authorised staff.",
+            "To send marketing emails about offers or reminders, where you have asked us to (consent, Art. 6(1)(a)). You can withdraw consent at any time.",
+            "To understand how the site is used (legitimate interests, Art. 6(1)(f)) — aggregate analytics only, never tied to an individual order."
+          ]
+        },
+        {
+          "heading": "Who processes it on our behalf",
+          "body": [
+            "Google Firebase (Authentication, Firestore and Storage) — hosts accounts, designs, orders and uploaded photos. Data may be processed outside the UK/EEA under Google's standard contractual clauses.",
+            "Google Gemini — if you use the \"Write it for me\" button, the recipient name, occasion and tone you entered are sent to Google to generate a draft message. The text you keep is stored in your design. Do not use the feature to enter information you would not want shared with a third-party processor.",
+            "Our payment provider — card details are entered on the provider's hosted fields and never pass through or touch Cardly's own code.",
+            "Our print and delivery partners — they receive only what is needed to print and post your card: the design, the message, and the delivery address.",
+            "Our email delivery provider, if you subscribe to reminders."
+          ]
+        },
+        {
+          "heading": "How long we keep it",
+          "body": [
+            "Unsaved or signed-out designs: until you clear your browser storage.",
+            "Saved designs, favourites and addresses: until you delete them or close your account.",
+            "Order records: kept for as long as required by tax and accounting law, which is typically six years, so we can answer queries about a purchase.",
+            "Server logs: rotated on a short cycle by our host."
+          ]
+        },
+        {
+          "heading": "Your rights",
+          "body": [
+            "You can ask for a copy of your data, ask us to correct it, delete it, restrict how we use it, or receive it in a portable format. Email us and we will respond within one month.",
+            "You can object to processing based on legitimate interests, and you can withdraw marketing consent at any time without affecting earlier processing.",
+            "You do not have to provide personal data to browse the site. Design and ordering clearly require it.",
+            "Automated decision-making: we do not use your data for automated decisions with legal or similarly significant effects."
+          ]
+        },
+        {
+          "heading": "Security",
+          "body": [
+            "Traffic is encrypted in transit. Access to production data is restricted to authorised staff and governed by admin permissions, not by knowing an email address.",
+            "No system is perfectly secure. If a breach affects your data we will notify you and the relevant regulator as the law requires."
+          ]
+        },
+        {
+          "heading": "Cookies and local storage",
+          "body": [
+            "Cardly does not set advertising cookies. We use browser local storage to remember your basket, favourites, saved designs, address book and your current editor session. Firebase Authentication may set its own cookies or tokens to keep you signed in.",
+            "If we enable analytics (Google Analytics), that adds its own cookies. This policy will be updated before any such change ships."
+          ]
+        }
+      ]
+    },
+    "terms": {
+      "title": "Terms & Conditions",
+      "description": "The terms that apply when you order personalised greeting cards from Cardly, including pricing, delivery estimates and print tolerances.",
+      "intro": "These terms govern your use of cardly.app and any order you place with Cardly Ltd. Placing an order means you accept them.",
+      "sections": [
+        {
+          "heading": "Who you are contracting with",
+          "body": [
+            "Cardly Ltd, [Registered company address], company number [Company registration number]. Contact [privacy@yourdomain.com]."
+          ]
+        },
+        {
+          "heading": "Orders and acceptance",
+          "body": [
+            "All orders are subject to availability and to our acceptance. A contract is formed when we send you a dispatch confirmation, not when you click \"Pay\".",
+            "We may decline or cancel an order and refund you in full if a card is out of stock, if a personalization request cannot be printed, or if we suspect fraud.",
+            "We may correct obvious pricing errors before dispatch. If you have already paid, we will tell you and offer a refund rather than charging a higher price."
+          ]
+        },
+        {
+          "heading": "Personalization",
+          "body": [
+            "You confirm you have the right to use any text, name or photo you upload, and that it does not infringe anyone's rights, is not defamatory, and is not unlawful.",
+            "You must check your own spelling, dates and wording. We print exactly what you submit and cannot proofread personalised messages.",
+            "We may decline to print content that is abusive, discriminatory, or sexual where the product is not intended for it, and we will refund you."
+          ]
+        },
+        {
+          "heading": "Pricing and payment",
+          "body": [
+            "Prices include VAT where applicable. Optional upgrades — card size, envelope, and paper finish — are shown before you add the card to your basket and itemised in it.",
+            "Payment is taken by our payment provider. We never see or store your full card number.",
+            "Promotional codes cannot be combined unless stated, may have a minimum spend, and may be withdrawn at any time."
+          ]
+        },
+        {
+          "heading": "Production and print tolerances",
+          "body": [
+            "Cards are printed on commercial stock. Minor colour variation between your screen and the printed card is normal and is not a fault — screens are backlit, print is reflective.",
+            "Images you upload are scaled and cropped to fit the layout. Very low-resolution photos will look soft when printed; this is not a manufacturing defect.",
+            "Small registration or cutting variances inherent to commercial printing do not constitute a fault."
+          ]
+        },
+        {
+          "heading": "Delivery",
+          "body": [
+            "Delivery estimates shown at checkout are estimates in working days from dispatch, and exclude weekends and public holidays.",
+            "If you give us a \"needed by\" date, that is a request. We will always try to meet it and we will choose the delivery tier that can, but the date is not a guaranteed service unless we have explicitly sold you a guaranteed service.",
+            "Risk in the card passes to you on delivery to the address you supplied. Please check that address carefully — cards cannot be recalled once printed.",
+            "If a delivery is late or lost, contact us and we will either re-send at our cost or refund the postage. This does not affect your statutory rights."
+          ]
+        },
+        {
+          "heading": "Returns and refunds",
+          "body": [
+            "Because every card is personalized, we cannot accept returns of printed cards made to your specification, except where the card is faulty, misprinted, or damaged in transit.",
+            "If a card is faulty, send us the order number and a photograph, and we will re-print or refund the card. Delivery costs for a replacement are ours to bear.",
+            "Nothing in these terms limits your rights under consumer law, including your right to a refund for goods that are faulty or not as described."
+          ]
+        },
+        {
+          "heading": "Your account and content",
+          "body": [
+            "You are responsible for keeping your account secure. Do not share your sign-in.",
+            "You keep ownership of the photos and text you upload. You grant us a non-exclusive licence to host, process and print that content for the purpose of making and delivering your order, and to show it back to you in your account.",
+            "You may delete your saved designs at any time. Deleting your account removes your designs, favourites and addresses; order records are retained as described in our Privacy Policy."
+          ]
+        },
+        {
+          "heading": "Liability",
+          "body": [
+            "We are responsible for foreseeable loss caused by our breaking these terms or failing to use reasonable care. We are not liable for business losses, loss of profit, or loss of a missed occasion.",
+            "Nothing here limits our liability for death or personal injury caused by negligence, for fraud, or for anything else that cannot lawfully be limited."
+          ]
+        },
+        {
+          "heading": "Changes and governing law",
+          "body": [
+            "We may update these terms. The version in force is the one published on this page when you place your order.",
+            "These terms are governed by the law of [JURISDICTION], and the courts of [JURISDICTION] have exclusive jurisdiction. If you are a consumer resident elsewhere, you keep the benefit of any mandatory protections of the law where you live."
+          ]
+        }
+      ]
+    }
+  }
+}

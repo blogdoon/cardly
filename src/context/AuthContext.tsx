@@ -44,7 +44,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUser(null);
   };
 
-  const isAdmin = user?.role === 'admin' || user?.email === 'blogdoontv@gmail.com';
+  // `role` is resolved from the `admin` custom claim (with a legacy email
+  // fallback) in authService. Re-checking the email here would re-open the
+  // hardcoded-email hole the claim was meant to close.
+  const isAdmin = user?.role === 'admin';
 
   return (
     <AuthContext.Provider

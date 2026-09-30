@@ -17,12 +17,14 @@ import {
   ExternalLink,
   RotateCcw,
   Printer,
-  ShoppingBag
+  ShoppingBag,
+  Share2,
+  X
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import { UserDesign } from '../types/design';
-import { Order, DeliveryAddress } from '../types/order';
+import { Order, DeliveryAddress, isTerminalStatus } from '../types/order';
 import { CartItem } from '../types/cart';
 import {
   getUserDesigns,
@@ -31,6 +33,7 @@ import {
   getUserOrders
 } from '../services/cardStorage';
 import { getSavedAddresses, saveAddress, deleteSavedAddress } from '../utils/addressBook';
+import { createShareProof, sharePath } from '../services/shareService';
 import { getTemplateById } from '../data/templates';
 import { getCardDesignThumbnail } from '../utils/imageOptimizer';
 import {
@@ -42,10 +45,11 @@ import {
 } from '../utils/currency';
 import { PreviewModal } from '../components/PreviewModal';
 import { PrintPreview } from '../components/PrintPreview';
+import type { BrowseFacets } from '../utils/routes';
 
 interface AccountProps {
   initialTab?: 'designs' | 'orders' | 'addresses';
-  onNavigate: (route: string, param?: string) => void;
+  onNavigate: (route: string, param?: string, facets?: BrowseFacets) => void;
   onEditDesign: (design: UserDesign) => void;
 }
 
@@ -180,6 +184,34 @@ export const Account: React.FC<AccountProps> = ({
     };
     await saveUserDesign(clone);
     setDesigns((prev) => [clone, ...prev]);
+  };
+
+  const [shareLink, setShareLink] = useState('');
+  const [shareBusy, setShareBusy] = useState(false);
+  const [shareError, setShareError] = useState('');
+
+  const handleShareDesign = async (design: UserDesign) => {
+    // A shared proof is readable by anyone holding the link, and designs can
+    // contain personal photos. Make that explicit before publishing one.
+    const ok = window.confirm(
+      'This creates a public, read-only link to this card.\n\n' +
+        'Anyone with the link can view it, including the photos and message on it, ' +
+        'until it expires in 30 days. Only do this for a card you are happy to share.\n\n' +
+        'Create the link?'
+    );
+    if (!ok) return;
+
+    setShareBusy(true);
+    setShareError('');
+    try {
+      const proof = await createShareProof(design);
+      setShareLink(`${location.origin}${sharePath(proof.shareId)}`);
+      await navigator.clipboard?.writeText(`${location.origin}${sharePath(proof.shareId)}`).catch(() => {});
+    } catch (e: any) {
+      setShareError(e?.message || 'Could not create a share link.');
+    } finally {
+      setShareBusy(false);
+    }
   };
 
   const handleAddAddress = (e: React.FormEvent) => {
@@ -336,6 +368,13 @@ export const Account: React.FC<AccountProps> = ({
                         <Printer className="w-4 h-4" />
                       </button>
                       <button
+                        onClick={() => handleShareDesign(design)}
+                        className="p-1.5 hover:bg-slate-200 rounded-lg text-slate-500 hover:text-rose-600"
+                        title="Get a read-only link to send for approval"
+                      >
+                        <Share2 className="w-4 h-4" />
+                      </button>
+                      <button
                         onClick={() => handleDuplicateDesign(design)}
                         className="p-1.5 hover:bg-slate-200 rounded-lg text-slate-500"
                         title="Duplicate design"
@@ -408,7 +447,9 @@ export const Account: React.FC<AccountProps> = ({
                           {ord.orderNumber}
                         </span>
                         <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase ${
-                          ord.status === 'delivered'
+                          isTerminalStatus(ord.status)
+                            ? 'bg-rose-100 text-rose-800'
+                            : ord.status === 'delivered'
                             ? 'bg-emerald-100 text-emerald-800'
                             : ord.status === 'dispatched'
                             ? 'bg-blue-100 text-blue-800'
@@ -425,10 +466,50 @@ export const Account: React.FC<AccountProps> = ({
                     <div className="text-right">
                       <span className="text-xs text-slate-400">Total: </span>
                       <span className="font-black text-slate-900 text-sm">{formatPrice(ord.total)}</span>
+                      {ord.refund && (
+                        <div className="text-[11px] font-bold text-rose-700">
+                          {formatPrice(ord.refund.amount)} refunded
+                        </div>
+                      )}
                     </div>
                   </div>
 
-                  {/* Order tracking progress step bar */}
+                  {/* Tracking number, once the card has gone to the carrier. */}
+                  {ord.trackingNumber && (
+                    <div className="flex flex-wrap items-center gap-2 px-3 py-2.5 rounded-xl bg-emerald-50 border border-emerald-200">
+                      <Truck className="w-4 h-4 text-emerald-600 shrink-0" />
+                      <span className="text-xs text-emerald-800">
+                        <strong>{ord.carrier || 'Carrier'}</strong> tracking number{' '}
+                        <span className="font-mono font-bold">{ord.trackingNumber}</span>
+                        {ord.dispatchedAt && (
+                          <span className="text-emerald-600">
+                            {' '}
+                            · sent {new Date(ord.dispatchedAt).toLocaleDateString()}
+                          </span>
+                        )}
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Refund or cancellation outcome — the customer should see it. */}
+                  {ord.refund && (
+                    <div className="px-3 py-2.5 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-800">
+                      <strong>{formatPrice(ord.refund.amount)} refunded</strong> on{' '}
+                      {new Date(ord.refund.at).toLocaleDateString()}
+                      {ord.refund.reason && <>. Reason: {ord.refund.reason}</>}
+                    </div>
+                  )}
+                  {ord.status === 'cancelled' && (
+                    <div className="px-3 py-2.5 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-800">
+                      <strong>This order was cancelled.</strong>
+                      {ord.cancelReason && <> {ord.cancelReason}</>}
+                    </div>
+                  )}
+
+                  {/* Order tracking progress step bar. A cancelled or refunded order
+                      never progresses, so the bar is hidden rather than showing a
+                      half-finished journey. */}
+                  {!isTerminalStatus(ord.status) && (
                   <div className="grid grid-cols-4 gap-2 pt-2 text-center text-[10px] font-bold">
                     <div className="flex flex-col items-center gap-1 text-emerald-600">
                       <CheckCircle className="w-4 h-4" />
@@ -457,6 +538,7 @@ export const Account: React.FC<AccountProps> = ({
                       <span>Delivered</span>
                     </div>
                   </div>
+                  )}
 
                   {/* Item List */}
                   <div className="space-y-3 pt-3 border-t border-slate-100">
@@ -695,6 +777,40 @@ export const Account: React.FC<AccountProps> = ({
       )}
 
       {/* Interactive 3D Card Preview Modal for Ordered Cards */}
+      {(shareLink || shareError) && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 w-[min(92vw,30rem)] rounded-2xl bg-slate-900 px-5 py-4 text-white shadow-2xl space-y-2">
+          <div className="flex items-start justify-between gap-3">
+            <p className="text-xs font-bold">
+              {shareError ? 'Could not share' : 'Share link copied to your clipboard'}
+            </p>
+            <button
+              onClick={() => {
+                setShareLink('');
+                setShareError('');
+              }}
+              className="text-slate-400 hover:text-white"
+              aria-label="Dismiss"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+          {shareLink && (
+            <>
+              <p className="text-[11px] text-slate-300 leading-relaxed">
+                Read-only, expires in 30 days. Send it to whoever you want a second opinion from.
+              </p>
+              <input
+                readOnly
+                value={shareLink}
+                onFocus={(e) => e.currentTarget.select()}
+                className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-[11px] font-mono"
+              />
+            </>
+          )}
+          {shareError && <p className="text-[11px] text-rose-300">{shareError}</p>}
+        </div>
+      )}
+
       {previewModalDesign && (
         <PreviewModal
           isOpen={Boolean(previewModalDesign)}

@@ -3,6 +3,7 @@ import { Heart, Sparkles, Camera, Star } from 'lucide-react';
 import { CardTemplate } from '../types/template';
 import { useFavorites } from '../context/FavoritesContext';
 import { formatPrice } from '../utils/currency';
+import { handleImageError } from '../utils/imageFallback';
 
 interface CardTileProps {
   template: CardTemplate;
@@ -37,6 +38,8 @@ export const CardTile: React.FC<CardTileProps> = ({ template, onSelect, onPerson
           alt={template.title}
           loading="lazy"
           referrerPolicy="no-referrer"
+          data-bgcolor={template.defaultPages?.front?.backgroundColor || ''}
+          onError={handleImageError}
           className="w-full h-full object-contain rounded-lg shadow-sm group-hover:scale-[1.02] transition-transform duration-300 select-none"
         />
 
@@ -96,11 +99,11 @@ export const CardTile: React.FC<CardTileProps> = ({ template, onSelect, onPerson
             <span className="font-semibold text-rose-600 uppercase tracking-wider text-[10px]">
               {template.category}
             </span>
-            <div className="flex items-center gap-1 text-amber-500 font-bold">
-              <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
-              <span>{template.rating}</span>
-              <span className="text-slate-400 font-normal">({template.reviewCount})</span>
-            </div>
+            {template.isBestSeller && (
+              <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded">
+                Best seller
+              </span>
+            )}
           </div>
 
           <h3 className="font-bold text-slate-800 text-sm line-clamp-1 group-hover:text-rose-600 transition-colors">

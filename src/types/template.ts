@@ -184,3 +184,5 @@ export interface CardSizeDetail {
 }
 
 export type EnvelopeColor = 'white' | 'kraft' | 'gold' | 'blush' | 'navy';
+
+export type CardFinishOption = 'satin' | 'matte' | 'gloss' | 'foil';

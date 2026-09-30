@@ -1,11 +1,13 @@
+import { handleImageError } from '../utils/imageFallback';
 import React from 'react';
+import type { BrowseFacets } from '../utils/routes';
 import { X, Trash2, Plus, Minus, ShoppingBag, ArrowRight, Sparkles, Check, Gift } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { formatPrice } from '../utils/currency';
 import { STANDARD_DELIVERY } from '../utils/delivery';
 
 interface CartDrawerProps {
-  onNavigate: (route: string) => void;
+  onNavigate: (route: string, param?: string, facets?: BrowseFacets) => void;
 }
 
 export const CartDrawer: React.FC<CartDrawerProps> = ({ onNavigate }) => {
@@ -99,7 +101,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ onNavigate }) => {
                     {/* Item Thumbnail */}
                     <div className="w-18 h-24 bg-slate-100 rounded-lg overflow-hidden shrink-0 border border-slate-100 flex items-center justify-center">
                       {item.thumbnail ? (
-                        <img src={item.thumbnail} alt={item.title} className="w-full h-full object-contain" />
+                        <img src={item.thumbnail} alt={item.title} onError={handleImageError} className="w-full h-full object-contain" />
                       ) : (
                         <Sparkles className="w-6 h-6 text-rose-400" />
                       )}
@@ -122,6 +124,11 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ onNavigate }) => {
                         <div className="text-[11px] text-slate-500 mt-0.5 space-y-0.5">
                           <p className="capitalize">Size: <span className="font-medium text-slate-700">{item.cardSize}</span></p>
                           <p className="capitalize">Envelope: <span className="font-medium text-slate-700">{item.envelopeColor}</span></p>
+                          {item.addons.map((a) => (
+                            <p key={a.id} className="capitalize">
+                              {a.name}: <span className="font-medium text-slate-700">+{formatPrice(a.price)}</span>
+                            </p>
+                          ))}
                           {item.customSummary?.recipientName && (
                             <p className="text-rose-600 font-medium">To: {item.customSummary.recipientName}</p>
                           )}
@@ -200,6 +207,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ onNavigate }) => {
                     <input
                       type="text"
                       placeholder="Promo code (e.g. CARDLY20)"
+                      aria-label="Promo code"
                       value={promoInput}
                       onChange={(e) => setPromoInput(e.target.value)}
                       className="bg-white border border-slate-300 rounded-xl px-3 py-1.5 text-xs text-slate-800 uppercase font-medium flex-1 focus:outline-rose-500"

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { handleImageError } from '../utils/imageFallback';
 import {
   Heart,
   Sparkles,
@@ -13,10 +14,12 @@ import {
   Layers,
   ChevronRight
 } from 'lucide-react';
-import { CardTemplate, CardSize } from '../types/template';
+import { CardTemplate, CardSize, CardFinishOption } from '../types/template';
 import { getTemplateById } from '../data/templates';
-import { CARD_SIZES, ENVELOPE_COLORS } from '../data/fonts';
+import { CARD_SIZES, ENVELOPE_COLORS, CARD_FINISHES } from '../data/fonts';
 import { formatPrice } from '../utils/currency';
+import { editablePagesFrom } from '../utils/frontCover';
+import { CardReviews } from '../components/CardReviews';
 import { useFavorites } from '../context/FavoritesContext';
 import { useCart } from '../context/CartContext';
 import { recordRecentlyViewed } from '../services/cardStorage';
@@ -44,6 +47,7 @@ export const CardDetail: React.FC<CardDetailProps> = ({
 
   const [selectedSize, setSelectedSize] = useState<CardSize>('standard');
   const [selectedEnvelope, setSelectedEnvelope] = useState(ENVELOPE_COLORS[0].id);
+  const [selectedFinish, setSelectedFinish] = useState<CardFinishOption>(CARD_FINISHES[0].id);
   const [activeTab, setActiveTab] = useState<'front' | 'inside' | 'back'>('front');
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [isPrintPreviewOpen, setIsPrintPreviewOpen] = useState(false);
@@ -69,7 +73,9 @@ export const CardDetail: React.FC<CardDetailProps> = ({
   const favorited = isFavorite(template.id);
   const sizeConfig = CARD_SIZES.find((s) => s.id === selectedSize) || CARD_SIZES[0];
   const envelopeConfig = ENVELOPE_COLORS.find((e) => e.id === selectedEnvelope) || ENVELOPE_COLORS[0];
-  const totalPrice = template.price * sizeConfig.priceMultiplier + envelopeConfig.price;
+  const finishConfig = CARD_FINISHES.find((f) => f.id === selectedFinish) || CARD_FINISHES[0];
+  const totalPrice =
+    template.price * sizeConfig.priceMultiplier + envelopeConfig.price + finishConfig.price;
 
   const recommendations = getRecommendationsForTemplate(template, 4);
 
@@ -88,9 +94,17 @@ export const CardDetail: React.FC<CardDetailProps> = ({
       thumbnail: template.thumbnail,
       cardSize: selectedSize,
       envelopeColor: validEnvelopeColor,
+      finish: finishConfig.id,
       quantity: 1,
       unitPrice: template.price * sizeConfig.priceMultiplier,
-      addons: envelopeConfig.price > 0 ? [{ id: envelopeConfig.id, name: envelopeConfig.name, price: envelopeConfig.price, description: 'Luxury Envelope' }] : [],
+      addons: [
+        ...(envelopeConfig.price > 0
+          ? [{ id: envelopeConfig.id, name: envelopeConfig.name, price: envelopeConfig.price, description: 'Luxury Envelope' }]
+          : []),
+        ...(finishConfig.price > 0
+          ? [{ id: finishConfig.id, name: finishConfig.name, price: finishConfig.price, description: 'Paper Finish' }]
+          : []),
+      ],
       customSummary: { recipientName: template.recipient, customMessageSnippet: 'Sent with love' },
     });
   };
@@ -119,6 +133,8 @@ export const CardDetail: React.FC<CardDetailProps> = ({
               <img
                 src={template.thumbnail}
                 alt={template.title}
+                data-bgcolor={template.defaultPages?.front?.backgroundColor || ''}
+                onError={handleImageError}
                 className="w-full h-full object-contain rounded-xl shadow-md transition-all duration-300"
               />
             )}
@@ -148,7 +164,7 @@ export const CardDetail: React.FC<CardDetailProps> = ({
                   C
                 </div>
                 <span className="font-bold text-xs text-slate-700">cardly.</span>
-                <span className="text-[10px] text-slate-400">Printed in Great Britain • 350gsm Silk</span>
+                <span className="text-[10px] text-slate-400">Printed in Europe • 350gsm Silk</span>
               </div>
             )}
 
@@ -230,16 +246,9 @@ export const CardDetail: React.FC<CardDetailProps> = ({
               {template.title}
             </h1>
 
-            {/* Ratings and Reviews */}
-            <div className="flex items-center gap-2 mt-2">
-              <div className="flex text-amber-400">
-                {[...Array(5)].map((_, i) => (
-                  <Star key={i} className="w-4 h-4 fill-amber-400" />
-                ))}
-              </div>
-              <span className="text-xs font-bold text-slate-800">{template.rating}</span>
-              <span className="text-xs text-slate-400">({template.reviewCount} customer reviews)</span>
-            </div>
+            {/* Real ratings. `template.rating` / `reviewCount` are now recomputed
+                from approved customer reviews (see services/reviewService.ts), so
+                this only renders once a genuine review exists. */}
 
             <p className="text-xs sm:text-sm text-slate-600 mt-3 leading-relaxed">
               {template.description}
@@ -254,7 +263,7 @@ export const CardDetail: React.FC<CardDetailProps> = ({
             </div>
             <div className="text-right text-xs text-emerald-700 font-semibold flex items-center gap-1">
               <Check className="w-3.5 h-3.5" />
-              <span>In stock • 350gsm Luxury Silk</span>
+              <span>In stock • 350gsm {finishConfig.name}</span>
             </div>
           </div>
 
@@ -315,6 +324,39 @@ export const CardDetail: React.FC<CardDetailProps> = ({
             </div>
           </div>
 
+          {/* Paper Finish Upgrade */}
+          <div className="space-y-2">
+            <div className="flex justify-between items-center text-xs">
+              <label className="font-bold text-slate-900 uppercase tracking-wider">
+                3. Paper Finish
+              </label>
+              <span className="text-slate-500 font-medium">
+                {finishConfig.name} {finishConfig.price > 0 && `(+${formatPrice(finishConfig.price)})`}
+              </span>
+            </div>
+            <div className="grid grid-cols-2 gap-2.5">
+              {CARD_FINISHES.map((f) => (
+                <button
+                  key={f.id}
+                  onClick={() => setSelectedFinish(f.id)}
+                  className={`p-3 rounded-2xl border text-left transition ${
+                    selectedFinish === f.id
+                      ? 'border-rose-500 bg-rose-50/50 ring-2 ring-rose-200'
+                      : 'border-slate-200 hover:border-slate-300 bg-white'
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-bold text-xs text-slate-900">{f.name}</span>
+                    <span className="text-[11px] font-bold text-rose-600">
+                      {f.price > 0 ? `+${formatPrice(f.price)}` : 'Included'}
+                    </span>
+                  </div>
+                  <div className="text-[10px] text-slate-500 mt-0.5 leading-snug">{f.description}</div>
+                </button>
+              ))}
+            </div>
+          </div>
+
           {/* Action CTAs */}
           <div className="space-y-2.5 pt-2">
             {/* Primary: Launch Editor */}
@@ -353,6 +395,15 @@ export const CardDetail: React.FC<CardDetailProps> = ({
         </div>
       </div>
 
+      {/* Customer reviews — real, verified-purchase, admin-moderated. */}
+      <section className="pt-8 border-t border-slate-200">
+        <CardReviews
+          templateId={template.id}
+          fallbackRating={template.rating ?? 0}
+          fallbackCount={template.reviewCount ?? 0}
+        />
+      </section>
+
       {/* Recommendations: Similar Cards */}
       {recommendations.length > 0 && (
         <section className="pt-8 border-t border-slate-200">
@@ -381,12 +432,7 @@ export const CardDetail: React.FC<CardDetailProps> = ({
         isOpen={isPreviewOpen}
         onClose={() => setIsPreviewOpen(false)}
         title={template.title}
-        pages={{
-          front: template.defaultPages.front,
-          insideLeft: template.defaultPages.insideLeft,
-          insideRight: template.defaultPages.insideRight,
-          back: template.defaultPages.back,
-        }}
+        pages={editablePagesFrom(template)}
         onProceedToCart={() => {
           setIsPreviewOpen(false);
           handleQuickAddToCart();
@@ -403,12 +449,7 @@ export const CardDetail: React.FC<CardDetailProps> = ({
         onClose={() => setIsPrintPreviewOpen(false)}
         title={template.title}
         templateId={template.id}
-        pages={{
-          front: template.defaultPages.front,
-          insideLeft: template.defaultPages.insideLeft,
-          insideRight: template.defaultPages.insideRight,
-          back: template.defaultPages.back,
-        }}
+        pages={editablePagesFrom(template)}
       />
     </div>
   );

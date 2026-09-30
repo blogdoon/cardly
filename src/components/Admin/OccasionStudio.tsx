@@ -28,11 +28,14 @@ import {
   OccasionImageEntry
 } from '../../utils/occasionTemplateLoader';
 import { registerCustomTemplate, unregisterCustomTemplate } from '../../data/templates';
+import { upsertTemplate } from '../../services/catalogService';
+import { useCatalog } from '../../context/CatalogContext';
 import { formatPrice } from '../../utils/currency';
 import { OCCASIONS_LIST, RECIPIENTS_LIST, STYLES_LIST } from '../../data/categories';
+import type { BrowseFacets } from '../../utils/routes';
 
 interface OccasionStudioProps {
-  onNavigate: (route: string, param?: string) => void;
+  onNavigate: (route: string, param?: string, facets?: BrowseFacets) => void;
   onTemplateCreated?: (template: CardTemplate) => void;
 }
 
@@ -48,6 +51,7 @@ const PRESET_SWATCHES = [
 ];
 
 export const OccasionStudio: React.FC<OccasionStudioProps> = ({ onNavigate, onTemplateCreated }) => {
+  const { deleteTemplate } = useCatalog();
   const [occasionEntries, setOccasionEntries] = useState<OccasionImageEntry[]>(() => getOccasionImageEntries());
   const [customTemplates, setCustomTemplates] = useState<CardTemplate[]>(() => getCustomUploadedTemplates());
 
@@ -56,8 +60,6 @@ export const OccasionStudio: React.FC<OccasionStudioProps> = ({ onNavigate, onTe
   const [uploadedImageUrl, setUploadedImageUrl] = useState<string>('');
   const [imageFileName, setImageFileName] = useState<string>('');
   const [cardTitle, setCardTitle] = useState<string>('');
-  const [headlineText, setHeadlineText] = useState<string>(OCCASION_MESSAGES['Birthday'].headline);
-  const [subText, setSubText] = useState<string>(OCCASION_MESSAGES['Birthday'].sub);
   const [textColor, setTextColor] = useState<string>(OCCASION_MESSAGES['Birthday'].defaultColor);
   const [price, setPrice] = useState<number>(4.29);
   const [recipient, setRecipient] = useState<RecipientType>('Anyone');
@@ -68,6 +70,8 @@ export const OccasionStudio: React.FC<OccasionStudioProps> = ({ onNavigate, onTe
   const [previewTab, setPreviewTab] = useState<'front' | 'inside'>('front');
   const [copiedPath, setCopiedPath] = useState<string | null>(null);
   const [latestCreatedTemplate, setLatestCreatedTemplate] = useState<CardTemplate | null>(null);
+  const [isPublishing, setIsPublishing] = useState(false);
+  const [publishError, setPublishError] = useState<string | null>(null);
   const [activePresetFilter, setActivePresetFilter] = useState<string>('All');
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -81,8 +85,6 @@ export const OccasionStudio: React.FC<OccasionStudioProps> = ({ onNavigate, onTe
   const handleOccasionChange = (occ: OccasionType) => {
     setSelectedOccasion(occ);
     const meta = OCCASION_MESSAGES[occ] || OCCASION_MESSAGES['Birthday'];
-    setHeadlineText(meta.headline);
-    setSubText(meta.sub);
     setTextColor(meta.defaultColor);
     if (!cardTitle || cardTitle.includes('Artisan Stationery Card')) {
       setCardTitle(`${occ} Artisan Stationery Card`);
@@ -123,24 +125,26 @@ export const OccasionStudio: React.FC<OccasionStudioProps> = ({ onNavigate, onTe
     setImageFileName(entry.fileName);
     setCardTitle(`${entry.cleanName} ${entry.occasion} Card`);
     const meta = OCCASION_MESSAGES[entry.occasion] || OCCASION_MESSAGES['Birthday'];
-    setHeadlineText(meta.headline);
-    setSubText(meta.sub);
     setTextColor(meta.defaultColor);
   };
 
   // Generate & Publish Template
-  const handleGenerateTemplate = () => {
+  //
+  // The catalog now lives in Firestore and nothing is bundled, so "publish" must
+  // actually write to the database — otherwise a card created here would only
+  // ever exist in this browser. We register locally first so the UI updates
+  // instantly, then persist; a failed write is reported rather than swallowed.
+  const handleGenerateTemplate = async () => {
     if (!uploadedImageUrl) {
       alert('Please upload an image or select a bundled artwork first.');
       return;
     }
+    if (isPublishing) return;
 
     const newTemplate = createTemplateFromOccasionImage({
       occasion: selectedOccasion,
       imageUrl: uploadedImageUrl,
       title: cardTitle || `${selectedOccasion} Artisan Stationery Card`,
-      headline: headlineText,
-      subText,
       textColor,
       price,
       recipient,
@@ -148,19 +152,43 @@ export const OccasionStudio: React.FC<OccasionStudioProps> = ({ onNavigate, onTe
       tags: [selectedSlug, 'occasion-folder-generator'],
     });
 
+    setIsPublishing(true);
     registerCustomTemplate(newTemplate);
     setCustomTemplates(getCustomUploadedTemplates());
     setLatestCreatedTemplate(newTemplate);
-    if (onTemplateCreated) {
-      onTemplateCreated(newTemplate);
+
+    try {
+      await upsertTemplate(newTemplate);
+      setPublishError(null);
+    } catch (e) {
+      console.error('Could not publish template to Firestore:', e);
+      setPublishError(
+        e instanceof Error
+          ? `Saved in this browser only — publishing to the database failed: ${e.message}`
+          : 'Saved in this browser only — publishing to the database failed.'
+      );
+    } finally {
+      setIsPublishing(false);
+      if (onTemplateCreated) {
+        onTemplateCreated(newTemplate);
+      }
     }
   };
 
-  const handleDeleteCustomTemplate = (id: string) => {
+  const handleDeleteCustomTemplate = async (id: string) => {
+    // Drop the local copy first so the list updates, then retire it in the
+    // database (if it was ever published) so it leaves the storefront for
+    // everyone. A card that never reached Firestore has nothing to retire.
     unregisterCustomTemplate(id);
     setCustomTemplates(getCustomUploadedTemplates());
     if (latestCreatedTemplate?.id === id) {
       setLatestCreatedTemplate(null);
+    }
+
+    try {
+      await deleteTemplate(id);
+    } catch (e) {
+      console.warn(`Could not retire ${id} in Firestore:`, e);
     }
   };
 
@@ -370,33 +398,11 @@ export const OccasionStudio: React.FC<OccasionStudioProps> = ({ onNavigate, onTe
                   />
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-[11px] font-semibold text-slate-600 mb-1">
-                      Front Headline (Safe Area)
-                    </label>
-                    <input
-                      type="text"
-                      value={headlineText}
-                      onChange={(e) => setHeadlineText(e.target.value)}
-                      placeholder="e.g. Happiest of Birthdays"
-                      className="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 outline-hidden font-serif"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-[11px] font-semibold text-slate-600 mb-1">
-                      Front Subtext (Optional)
-                    </label>
-                    <input
-                      type="text"
-                      value={subText}
-                      onChange={(e) => setSubText(e.target.value)}
-                      placeholder="e.g. Wishing you a wonderful celebration."
-                      className="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 outline-hidden font-serif"
-                    />
-                  </div>
-                </div>
+                <p className="text-[11px] text-slate-500 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 leading-relaxed">
+                  The front cover is <strong>artwork only</strong> — customers add their own wording
+                  when they personalise the card, so there is nothing to typeset here. The title above
+                  is the catalog name shown in the shop.
+                </p>
 
                 {/* Typography Color Swatches */}
                 <div>
@@ -483,15 +489,31 @@ export const OccasionStudio: React.FC<OccasionStudioProps> = ({ onNavigate, onTe
               </div>
             </div>
 
+            {publishError && (
+              <p className="mb-3 px-3 py-2.5 rounded-xl bg-amber-50 border border-amber-200 text-[11px] text-amber-800 font-semibold">
+                {publishError}
+              </p>
+            )}
+
             {/* Action buttons */}
             <div className="pt-4 border-t border-slate-200 flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
               <button
                 type="button"
                 onClick={handleGenerateTemplate}
-                className="flex-1 py-3 px-6 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs sm:text-sm rounded-xl shadow-xs transition flex items-center justify-center gap-2"
+                disabled={isPublishing}
+                className="flex-1 py-3 px-6 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs sm:text-sm rounded-xl shadow-xs transition flex items-center justify-center gap-2 disabled:opacity-60"
               >
-                <Sparkles className="w-4 h-4" />
-                Generate & Publish Card Template
+                {isPublishing ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                    Publishing to database…
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-4 h-4" />
+                    Generate & Publish Card Template
+                  </>
+                )}
               </button>
 
               <button
@@ -586,8 +608,13 @@ export const OccasionStudio: React.FC<OccasionStudioProps> = ({ onNavigate, onTe
                   )}
 
                   {/* Asymmetric Text-Safe Area Box (Center-Left 46% width x 42% height, 8% from left, 30% from top) */}
+                  {/*
+                    The safe-zone guide is still useful — it shows customers where
+                    their own text will sit well on this artwork — but the cover
+                    ships blank, so nothing is rendered into it.
+                  */}
                   <div
-                    className={`absolute left-[8%] top-[30%] w-[46%] h-[42%] flex flex-col justify-center transition ${
+                    className={`absolute left-[8%] top-[30%] w-[46%] h-[42%] transition ${
                       showSafeOverlay ? 'outline-1 outline-dashed outline-rose-400/80 bg-rose-500/5' : ''
                     }`}
                   >
@@ -595,22 +622,6 @@ export const OccasionStudio: React.FC<OccasionStudioProps> = ({ onNavigate, onTe
                       <span className="absolute -top-4 left-0 text-[8px] font-mono font-bold text-rose-600 bg-white/90 px-1 py-0.2 rounded shadow-2xs">
                         Safe Text Zone (46% × 42%)
                       </span>
-                    )}
-
-                    <h4
-                      style={{ color: textColor, fontFamily: "'Playfair Display', serif" }}
-                      className="text-base sm:text-lg font-bold leading-tight drop-shadow-2xs line-clamp-3"
-                    >
-                      {headlineText || 'Happiest of Birthdays'}
-                    </h4>
-
-                    {subText && (
-                      <p
-                        style={{ fontFamily: "'Playfair Display', serif" }}
-                        className="text-[10px] sm:text-xs text-slate-600 mt-1.5 leading-snug line-clamp-2"
-                      >
-                        {subText}
-                      </p>
                     )}
                   </div>
 

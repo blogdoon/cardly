@@ -1,4 +1,5 @@
 import React from 'react';
+import type { BrowseFacets } from '../utils/routes';
 import {
   Sparkles,
   ArrowRight,
@@ -11,18 +12,22 @@ import {
   CheckCircle,
   Truck,
   ShieldCheck,
-  RotateCcw
+  RotateCcw,
+  CalendarHeart
 } from 'lucide-react';
 import { CardTile } from '../components/CardTile';
-import { ALL_TEMPLATES, getPopularTemplates, getPhotoTemplates, getTemplatesByCategory } from '../data/templates';
+import { getLiveCatalog, getPopularTemplates, getPhotoTemplates, getTemplatesByCategory, getTemplateById } from '../data/templates';
 import { OCCASIONS_LIST, RECIPIENTS_LIST } from '../data/categories';
 import { useFavorites } from '../context/FavoritesContext';
 import { getRecentlyViewed } from '../services/cardStorage';
+import { getLocalDesigns } from '../services/cardStorage';
+import { getOccasionReminders } from '../utils/occasions';
 import { formatPrice } from '../utils/currency';
 import { getPersonalizedFeed } from '../utils/recommendations';
+import { handleImageError } from '../utils/imageFallback';
 
 interface HomeProps {
-  onNavigate: (route: string, param?: string) => void;
+  onNavigate: (route: string, param?: string, facets?: BrowseFacets) => void;
   onPersonalize: (templateId: string) => void;
 }
 
@@ -32,14 +37,61 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, onPersonalize }) => {
   const popularCards = getPopularTemplates(8);
   const photoCards = getPhotoTemplates(8);
   const birthdayCards = getTemplatesByCategory('Birthday').slice(0, 8);
-  const funnyCards = ALL_TEMPLATES.filter((t) => t.style === 'Funny').slice(0, 8);
+  const funnyCards = getLiveCatalog().filter((t) => t.style === 'Funny').slice(0, 8);
   const personalizedFeed = getPersonalizedFeed(favorites, 8);
 
   const recentIds = getRecentlyViewed();
-  const recentlyViewedCards = ALL_TEMPLATES.filter((t) => recentIds.includes(t.id)).slice(0, 6);
+  const recentlyViewedCards = getLiveCatalog().filter((t) => recentIds.includes(t.id)).slice(0, 6);
+
+  // Occasions that are due to come round again, from cards already made.
+  const reminders = getOccasionReminders(getLocalDesigns(), getTemplateById).slice(0, 3);
+
+  const formatCountdown = (days: number) =>
+    days === 0 ? 'Today' : days === 1 ? 'Tomorrow' : `In ${days} days`;
 
   return (
     <div className="space-y-16 pb-16">
+      {/* Occasion reminders: cards the customer already made, due again */}
+      {reminders.length > 0 && (
+        <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8">
+          <div className="rounded-3xl border border-rose-100 bg-rose-50/50 p-5 sm:p-6">
+            <div className="flex items-center gap-2 mb-4">
+              <CalendarHeart className="w-4 h-4 text-rose-500" />
+              <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wider">
+                Coming up again
+              </h2>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {reminders.map((r) => (
+                <button
+                  key={r.design.id}
+                  onClick={() => onPersonalize(r.template.id)}
+                  className="text-left bg-white rounded-2xl border border-slate-200 hover:border-rose-300 p-4 transition hover:shadow-md active:scale-[0.99]"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-rose-600">
+                      {r.template.category}
+                      {r.nextMilestone != null && ` · turning ${r.nextMilestone}`}
+                    </span>
+                    <span className="shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
+                      {formatCountdown(r.daysUntil)}
+                    </span>
+                  </div>
+                  <p className="text-xs font-semibold text-slate-800 mt-1.5 leading-snug">
+                    You made this {r.yearsAgo === 1 ? 'last year' : `${r.yearsAgo} years ago`}
+                  </p>
+                  <p className="text-[11px] text-slate-500 mt-0.5">
+                    Due {new Date(r.nextDate).toLocaleDateString(undefined, { day: 'numeric', month: 'long' })}
+                    {' · '}
+                    <span className="text-rose-600 font-semibold">Make this year&rsquo;s</span>
+                  </p>
+                </button>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
       {/* Hero Section */}
       <section className="relative overflow-hidden bg-gradient-to-b from-rose-50/70 via-stone-50 to-white pt-8 pb-16 lg:pt-14 lg:pb-24 border-b border-rose-100/60">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -72,7 +124,7 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, onPersonalize }) => {
                 </button>
 
                 <button
-                  onClick={() => onNavigate('browse', 'Photo Cards')}
+                  onClick={() => onNavigate('browse', undefined, { photoOnly: true })}
                   className="w-full sm:w-auto px-8 py-4 bg-white hover:bg-slate-50 text-slate-800 font-extrabold text-sm rounded-2xl border border-slate-300 shadow-sm flex items-center justify-center gap-2 transition"
                 >
                   <Camera className="w-4 h-4 text-purple-600" />
@@ -86,7 +138,7 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, onPersonalize }) => {
                   <Truck className="w-4 h-4 text-rose-500" /> Same-day dispatch by 6pm
                 </span>
                 <span className="flex items-center gap-1.5">
-                  <Star className="w-4 h-4 fill-amber-400 text-amber-400" /> 4.9/5 from 12,000+ reviews
+                  <ShieldCheck className="w-4 h-4 text-rose-500" /> Free reprint or refund if not perfect
                 </span>
               </div>
             </div>
@@ -148,7 +200,7 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, onPersonalize }) => {
           {OCCASIONS_LIST.slice(0, 12).map((occ) => (
             <button
               key={occ.id}
-              onClick={() => onNavigate('browse', occ.name)}
+              onClick={() => onNavigate('browse', undefined, { occasion: occ.name })}
               className="p-4 rounded-2xl bg-white hover:bg-rose-50/60 border border-slate-200 hover:border-rose-300 shadow-2xs hover:shadow-md transition-all text-left group flex flex-col justify-between h-24"
             >
               <div className="flex items-center justify-between">
@@ -165,7 +217,9 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, onPersonalize }) => {
         </div>
       </section>
 
-      {/* Popular Right Now */}
+      {/* Popular Right Now — hidden entirely when the catalog is empty, so an empty
+          database never leaves a bare heading above a blank grid. */}
+      {popularCards.length > 0 && (
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between mb-6">
           <div>
@@ -192,6 +246,7 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, onPersonalize }) => {
           ))}
         </div>
       </section>
+      )}
 
       {/* Photo Cards Spotlight Banner */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -208,7 +263,7 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, onPersonalize }) => {
             </p>
             <div className="pt-2">
               <button
-                onClick={() => onNavigate('browse', 'Photo Cards')}
+                onClick={() => onNavigate('browse', undefined, { photoOnly: true })}
                 className="px-6 py-3 bg-white text-purple-900 font-extrabold text-xs rounded-xl hover:bg-purple-50 shadow-md transition"
               >
                 Browse Photo Cards
@@ -219,6 +274,7 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, onPersonalize }) => {
       </section>
 
       {/* Birthday Cards Section */}
+      {birthdayCards.length > 0 && (
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-2">
@@ -231,7 +287,7 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, onPersonalize }) => {
             </div>
           </div>
           <button
-            onClick={() => onNavigate('browse', 'Birthday')}
+            onClick={() => onNavigate('browse', undefined, { occasion: 'Birthday' })}
             className="text-xs font-bold text-rose-600 hover:text-rose-700 flex items-center gap-1"
           >
             <span>All Birthday</span>
@@ -250,8 +306,10 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, onPersonalize }) => {
           ))}
         </div>
       </section>
+      )}
 
       {/* Funny Cards Section */}
+      {funnyCards.length > 0 && (
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-2">
@@ -264,7 +322,7 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, onPersonalize }) => {
             </div>
           </div>
           <button
-            onClick={() => onNavigate('browse', 'Funny')}
+            onClick={() => onNavigate('browse', undefined, { style: 'Funny' })}
             className="text-xs font-bold text-rose-600 hover:text-rose-700 flex items-center gap-1"
           >
             <span>All Funny</span>
@@ -283,6 +341,7 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, onPersonalize }) => {
           ))}
         </div>
       </section>
+      )}
 
       {/* Recommended for You */}
       {personalizedFeed.length > 0 && (
@@ -325,7 +384,14 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, onPersonalize }) => {
                 className="bg-white p-2.5 rounded-xl border border-slate-200 hover:border-rose-300 shadow-2xs hover:shadow-md cursor-pointer transition flex flex-col justify-between"
               >
                 <div className="aspect-[3/4] bg-slate-50 rounded-lg overflow-hidden p-1">
-                  <img src={card.thumbnail} alt={card.title} className="w-full h-full object-contain" />
+                  <img
+                    src={card.thumbnail}
+                    alt={card.title}
+                    loading="lazy"
+                    data-bgcolor={card.defaultPages?.front?.backgroundColor || ''}
+                    onError={handleImageError}
+                    className="w-full h-full object-contain"
+                  />
                 </div>
                 <div className="mt-2">
                   <h4 className="font-bold text-[11px] text-slate-800 truncate">{card.title}</h4>

@@ -20,9 +20,10 @@ import { useCart } from '../context/CartContext';
 import { useFavorites } from '../context/FavoritesContext';
 import { OCCASIONS_LIST, RECIPIENTS_LIST } from '../data/categories';
 import { FirebaseModal } from './FirebaseModal';
+import type { BrowseFacets } from '../utils/routes';
 
 interface NavbarProps {
-  onNavigate: (route: string, param?: string) => void;
+  onNavigate: (route: string, param?: string, facets?: BrowseFacets) => void;
   currentRoute: string;
 }
 
@@ -70,14 +71,15 @@ export const Navbar: React.FC<NavbarProps> = ({ onNavigate, currentRoute }) => {
     e.preventDefault();
     if (searchQuery.trim()) {
       setIsSearchOpen(false);
-      onNavigate('browse', searchQuery.trim());
+      // A real search query, not a category name.
+      onNavigate('browse', undefined, { q: searchQuery.trim() });
     }
   };
 
   const handlePopularSearchClick = (term: string) => {
     setSearchQuery(term);
     setIsSearchOpen(false);
-    onNavigate('browse', term);
+    onNavigate('browse', undefined, { q: term });
   };
 
   return (
@@ -132,6 +134,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onNavigate, currentRoute }) => {
                 <input
                   type="text"
                   placeholder="Search cards, occasions, people (e.g. mum birthday, funny)..."
+                  aria-label="Search cards"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   onFocus={() => setIsSearchOpen(true)}
@@ -339,7 +342,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onNavigate, currentRoute }) => {
               </button>
 
               <button
-                onClick={() => onNavigate('browse', 'Birthday')}
+                onClick={() => onNavigate('browse', undefined, { occasion: 'Birthday' })}
                 className="shrink-0 hover:text-rose-600 transition"
               >
                 Birthday
@@ -360,49 +363,49 @@ export const Navbar: React.FC<NavbarProps> = ({ onNavigate, currentRoute }) => {
               </button>
 
               <button
-                onClick={() => onNavigate('browse', 'Anniversary')}
+                onClick={() => onNavigate('browse', undefined, { occasion: 'Anniversary' })}
                 className="shrink-0 hover:text-rose-600 transition"
               >
                 Anniversary
               </button>
 
               <button
-                onClick={() => onNavigate('browse', 'Wedding')}
+                onClick={() => onNavigate('browse', undefined, { occasion: 'Wedding' })}
                 className="shrink-0 hover:text-rose-600 transition"
               >
                 Wedding
               </button>
 
               <button
-                onClick={() => onNavigate('browse', 'Thank You')}
+                onClick={() => onNavigate('browse', undefined, { occasion: 'Thank You' })}
                 className="shrink-0 hover:text-rose-600 transition"
               >
                 Thank You
               </button>
 
               <button
-                onClick={() => onNavigate('browse', 'Congratulations')}
+                onClick={() => onNavigate('browse', undefined, { occasion: 'Congratulations' })}
                 className="shrink-0 hover:text-rose-600 transition"
               >
                 Congratulations
               </button>
 
               <button
-                onClick={() => onNavigate('browse', 'New Baby')}
+                onClick={() => onNavigate('browse', undefined, { occasion: 'New Baby' })}
                 className="shrink-0 hover:text-rose-600 transition"
               >
                 New Baby
               </button>
 
               <button
-                onClick={() => onNavigate('browse', 'Christmas')}
+                onClick={() => onNavigate('browse', undefined, { occasion: 'Christmas' })}
                 className="shrink-0 hover:text-rose-600 transition text-emerald-700 font-bold"
               >
                 Christmas
               </button>
 
               <button
-                onClick={() => onNavigate('browse', 'Photo Cards')}
+                onClick={() => onNavigate('browse', undefined, { photoOnly: true })}
                 className="shrink-0 hover:text-rose-600 transition flex items-center gap-1 text-purple-700 font-bold"
               >
                 <Sparkles className="w-3 h-3 text-purple-500" />
@@ -410,21 +413,21 @@ export const Navbar: React.FC<NavbarProps> = ({ onNavigate, currentRoute }) => {
               </button>
 
               <button
-                onClick={() => onNavigate('browse', 'Funny')}
+                onClick={() => onNavigate('browse', undefined, { style: 'Funny' })}
                 className="shrink-0 hover:text-rose-600 transition text-amber-700 font-bold"
               >
                 Funny
               </button>
 
               <button
-                onClick={() => onNavigate('browse', 'Her')}
+                onClick={() => onNavigate('browse', undefined, { recipient: 'Her' })}
                 className="shrink-0 hover:text-rose-600 transition"
               >
                 For Her
               </button>
 
               <button
-                onClick={() => onNavigate('browse', 'Him')}
+                onClick={() => onNavigate('browse', undefined, { recipient: 'Him' })}
                 className="shrink-0 hover:text-rose-600 transition"
               >
                 For Him
@@ -441,6 +444,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onNavigate, currentRoute }) => {
               <input
                 type="text"
                 placeholder="Search occasions, people..."
+                aria-label="Search cards"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full pl-10 pr-4 py-2.5 bg-slate-50 text-slate-800 text-sm rounded-xl border border-slate-200 focus:outline-rose-500"
@@ -461,7 +465,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onNavigate, currentRoute }) => {
               <button
                 onClick={() => {
                   setIsMobileMenuOpen(false);
-                  onNavigate('browse', 'Birthday');
+                  onNavigate('browse', undefined, { occasion: 'Birthday' });
                 }}
                 className="p-2.5 bg-slate-50 rounded-xl text-left hover:bg-rose-50 hover:text-rose-600 text-slate-700"
               >
@@ -470,7 +474,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onNavigate, currentRoute }) => {
               <button
                 onClick={() => {
                   setIsMobileMenuOpen(false);
-                  onNavigate('browse', 'Photo Cards');
+                  onNavigate('browse', undefined, { photoOnly: true });
                 }}
                 className="p-2.5 bg-purple-50 text-purple-700 rounded-xl text-left font-bold"
               >
@@ -479,7 +483,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onNavigate, currentRoute }) => {
               <button
                 onClick={() => {
                   setIsMobileMenuOpen(false);
-                  onNavigate('browse', 'Funny');
+                  onNavigate('browse', undefined, { style: 'Funny' });
                 }}
                 className="p-2.5 bg-amber-50 text-amber-800 rounded-xl text-left font-bold"
               >
@@ -488,7 +492,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onNavigate, currentRoute }) => {
               <button
                 onClick={() => {
                   setIsMobileMenuOpen(false);
-                  onNavigate('browse', 'Anniversary');
+                  onNavigate('browse', undefined, { occasion: 'Anniversary' });
                 }}
                 className="p-2.5 bg-slate-50 rounded-xl text-left hover:bg-rose-50 hover:text-rose-600 text-slate-700"
               >
@@ -497,7 +501,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onNavigate, currentRoute }) => {
               <button
                 onClick={() => {
                   setIsMobileMenuOpen(false);
-                  onNavigate('browse', 'Wedding');
+                  onNavigate('browse', undefined, { occasion: 'Wedding' });
                 }}
                 className="p-2.5 bg-slate-50 rounded-xl text-left hover:bg-rose-50 hover:text-rose-600 text-slate-700"
               >

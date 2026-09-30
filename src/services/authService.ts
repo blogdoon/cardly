@@ -6,6 +6,34 @@ import { handleFirestoreError, OperationType } from './firestoreErrors';
 
 const DEMO_USER_STORAGE_KEY = 'cardly_demo_user_session';
 
+const ADMIN_EMAIL = 'blogdoontv@gmail.com';
+
+/**
+ * The dev-admin fallback fabricates a signed-in admin session when Google OAuth
+ * is unavailable. That is fine on a laptop and a backdoor in production, so it
+ * is hard-gated to loopback (AGENTS.md "Admin authorization").
+ */
+const isLoopback = (): boolean => {
+  if (typeof location === 'undefined') return false;
+  const h = location.hostname;
+  return h === 'localhost' || h === '127.0.0.1' || h === '[::1]' || h.endsWith('.localhost');
+};
+
+/**
+ * `admin` custom claim wins; the email is a fallback so the current owner keeps
+ * access until the claim is minted server-side. The client cannot mint claims —
+ * see the Admin SDK note in AGENTS.md.
+ */
+async function resolveRole(fbUser: FbUser): Promise<'customer' | 'admin'> {
+  try {
+    const token = await fbUser.getIdTokenResult();
+    if (token.claims.admin === true) return 'admin';
+  } catch {
+    // Token unreadable — fall through to the email check.
+  }
+  return fbUser.email === ADMIN_EMAIL ? 'admin' : 'customer';
+}
+
 export async function loginWithGoogle(): Promise<UserProfile> {
   if (isFirebaseConfigured && auth) {
     try {
@@ -16,7 +44,7 @@ export async function loginWithGoogle(): Promise<UserProfile> {
         email: user.email,
         displayName: user.displayName || 'Cardly Member',
         photoURL: user.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.uid}`,
-        role: user.email === 'blogdoontv@gmail.com' ? 'admin' : 'customer',
+        role: await resolveRole(user),
         createdAt: new Date().toISOString(),
       };
 
@@ -77,6 +105,14 @@ export async function loginWithGoogle(): Promise<UserProfile> {
 }
 
 function getFallbackDemoProfile(): UserProfile {
+  // Off-loopback this used to hand out a full admin session. Refuse instead:
+  // being signed out is recoverable, a production backdoor is not.
+  if (!isLoopback()) {
+    throw new Error(
+      'Google sign-in is unavailable and the local developer fallback only runs on localhost. ' +
+      'Check the Firebase authorized domains for this host.'
+    );
+  }
   const demoProfile: UserProfile = {
     uid: 'demo_user_google_108',
     email: 'blogdoontv@gmail.com',
@@ -131,7 +167,7 @@ export function subscribeToAuth(callback: (user: UserProfile | null) => void): (
           email: fbUser.email,
           displayName: fbUser.displayName || (fbUser.isAnonymous ? 'Guest Member' : 'Cardly Member'),
           photoURL: fbUser.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${fbUser.uid}`,
-          role: fbUser.email === 'blogdoontv@gmail.com' ? 'admin' : 'customer',
+          role: await resolveRole(fbUser),
           createdAt: new Date().toISOString(),
         };
         callback(profile);

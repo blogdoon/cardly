@@ -20,6 +20,20 @@ service cloud.firestore {
       return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
     }
 
+    // Admin check. Prefers an `admin` custom claim set via the Firebase Admin SDK
+    // (`firebase auth:override` / Admin SDK setCustomUserClaims).
+    //
+    // The email fallback is still here ONLY so an existing admin session keeps
+    // working before the claim is minted. It is the hardcoded-email hole called
+    // out in AGENTS.md — delete the `||` branch once the claim is live on the
+    // owner account. Do not ship the claim path without minting it first, or
+    // the owner locks themselves out of template writes.
+    function isAdmin() {
+      return isSignedIn()
+        && (request.auth.token.admin == true
+            || request.auth.token.email == 'blogdoontv@gmail.com');
+    }
+
     // User profiles: users can read and write only their own profile
     match /users/{userId} {
       allow get: if isOwner(userId);
@@ -44,21 +58,97 @@ service cloud.firestore {
 
       // User orders subcollection
       match /orders/{orderId} {
-        allow read: if isOwner(userId);
+        // Owners see their own; admins see everything (the admin console lists
+        // orders across every customer).
+        allow get: if isOwner(userId) || isAdmin();
+        allow list: if isOwner(userId) || isAdmin();
         allow create: if isOwner(userId)
           && request.resource.data.userId == userId
           && request.resource.data.total is number
           && request.resource.data.total >= 0;
-        allow update: if false; // Orders are immutable once placed by customer
+        // Customers cannot touch an order after placing it. Admins can, but only
+        // for fulfilment fields — never the money, the items, or the address.
+        // `hasOnly` is what stops a compromised admin session rewriting `total`
+        // after the fact.
+        allow update: if isAdmin()
+          && request.resource.data.diff(resource.data).affectedKeys()
+               .hasOnly([
+                 'status', 'trackingNumber', 'carrier', 'dispatchedAt',
+                 'refund', 'cancelReason', 'adminNote', 'updatedAt'
+               ]);
+        allow delete: if isAdmin();
       }
     }
 
-    // Public card templates catalog
-    match /templates/{templateId} {
-      // Anyone can read card templates to browse and customize
+    // Shared card proofs. A share link is an unguessable id, so anyone holding
+    // the URL can read it — that is the point ("check this before I order").
+    // Writes are owner-only; there is no client-side delete, proofs expire by
+    // date (see src/services/shareService.ts) and a cleanup job can reap them.
+    match /shared/{shareId} {
       allow read: if true;
-      // Only authenticated admins can create or update templates
-      allow write: if isSignedIn() && request.auth.token.email == 'blogdoontv@gmail.com';
+      allow create: if isSignedIn() && request.resource.data.ownerId == request.auth.uid;
+      allow delete: if isSignedIn() && resource.data.ownerId == request.auth.uid;
+      allow update: if false; // a proof is immutable once shared
+    }
+
+    // Card templates catalog. Source of truth for the storefront — the bundled
+    // seed in src/data/templates.ts is only a fallback.
+    match /templates/{templateId} {
+      // Anyone can read card templates to browse and customize.
+      // Retired templates are still readable here (the storefront filters them
+      // out client-side so existing orders and saved designs keep resolving).
+      allow read: if true;
+
+      // Only admins can create, update, retire, restore or purge templates.
+      allow create, update, delete: if isAdmin();
+
+      // A retired template must keep its id stable so past orders, saved
+      // designs and favourites still resolve to a real document.
+      allow update: if isAdmin()
+        && request.resource.data.id == resource.data.id;
+
+      // Customer reviews. Only people who actually bought the card may review
+      // it, and only an admin may publish one.
+      match /reviews/{reviewId} {
+        // Public read. Pending reviews are filtered out by the client — a review
+        // holds nothing but a display name and text, and rules cannot filter a
+        // `list` on a field without a separate published subcollection.
+        allow read: if true;
+
+        // One review per order per template: the document id is pinned to
+        // `${orderId}_${templateId}`, so a customer cannot post unlimited reviews
+        // by varying the id.
+        //
+        // KNOWN GAP: rules cannot check that the order actually *contains* this
+        // template, so the client asserts it. Closing that needs a Cloud
+        // Function; until then a determined customer could review a card they
+        // did not buy. Everything else here is enforced server-side.
+        allow create: if isSignedIn()
+          && request.resource.data.authorId == request.auth.uid
+          && reviewId == request.resource.data.orderId + '_' + request.resource.data.templateId
+          && request.resource.data.rating is int
+          && request.resource.data.rating >= 1
+          && request.resource.data.rating <= 5
+          && request.resource.data.review is string
+          && request.resource.data.review.size() > 0
+          && request.resource.data.review.size() <= 2000
+          && request.resource.data.authorName is string
+          && request.resource.data.authorName.size() <= 80
+          // A review always starts unpublished, and an author cannot pre-approve
+          // their own or forge moderation metadata.
+          && request.resource.data.status == 'pending'
+          && !request.resource.data.keys().hasAny(['moderatedAt', 'moderatedBy']);
+
+        // Only an admin can publish or reject, and only the moderation fields.
+        allow update: if isAdmin()
+          && request.resource.data.diff(resource.data).affectedKeys()
+               .hasOnly(['status', 'moderatedAt', 'moderatedBy']);
+
+        // Authors can withdraw their own pending review; admins can remove any.
+        allow delete: if isAdmin()
+          || (isSignedIn() && resource.data.authorId == request.auth.uid
+              && resource.data.status == 'pending');
+      }
     }
   }
 }

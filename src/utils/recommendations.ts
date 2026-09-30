@@ -1,9 +1,9 @@
 import { CardTemplate } from '../types/template';
-import { ALL_TEMPLATES } from '../data/templates';
+import { getLiveCatalog } from '../data/templates';
 import { getRecentlyViewed } from '../services/cardStorage';
 
 export function getRecommendationsForTemplate(current: CardTemplate, limit = 6): CardTemplate[] {
-  const scored = ALL_TEMPLATES.filter((t) => t.id !== current.id).map((t) => {
+  const scored = getLiveCatalog().filter((t) => t.id !== current.id).map((t) => {
     let score = 0;
     // Same category gives +5 points
     if (t.category === current.category) score += 5;
@@ -29,11 +29,11 @@ export function getPersonalizedFeed(favorites: string[], limit = 8): CardTemplat
   const interestedIds = Array.from(new Set([...favorites, ...recentIds]));
 
   if (interestedIds.length === 0) {
-    return ALL_TEMPLATES.filter((t) => t.isPopular).slice(0, limit);
+    return getLiveCatalog().filter((t) => t.isPopular).slice(0, limit);
   }
 
   // Find preferred categories and recipients
-  const preferredTemplates = ALL_TEMPLATES.filter((t) => interestedIds.includes(t.id));
+  const preferredTemplates = getLiveCatalog().filter((t) => interestedIds.includes(t.id));
   const categoryFreq: Record<string, number> = {};
   const recipientFreq: Record<string, number> = {};
 
@@ -42,7 +42,7 @@ export function getPersonalizedFeed(favorites: string[], limit = 8): CardTemplat
     recipientFreq[t.recipient] = (recipientFreq[t.recipient] || 0) + 1;
   });
 
-  const scored = ALL_TEMPLATES.filter((t) => !interestedIds.includes(t.id)).map((t) => {
+  const scored = getLiveCatalog().filter((t) => !interestedIds.includes(t.id)).map((t) => {
     const catScore = (categoryFreq[t.category] || 0) * 3;
     const recScore = (recipientFreq[t.recipient] || 0) * 2;
     const popBonus = t.isBestSeller ? 2 : t.isPopular ? 1 : 0;

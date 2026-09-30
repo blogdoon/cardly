@@ -1,0 +1,5 @@
+# Static host SPA fallback. Unknown paths must return the app shell with a real
+# 404, not a bare 200 on an empty body — status codes affect crawling.
+# Netlify / Cloudflare Pages read this file. For nginx use:
+#   location / { try_files $uri $uri/ /index.html; }
+/*  /index.html  200

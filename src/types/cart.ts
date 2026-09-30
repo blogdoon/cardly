@@ -1,4 +1,4 @@
-import { CardSizeOption, EnvelopeColor } from './template';
+import { CardFinishOption, CardSizeOption, EnvelopeColor } from './template';
 import { UserDesign } from './design';
 
 export interface CartAddon {
@@ -18,6 +18,8 @@ export interface CartItem {
   thumbnail: string;
   cardSize: CardSizeOption;
   envelopeColor: EnvelopeColor;
+  /** Paper/finish upgrade. Also carried as an addon so the cart maths stays uniform. */
+  finish: CardFinishOption;
   quantity: number;
   unitPrice: number;
   addons: CartAddon[];

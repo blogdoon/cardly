@@ -31,6 +31,9 @@ import { FontPickerMenu, findFontByFamily } from './FontPickerMenu';
 import { PHOTO_FILTER_PRESETS, getPhotoFilterCss, getPhotoOverlayColor } from '../../utils/photoFilter';
 import { uploadUserPhoto } from '../../services/cardStorage';
 
+const BG_STYLE_BTN =
+  "p-1.5 rounded-lg border border-slate-200 bg-white hover:border-indigo-300 text-[10px] font-medium text-slate-700 flex flex-col items-center text-center transition cursor-pointer shadow-2xs";
+
 interface PropertyPanelProps {
   selectedElement: CardElement | null;
   onUpdateElement: (updated: CardElement) => void;
@@ -350,7 +353,7 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
                     color: '#0f172a',
                   })
                 }
-                className="p-1.5 rounded-lg border border-slate-200 bg-white hover:border-indigo-300 text-[10px] font-medium text-slate-700 flex flex-col items-center text-center transition cursor-pointer shadow-2xs"
+                className={BG_STYLE_BTN}
                 title="Frosted White Glass banner with dark text"
               >
                 <span className="w-4 h-2.5 rounded bg-white border border-slate-300 shadow-2xs mb-0.5" />
@@ -371,7 +374,7 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
                     color: '#ffffff',
                   })
                 }
-                className="p-1.5 rounded-lg border border-slate-200 bg-white hover:border-indigo-300 text-[10px] font-medium text-slate-700 flex flex-col items-center text-center transition cursor-pointer shadow-2xs"
+                className={BG_STYLE_BTN}
                 title="Dark tinted glass banner with white text"
               >
                 <span className="w-4 h-2.5 rounded bg-slate-900 border border-slate-700 shadow-2xs mb-0.5" />
@@ -392,7 +395,7 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
                     color: '#881337',
                   })
                 }
-                className="p-1.5 rounded-lg border border-slate-200 bg-white hover:border-indigo-300 text-[10px] font-medium text-slate-700 flex flex-col items-center text-center transition cursor-pointer shadow-2xs"
+                className={BG_STYLE_BTN}
                 title="Full Pill Banner"
               >
                 <span className="w-4 h-2.5 rounded-full bg-rose-100 border border-rose-300 shadow-2xs mb-0.5" />
@@ -409,7 +412,7 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
                     color: '#ffffff',
                   })
                 }
-                className="p-1.5 rounded-lg border border-slate-200 bg-white hover:border-indigo-300 text-[10px] font-medium text-slate-700 flex flex-col items-center text-center transition cursor-pointer shadow-2xs"
+                className={BG_STYLE_BTN}
                 title="Strong Drop Shadow for white text over dark or busy photos"
               >
                 <span className="text-[10px] font-black text-white bg-slate-800 px-1 rounded mb-0.5">
@@ -428,7 +431,7 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
                     color: '#ffffff',
                   })
                 }
-                className="p-1.5 rounded-lg border border-slate-200 bg-white hover:border-indigo-300 text-[10px] font-medium text-slate-700 flex flex-col items-center text-center transition cursor-pointer shadow-2xs"
+                className={BG_STYLE_BTN}
                 title="Dark Outline around letters"
               >
                 <span className="text-[10px] font-bold text-white [text-shadow:_0_0_2px_#000] mb-0.5">

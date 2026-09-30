@@ -1,66 +1,62 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Filter, X, SlidersHorizontal, Search, ChevronDown, RotateCcw, Camera } from 'lucide-react';
 import { CardTile } from '../components/CardTile';
-import { ALL_TEMPLATES } from '../data/templates';
+import { getLiveCatalog } from '../data/templates';
 import { OCCASIONS_LIST, RECIPIENTS_LIST, STYLES_LIST, MILESTONE_AGES } from '../data/categories';
 import { CardTemplate, OccasionType, RecipientType, CardStyleType } from '../types/template';
 import { formatPriceCompact } from '../utils/currency';
+import type { BrowseFacets } from '../utils/routes';
 
 interface BrowseProps {
-  initialCategory?: string;
-  initialSearch?: string;
+  /**
+   * Filter state from the query string. Each facet is typed, so a search phrase
+   * is never mistaken for an occasion name (the old bug, where a Navbar search
+   * was passed as `initialCategory`, matched zero templates, and rendered the
+   * empty state).
+   */
+  initialFacets?: BrowseFacets;
   onSelectCard: (templateId: string) => void;
   onPersonalize: (templateId: string) => void;
 }
 
 export const Browse: React.FC<BrowseProps> = ({
-  initialCategory,
-  initialSearch,
+  initialFacets,
   onSelectCard,
   onPersonalize,
 }) => {
-  const [search, setSearch] = useState(initialSearch || '');
-  const [selectedOccasion, setSelectedOccasion] = useState<string>(initialCategory || 'All');
-  const [selectedRecipient, setSelectedRecipient] = useState<string>('All');
-  const [selectedStyle, setSelectedStyle] = useState<string>('All');
-  const [photoOnly, setPhotoOnly] = useState(false);
+  const [search, setSearch] = useState(initialFacets?.q || '');
+  const [selectedOccasion, setSelectedOccasion] = useState<string>(initialFacets?.occasion || 'All');
+  const [selectedRecipient, setSelectedRecipient] = useState<string>(initialFacets?.recipient || 'All');
+  const [selectedStyle, setSelectedStyle] = useState<string>(initialFacets?.style || 'All');
+  const [photoOnly, setPhotoOnly] = useState<boolean>(Boolean(initialFacets?.photoOnly));
   const [selectedMilestone, setSelectedMilestone] = useState<number | 'All'>('All');
-  const [maxPrice, setMaxPrice] = useState<number>(5.0);
+  const [maxPrice, setMaxPrice] = useState<number>(initialFacets?.maxPrice || 5.0);
   const [sortBy, setSortBy] = useState<'popular' | 'rating' | 'price-asc' | 'price-desc' | 'newest'>('popular');
 
   const [visibleCount, setVisibleCount] = useState(24);
   const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
-  const [templateList, setTemplateList] = useState<CardTemplate[]>(ALL_TEMPLATES);
+  const [templateList, setTemplateList] = useState<CardTemplate[]>(getLiveCatalog());
 
   useEffect(() => {
-    const handleUpdate = () => setTemplateList([...ALL_TEMPLATES]);
+    // Re-read the live catalog (Firestore-backed) whenever it changes, so an
+    // admin deletion disappears from the grid without a page reload.
+    const handleUpdate = () => setTemplateList([...getLiveCatalog()]);
     window.addEventListener('cardly_templates_updated', handleUpdate);
+    handleUpdate();
     return () => window.removeEventListener('cardly_templates_updated', handleUpdate);
   }, []);
 
-  // If initialCategory or initialSearch changes, update state
+  // Re-apply filters whenever the URL changes, so a link, the back button, or a
+  // fresh navigation into /browse/ all land on the same result set.
   useEffect(() => {
-    if (initialCategory) {
-      if (initialCategory.toLowerCase() === 'photo cards') {
-        setPhotoOnly(true);
-        setSelectedOccasion('All');
-      } else if (initialCategory.toLowerCase() === 'funny') {
-        setSelectedStyle('Funny');
-        setSelectedOccasion('All');
-      } else if (['her', 'him', 'mum', 'dad', 'sister', 'brother', 'best friend'].includes(initialCategory.toLowerCase())) {
-        const found = RECIPIENTS_LIST.find((r) => r.name.toLowerCase() === initialCategory.toLowerCase() || r.id.toLowerCase() === initialCategory.toLowerCase());
-        if (found) setSelectedRecipient(found.id);
-      } else {
-        setSelectedOccasion(initialCategory);
-      }
-    }
-  }, [initialCategory]);
-
-  useEffect(() => {
-    if (initialSearch !== undefined) {
-      setSearch(initialSearch);
-    }
-  }, [initialSearch]);
+    setSearch(initialFacets?.q || '');
+    setSelectedOccasion(initialFacets?.occasion || 'All');
+    setSelectedRecipient(initialFacets?.recipient || 'All');
+    setSelectedStyle(initialFacets?.style || 'All');
+    setPhotoOnly(Boolean(initialFacets?.photoOnly));
+    setMaxPrice(initialFacets?.maxPrice || 5.0);
+    setVisibleCount(24);
+  }, [initialFacets]);
 
   const clearAllFilters = () => {
     setSearch('');

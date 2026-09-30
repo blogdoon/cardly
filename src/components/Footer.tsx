@@ -1,11 +1,19 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Heart, Sparkles, ShieldCheck, Truck, RefreshCw, Mail } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
+import type { BrowseFacets } from '../utils/routes';
 
 interface FooterProps {
-  onNavigate: (route: string, param?: string) => void;
+  onNavigate: (route: string, param?: string, facets?: BrowseFacets) => void;
 }
 
 export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
+  // The reminder form has no backend yet, so it collects nothing and says so
+  // rather than showing a fake "you are subscribed" confirmation.
+  const [reminderNote, setReminderNote] = useState('');
+  // The admin link was previously rendered for every visitor, which pointed
+  // straight at the staff console. Only surface it to admins.
+  const { isAdmin } = useAuth();
   return (
     <footer className="bg-slate-900 text-slate-300 pt-16 pb-12 border-t border-slate-800">
       {/* Guarantees banner */}
@@ -77,17 +85,17 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
             <h5 className="font-bold text-white text-xs uppercase tracking-wider mb-4">Popular Occasions</h5>
             <ul className="space-y-2.5 text-xs text-slate-400">
               <li>
-                <button onClick={() => onNavigate('browse', 'Birthday')} className="hover:text-rose-400 transition">
+                <button onClick={() => onNavigate('browse', undefined, { occasion: 'Birthday' })} className="hover:text-rose-400 transition">
                   Birthday Cards
                 </button>
               </li>
               <li>
-                <button onClick={() => onNavigate('browse', 'Anniversary')} className="hover:text-rose-400 transition">
+                <button onClick={() => onNavigate('browse', undefined, { occasion: 'Anniversary' })} className="hover:text-rose-400 transition">
                   Anniversary Cards
                 </button>
               </li>
               <li>
-                <button onClick={() => onNavigate('browse', 'Wedding')} className="hover:text-rose-400 transition">
+                <button onClick={() => onNavigate('browse', undefined, { occasion: 'Wedding' })} className="hover:text-rose-400 transition">
                   Wedding Cards
                 </button>
               </li>
@@ -102,12 +110,12 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
                 </button>
               </li>
               <li>
-                <button onClick={() => onNavigate('browse', 'Congratulations')} className="hover:text-rose-400 transition">
+                <button onClick={() => onNavigate('browse', undefined, { occasion: 'Congratulations' })} className="hover:text-rose-400 transition">
                   Congratulations
                 </button>
               </li>
               <li>
-                <button onClick={() => onNavigate('browse', 'New Baby')} className="hover:text-rose-400 transition">
+                <button onClick={() => onNavigate('browse', undefined, { occasion: 'New Baby' })} className="hover:text-rose-400 transition">
                   New Baby Cards
                 </button>
               </li>
@@ -119,32 +127,32 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
             <h5 className="font-bold text-white text-xs uppercase tracking-wider mb-4">Cards For Someone</h5>
             <ul className="space-y-2.5 text-xs text-slate-400">
               <li>
-                <button onClick={() => onNavigate('browse', 'Mum')} className="hover:text-rose-400 transition">
+                <button onClick={() => onNavigate('browse', undefined, { recipient: 'Mum' })} className="hover:text-rose-400 transition">
                   Cards for Mum
                 </button>
               </li>
               <li>
-                <button onClick={() => onNavigate('browse', 'Dad')} className="hover:text-rose-400 transition">
+                <button onClick={() => onNavigate('browse', undefined, { recipient: 'Dad' })} className="hover:text-rose-400 transition">
                   Cards for Dad
                 </button>
               </li>
               <li>
-                <button onClick={() => onNavigate('browse', 'Best Friend')} className="hover:text-rose-400 transition">
+                <button onClick={() => onNavigate('browse', undefined, { recipient: 'Best Friend' })} className="hover:text-rose-400 transition">
                   Best Friend Cards
                 </button>
               </li>
               <li>
-                <button onClick={() => onNavigate('browse', 'Sister')} className="hover:text-rose-400 transition">
+                <button onClick={() => onNavigate('browse', undefined, { recipient: 'Sister' })} className="hover:text-rose-400 transition">
                   Cards for Sister
                 </button>
               </li>
               <li>
-                <button onClick={() => onNavigate('browse', 'Brother')} className="hover:text-rose-400 transition">
+                <button onClick={() => onNavigate('browse', undefined, { recipient: 'Brother' })} className="hover:text-rose-400 transition">
                   Cards for Brother
                 </button>
               </li>
               <li>
-                <button onClick={() => onNavigate('browse', 'Partner')} className="hover:text-rose-400 transition">
+                <button onClick={() => onNavigate('browse', undefined, { recipient: 'Partner' })} className="hover:text-rose-400 transition">
                   Cards for Partner
                 </button>
               </li>
@@ -161,16 +169,18 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
               <input
                 type="email"
                 placeholder="your.email@example.com"
+                aria-label="Email address for reminders"
                 className="bg-slate-800 border border-slate-700 text-xs text-white rounded-xl px-3 py-2 w-full focus:outline-rose-500 placeholder-slate-500"
               />
               <button
                 type="button"
-                onClick={() => alert('Thank you! You are subscribed to Cardly reminders.')}
+                onClick={() => setReminderNote('Email reminders are not switched on yet — we will say so here when they are.')}
                 className="bg-rose-500 hover:bg-rose-600 text-white px-3 py-2 rounded-xl text-xs font-semibold transition"
               >
                 Join
               </button>
             </div>
+            {reminderNote && <p className="text-[11px] text-rose-300 mb-3">{reminderNote}</p>}
             <div className="text-[11px] text-slate-500 space-y-1">
               <p>Delivery: standard letterbox across Europe, 3–5 working days</p>
               <p>Size options: Standard, Large, Giant</p>
@@ -188,9 +198,20 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
             <button onClick={() => onNavigate('account')} className="hover:text-slate-400 transition">
               My Account
             </button>
-            <button onClick={() => onNavigate('admin')} className="hover:text-slate-400 transition text-rose-400">
-              Admin Portal
+            <button onClick={() => onNavigate('privacy')} className="hover:text-slate-400 transition">
+              Privacy
             </button>
+            <button onClick={() => onNavigate('terms')} className="hover:text-slate-400 transition">
+              Terms
+            </button>
+            {isAdmin && (
+              <button
+                onClick={() => onNavigate('admin')}
+                className="hover:text-slate-400 transition text-rose-400"
+              >
+                Admin Portal
+              </button>
+            )}
           </div>
         </div>
       </div>

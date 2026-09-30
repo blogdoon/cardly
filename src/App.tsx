@@ -2,6 +2,7 @@ import React, { useState, useRef } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { CartProvider } from './context/CartContext';
 import { FavoritesProvider } from './context/FavoritesContext';
+import { CatalogProvider } from './context/CatalogContext';
 import { Navbar } from './components/Navbar';
 import { Footer } from './components/Footer';
 import { CartDrawer } from './components/CartDrawer';
@@ -15,10 +16,13 @@ import { Checkout } from './pages/Checkout';
 import { Favorites } from './pages/Favorites';
 import { Account } from './pages/Account';
 import { Admin } from './pages/Admin';
+import { Legal } from './pages/Legal';
+import { SharedCard } from './pages/SharedCard';
+import { ShieldAlert } from 'lucide-react';
 import { UserDesign } from './types/design';
 import { getUserDesigns, getDesignById, getActiveDraftId } from './services/cardStorage';
 import { getTemplateById } from './data/templates';
-import { RouteType, parsePath, routePath, ROUTE_META } from './utils/routes';
+import { RouteType, parsePath, routePath, ROUTE_META, type BrowseFacets } from './utils/routes';
 import { initAnalytics, trackPageview } from './utils/analytics';
 
 function setPageMeta(title: string, desc: string) {
@@ -49,11 +53,13 @@ function setPageMeta(title: string, desc: string) {
 export default function App() {
   return (
     <AuthProvider>
-      <CartProvider>
-        <FavoritesProvider>
-          <AppRoutes />
-        </FavoritesProvider>
-      </CartProvider>
+      <CatalogProvider>
+        <CartProvider>
+          <FavoritesProvider>
+            <AppRoutes />
+          </FavoritesProvider>
+        </CartProvider>
+      </CatalogProvider>
     </AuthProvider>
   );
 }
@@ -65,8 +71,12 @@ function AppRoutes() {
   const [routeParam, setRouteParam] = useState<string | undefined>(
     () => parsePath(window.location.pathname, window.location.search).param
   );
+  // Browse filters live in the query string, so they survive reload and back/forward.
+  const [routeFacets, setRouteFacets] = useState<BrowseFacets | undefined>(
+    () => parsePath(window.location.pathname, window.location.search).facets
+  );
   const [activeDesign, setActiveDesign] = useState<UserDesign | null>(null);
-  const { user, loading } = useAuth();
+  const { user, loading, isAdmin } = useAuth();
   const deepLinkHandled = useRef(false);
 
   // Deep-link handling: when a recipient scans the printed QR code, load their digital card/design.
@@ -158,10 +168,11 @@ function AppRoutes() {
   // Keep UI state in sync with the back/forward buttons.
   React.useEffect(() => {
     const onPopState = () => {
-      const { route, param } = parsePath(window.location.pathname, window.location.search);
+      const { route, param, facets } = parsePath(window.location.pathname, window.location.search);
       setActiveDesign(null);
       setCurrentRoute(route);
       setRouteParam(param);
+      setRouteFacets(facets);
     };
     window.addEventListener('popstate', onPopState);
     return () => window.removeEventListener('popstate', onPopState);
@@ -184,22 +195,23 @@ function AppRoutes() {
     trackPageview(window.location.pathname + window.location.search);
   }, [currentRoute, routeParam]);
 
-  const navigate = (route: RouteType, param?: string) => {
+  const navigate = (route: RouteType, param?: string, facets?: BrowseFacets) => {
     // A pushed URL replaces any previous editor session's ?design=, so a fresh
     // "Personalize" never resumes the card that was saved last time.
     try {
-      window.history.pushState({}, '', routePath(route, param));
+      window.history.pushState({}, '', routePath(route, param, facets));
     } catch (e) {
       console.warn(e);
     }
     setCurrentRoute(route);
     setRouteParam(param);
+    setRouteFacets(facets);
     setActiveDesign(null);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const handleNavigate = (route: string, param?: string) => {
-    navigate(route as RouteType, param);
+  const handleNavigate = (route: string, param?: string, facets?: BrowseFacets) => {
+    navigate(route as RouteType, param, facets);
   };
 
   const handlePersonalize = (templateId: string) => {
@@ -242,7 +254,7 @@ function AppRoutes() {
 
             {currentRoute === 'browse' && (
               <Browse
-                initialCategory={routeParam}
+                initialFacets={routeFacets}
                 onSelectCard={(id) => handleNavigate('card', id)}
                 onPersonalize={handlePersonalize}
               />
@@ -280,9 +292,20 @@ function AppRoutes() {
               />
             )}
 
-            {currentRoute === 'admin' && (
-              <Admin onNavigate={handleNavigate} />
+            {currentRoute === 'admin' &&
+              (isAdmin ? (
+                <Admin onNavigate={handleNavigate} />
+              ) : (
+                <AdminGate onNavigate={handleNavigate} />
+              ))}
+
+            {currentRoute === 'shared' && routeParam && (
+              <SharedCard shareId={routeParam} onNavigate={handleNavigate} />
             )}
+
+            {currentRoute === 'privacy' && <Legal doc="privacy" onNavigate={handleNavigate} />}
+
+            {currentRoute === 'terms' && <Legal doc="terms" onNavigate={handleNavigate} />}
 
             {currentRoute === 'notFound' && (
               <div className="max-w-xl mx-auto px-6 py-24 text-center space-y-4">
@@ -318,6 +341,48 @@ function AppRoutes() {
           <CartDrawer onNavigate={handleNavigate} />
         </>
       )}
+    </div>
+  );
+}
+
+/**
+ * Shown instead of the admin console to signed-out visitors and non-admins.
+ *
+ * NOTE: this is a client-side gate only. It stops the console from rendering in
+ * a browser, but Firestore rules remain the real boundary — see the "Admin
+ * authorization" blocker in AGENTS.md. The rules still key off a hardcoded
+ * email, which needs to become an `admin` custom claim.
+ */
+function AdminGate({ onNavigate }: { onNavigate: (route: string, param?: string) => void }) {
+  const { user, signInWithGoogle } = useAuth();
+
+  return (
+    <div className="max-w-xl mx-auto px-6 py-24 text-center space-y-4">
+      <ShieldAlert className="w-12 h-12 text-rose-500 mx-auto" />
+      <h1 className="text-2xl font-black text-slate-900">Staff access only</h1>
+      <p className="text-sm text-slate-600">
+        {user
+          ? `You are signed in as ${user.email}, which does not have admin permission.`
+          : 'Sign in with an admin account to manage the card catalog.'}
+      </p>
+      <div className="flex justify-center gap-2 pt-2">
+        {!user && (
+          <button
+            type="button"
+            onClick={() => signInWithGoogle()}
+            className="px-4 py-2 rounded-xl bg-rose-600 text-white text-sm font-semibold hover:bg-rose-700 cursor-pointer"
+          >
+            Sign in
+          </button>
+        )}
+        <button
+          type="button"
+          onClick={() => onNavigate('home')}
+          className="px-4 py-2 rounded-xl border border-slate-200 text-slate-700 text-sm font-semibold hover:bg-slate-50 cursor-pointer"
+        >
+          Back home
+        </button>
+      </div>
     </div>
   );
 }

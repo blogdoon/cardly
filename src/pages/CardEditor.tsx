@@ -20,6 +20,7 @@ import { auth } from '../services/firebase';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import { getCardDesignThumbnail } from '../utils/imageOptimizer';
+import { editablePagesFrom } from '../utils/frontCover';
 import { X, Sparkles, Undo2, Redo2 } from 'lucide-react';
 
 interface CardEditorProps {
@@ -112,14 +113,9 @@ export const CardEditor: React.FC<CardEditorProps> = ({
     }
 
     if (template) {
-      return {
-        front: JSON.parse(JSON.stringify(template.defaultPages.front)),
-        insideLeft: template.defaultPages.insideLeft
-          ? JSON.parse(JSON.stringify(template.defaultPages.insideLeft))
-          : { pageType: 'inside-left', backgroundColor: '#ffffff', elements: [] },
-        insideRight: JSON.parse(JSON.stringify(template.defaultPages.insideRight)),
-        back: JSON.parse(JSON.stringify(template.defaultPages.back)),
-      };
+      // The front is artwork only — templates that ship with a baked-in headline
+      // are stripped, and the customer starts from a blank cover.
+      return editablePagesFrom(template);
     }
 
     return {
@@ -881,6 +877,7 @@ export const CardEditor: React.FC<CardEditorProps> = ({
       thumbnail: effectiveThumbnail,
       cardSize: 'standard',
       envelopeColor: 'white',
+      finish: 'satin',
       quantity: 1,
       unitPrice: template?.price || 3.99,
       addons: [],
