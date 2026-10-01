@@ -2,7 +2,7 @@
  * Checks the order-lifecycle and review rules that are easy to get wrong.
  *
  * The pure functions live in src/types/order.ts and src/services/reviewService.ts.
- * reviewService imports firebase/firestore at the top level, so this checks the
+ * reviewService imports the Supabase client at the top level, so this checks the
  * pieces that do not need a live connection; the aggregation maths is exercised
  * through `summarise`.
  *
@@ -114,8 +114,8 @@ eq('over-refund is clamped to the total', clamp(makeOrder(), 99), 11.45);
 eq('a negative refund is clamped to zero', clamp(makeOrder(), -10), 0);
 
 // --- review document id ------------------------------------------------------
-// Pinned by firestore.rules to `${orderId}_${templateId}`, which is what allows
-// exactly one review per order per card.
+// The composite primary key (order_id, template_id) enforces "one review per
+// order per card"; reviewDocId derives the client-side id from the same pair.
 eq('review id is order and template', reviewDocId('ord_1', 'card-001'), 'ord_1_card-001');
 eq('review id is stable', reviewDocId('ord_1', 'card-001'), reviewDocId('ord_1', 'card-001'));
 eq('a different order yields a different id', reviewDocId('ord_2', 'card-001'), 'ord_2_card-001');

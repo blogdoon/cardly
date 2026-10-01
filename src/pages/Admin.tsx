@@ -26,7 +26,7 @@ import { useAuth } from '../context/AuthContext';
 import { useCatalog } from '../context/CatalogContext';
 import { upsertTemplate } from '../services/catalogService';
 import { TemplateFacetEditor } from '../components/Admin/TemplateFacetEditor';
-import { isFirebaseConfigured } from '../services/firebase';
+import { isSupabaseConfigured } from '../services/supabase';
 import { OccasionStudio } from '../components/Admin/OccasionStudio';
 import { AdminOrdersPanel } from '../components/Admin/AdminOrdersPanel';
 import { AdminReviewsPanel } from '../components/Admin/AdminReviewsPanel';
@@ -112,7 +112,7 @@ export const Admin: React.FC<AdminProps> = ({ onNavigate }) => {
     });
   }, [showRetired, documents, templates, selectedCategory, search]);
 
-  /** True for templates created locally in Occasion Studio (no Firestore doc). */
+  /** True for templates created locally in Occasion Studio (no Postgres doc). */
   const isLocallyCreated = useCallback(
     (id: string) => !documents.some((d) => d.id === id),
     [documents]
@@ -191,7 +191,7 @@ export const Admin: React.FC<AdminProps> = ({ onNavigate }) => {
     setBulkBusy(true);
     setBulkProgress({ done: 0, total: ids.length + customIds.length });
     try {
-      // Locally created cards have no Firestore document to retire.
+      // Locally created cards have no Postgres document to retire.
       customIds.forEach((id) => unregisterCustomTemplate(id));
 
       const dbIds = ids.filter((id) => !customIds.includes(id));
@@ -214,7 +214,7 @@ export const Admin: React.FC<AdminProps> = ({ onNavigate }) => {
         tone: 'error',
         text:
           e instanceof Error
-            ? `Bulk delete failed: ${e.message}. Check that firestore.rules allow admin writes.`
+            ? `Bulk delete failed: ${e.message}. Check that RLS policies allow admin writes.`
             : 'Bulk delete failed.',
       });
     } finally {
@@ -325,7 +325,7 @@ export const Admin: React.FC<AdminProps> = ({ onNavigate }) => {
         tone: 'error',
         text:
           e instanceof Error
-            ? `Could not delete: ${e.message}. Check that firestore.rules allow admin writes.`
+            ? `Could not delete: ${e.message}. Check that RLS policies allow admin writes.`
             : 'Could not delete that template.',
       });
     } finally {
@@ -415,7 +415,7 @@ export const Admin: React.FC<AdminProps> = ({ onNavigate }) => {
               activeTab === 'system' ? 'bg-white shadow-xs text-slate-900' : 'text-slate-600'
             }`}
           >
-            System & Firebase
+            System & Supabase
           </button>
         </div>
       </div>
@@ -437,7 +437,7 @@ export const Admin: React.FC<AdminProps> = ({ onNavigate }) => {
             {status.source === 'loading' && 'Loading from the database…'}
             {status.source === 'empty' &&
               'Catalog is empty — create cards in Occasions & Studio'}
-            {status.source === 'offline' && 'Firebase not configured — cannot load the catalog'}
+            {status.source === 'offline' && 'Supabase not configured — cannot load the catalog'}
             {status.source === 'error' && 'Database unavailable — cannot load the catalog'}
           </div>
         </div>
@@ -541,7 +541,7 @@ export const Admin: React.FC<AdminProps> = ({ onNavigate }) => {
           {status.source === 'error' && (
             <div className="px-4 py-3 rounded-2xl bg-rose-50 border border-rose-200">
               <p className="text-xs text-rose-800 leading-relaxed">
-                Could not read the catalog: {status.error}. Check your Firestore rules and network.
+                Could not read the catalog: {status.error}. Check your Supabase RLS policies and network.
               </p>
             </div>
           )}
@@ -767,7 +767,7 @@ export const Admin: React.FC<AdminProps> = ({ onNavigate }) => {
         />
       )}
 
-      {/* Tab: System & Firebase */}
+      {/* Tab: System & Supabase */}
       {activeTab === 'system' && (
         <div className="bg-white rounded-3xl border border-slate-200/90 p-6 shadow-2xs space-y-6">
           <h2 className="font-bold text-slate-900 text-base">System Configuration & Security</h2>
@@ -775,7 +775,7 @@ export const Admin: React.FC<AdminProps> = ({ onNavigate }) => {
           <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-2 text-xs text-slate-700">
             <div className="flex items-center gap-2 font-bold text-slate-900">
               <ShieldCheck className="w-4 h-4 text-emerald-600" />
-              <span>Security Rules Audit (firestore.rules)</span>
+              <span>Security Rules Audit (RLS policies)</span>
             </div>
             <p className="leading-relaxed text-slate-600">
               Production security rules configured with request.auth checks, user isolation for
@@ -792,23 +792,23 @@ export const Admin: React.FC<AdminProps> = ({ onNavigate }) => {
           <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-2 text-xs text-slate-700">
             <div className="flex items-center gap-2 font-bold text-slate-900">
               <Database className="w-4 h-4 text-rose-500" />
-              <span>Firebase Connection Status</span>
+              <span>Supabase Connection Status</span>
             </div>
             <p className="leading-relaxed text-slate-600">
-              {isFirebaseConfigured
-                ? 'Connected to live Firebase instance. Real authentication, Firestore persistence, and storage uploads active.'
+              {isSupabaseConfigured
+                ? 'Connected to live Supabase instance. Real authentication, Postgres persistence, and storage uploads active.'
                 : 'Preview & LocalStorage Mode Active. All user actions, card editing, favorites, orders, and Google login are fully responsive and persistent.'}
             </p>
             <p className="leading-relaxed text-slate-600">
               Catalog source:{' '}
               <strong className="text-slate-800">
                 {status.source === 'database'
-                  ? 'Firestore `templates/` (live)'
+                  ? 'Supabase `templates` (live)'
                   : status.source === 'offline'
-                    ? 'bundled seed (Firebase not configured)'
+                    ? 'empty (Supabase not configured)'
                     : status.source === 'error'
-                      ? `bundled seed (${status.error})`
-                      : 'bundled seed (not seeded yet)'}
+                      ? `empty (${status.error})`
+                      : 'empty (no templates yet)'}
               </strong>
               {documents.length > 0 && ` · ${documents.length} documents, ${retiredIds.size} retired`}
             </p>

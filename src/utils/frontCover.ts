@@ -12,7 +12,7 @@
  * is the studio's own mark.
  *
  * This is enforced at load time rather than by migrating the database, so cards
- * already stored in Firestore are cleaned up too.
+ * already stored in Postgres are cleaned up too.
  */
 
 import type { CardElement, CardPageDefinition, CardTemplate } from '../types/template';

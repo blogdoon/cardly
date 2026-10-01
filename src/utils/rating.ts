@@ -1,5 +1,5 @@
 /**
- * Rating aggregation, kept free of any Firebase import so it can be unit tested
+ * Rating aggregation, kept free of any Supabase import so it can be unit tested
  * and reasoned about on its own. `services/reviewService.ts` re-exports these.
  *
  * Only APPROVED reviews count. That is the whole point of moderation: a pending
@@ -51,7 +51,7 @@ export function summarise(reviews: ReviewLike[]): RatingSummary {
 /**
  * The deterministic review document id.
  *
- * `firestore.rules` pins a review's id to `${orderId}_${templateId}`, which is
+ * `RLS policies` pins a review's id to `${orderId}_${templateId}`, which is
  * how "one review per order per card" is enforced: a second attempt collides on
  * the same document rather than creating another.
  */

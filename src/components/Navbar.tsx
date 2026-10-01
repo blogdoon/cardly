@@ -19,7 +19,6 @@ import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import { useFavorites } from '../context/FavoritesContext';
 import { OCCASIONS_LIST, RECIPIENTS_LIST } from '../data/categories';
-import { FirebaseModal } from './FirebaseModal';
 import type { BrowseFacets } from '../utils/routes';
 
 interface NavbarProps {
@@ -28,7 +27,7 @@ interface NavbarProps {
 }
 
 export const Navbar: React.FC<NavbarProps> = ({ onNavigate, currentRoute }) => {
-  const { user, signInWithGoogle, signOut, isAdmin, isFirebaseActive } = useAuth();
+  const { user, openSignIn, signOut, isAdmin, isAuthActive } = useAuth();
   const { itemCount, setIsCartDrawerOpen } = useCart();
   const { count: favCount } = useFavorites();
 
@@ -36,7 +35,6 @@ export const Navbar: React.FC<NavbarProps> = ({ onNavigate, currentRoute }) => {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
-  const [isFirebaseModalOpen, setIsFirebaseModalOpen] = useState(false);
   const [activeDropdown, setActiveDropdown] = useState<'occasions' | 'recipients' | null>(null);
 
   const searchRef = useRef<HTMLDivElement>(null);
@@ -89,13 +87,13 @@ export const Navbar: React.FC<NavbarProps> = ({ onNavigate, currentRoute }) => {
         <div className="bg-gradient-to-r from-rose-500 via-rose-600 to-amber-500 text-white text-xs font-medium py-1.5 px-4 text-center flex items-center justify-center gap-2">
           <Sparkles className="w-3.5 h-3.5 animate-pulse text-amber-200" />
           <span>Special Offer: Use code <strong className="underline tracking-wider font-bold">CARDLY20</strong> for 20% off your entire card order!</span>
-          <button
-            onClick={() => setIsFirebaseModalOpen(true)}
-            className="hidden md:inline-flex items-center gap-1 ml-4 bg-white/20 hover:bg-white/30 px-2 py-0.5 rounded-full text-[10px] tracking-wide uppercase transition"
+          <span
+            className="hidden md:inline-flex items-center gap-1 ml-4 bg-white/20 px-2 py-0.5 rounded-full text-[10px] tracking-wide uppercase"
+            title={isAuthActive ? 'Connected to Supabase' : 'Running in local demo mode'}
           >
-            <span className={`w-1.5 h-1.5 rounded-full ${isFirebaseActive ? 'bg-emerald-300' : 'bg-amber-300'}`} />
-            {isFirebaseActive ? 'Firebase Live' : 'Demo Mode'}
-          </button>
+            <span className={`w-1.5 h-1.5 rounded-full ${isAuthActive ? 'bg-emerald-300' : 'bg-amber-300'}`} />
+            {isAuthActive ? 'Live' : 'Demo Mode'}
+          </span>
         </div>
 
         {/* Main Header bar */}
@@ -239,7 +237,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onNavigate, currentRoute }) => {
                   </button>
                 ) : (
                   <button
-                    onClick={() => signInWithGoogle()}
+                    onClick={openSignIn}
                     className="flex items-center gap-1.5 px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-full text-xs font-semibold shadow-xs transition"
                   >
                     <User className="w-3.5 h-3.5" />
@@ -553,11 +551,11 @@ export const Navbar: React.FC<NavbarProps> = ({ onNavigate, currentRoute }) => {
                 <button
                   onClick={() => {
                     setIsMobileMenuOpen(false);
-                    signInWithGoogle();
+                    openSignIn();
                   }}
                   className="w-full py-2.5 bg-slate-900 text-white rounded-xl text-xs font-semibold text-center"
                 >
-                  Sign in with Google
+                  Sign In
                 </button>
               )}
             </div>
@@ -565,11 +563,6 @@ export const Navbar: React.FC<NavbarProps> = ({ onNavigate, currentRoute }) => {
         )}
       </header>
 
-      {/* Firebase Setup & Status Modal */}
-      <FirebaseModal
-        isOpen={isFirebaseModalOpen}
-        onClose={() => setIsFirebaseModalOpen(false)}
-      />
     </>
   );
 };

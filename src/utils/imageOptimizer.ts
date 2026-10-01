@@ -2,7 +2,7 @@
  * Utility for client-side image optimization and compression.
  * Resizes large user uploads (e.g. 5MB-15MB camera photos) down to lightweight web-ready
  * WebP/JPEG images (~60KB - 120KB) so they fit comfortably within both browser
- * localStorage quotas (5MB origin cap) and Firestore document limits (1MB per doc).
+ * localStorage quotas (5MB origin cap) and Postgres document limits (1MB per doc).
  */
 
 export interface OptimizedImageResult {

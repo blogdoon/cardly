@@ -7,7 +7,7 @@
  * everywhere immediately.
  *
  * `subscribeToCatalog` is a module-level singleton subscription — the provider
- * holds the only Firestore listener and fans the result out to consumers.
+ * holds the only Postgres listener and fans the result out to consumers.
  */
 
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
@@ -29,7 +29,7 @@ import {
 interface CatalogContextValue {
   /** Live catalog, retired templates removed. */
   templates: CardTemplate[];
-  /** Every document in Firestore, retired ones included — admin screens only. */
+  /** Every document in Postgres, retired ones included — admin screens only. */
   documents: CatalogDocument[];
   status: CatalogStatus;
   /** True while the first snapshot is in flight. */
@@ -53,7 +53,7 @@ export const CatalogProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [status, setStatus] = useState<CatalogStatus>({ source: 'loading', templateCount: 0 });
   const [loading, setLoading] = useState(true);
 
-  // One Firestore listener for the whole app.
+  // One Postgres listener for the whole app.
   useEffect(() => {
     setLoading(true);
     const unsubscribe = subscribeToCatalog(

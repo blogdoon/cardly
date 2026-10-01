@@ -45,7 +45,7 @@
         {
           "heading": "Who processes it on our behalf",
           "body": [
-            "Google Firebase (Authentication, Firestore and Storage) — hosts accounts, designs, orders and uploaded photos. Data may be processed outside the UK/EEA under Google's standard contractual clauses.",
+            "Supabase (Authentication, Postgres database and Storage) — hosts accounts, designs, orders and uploaded photos. Data is processed in the EU (eu-west-1, Ireland).",
             "Google Gemini — if you use the \"Write it for me\" button, the recipient name, occasion and tone you entered are sent to Google to generate a draft message. The text you keep is stored in your design. Do not use the feature to enter information you would not want shared with a third-party processor.",
             "Our payment provider — card details are entered on the provider's hosted fields and never pass through or touch Cardly's own code.",
             "Our print and delivery partners — they receive only what is needed to print and post your card: the design, the message, and the delivery address.",
@@ -80,7 +80,7 @@
         {
           "heading": "Cookies and local storage",
           "body": [
-            "Cardly does not set advertising cookies. We use browser local storage to remember your basket, favourites, saved designs, address book and your current editor session. Firebase Authentication may set its own cookies or tokens to keep you signed in.",
+            "Cardly does not set advertising cookies. We use browser local storage to remember your basket, favourites, saved designs, address book and your current editor session. Supabase Authentication may set its own cookies or tokens to keep you signed in.",
             "If we enable analytics (Google Analytics), that adds its own cookies. This policy will be updated before any such change ships."
           ]
         }

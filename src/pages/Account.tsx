@@ -58,7 +58,7 @@ export const Account: React.FC<AccountProps> = ({
   onNavigate,
   onEditDesign,
 }) => {
-  const { user, signOut, signInWithGoogle } = useAuth();
+  const { user, signOut, openSignIn } = useAuth();
   const { addItem } = useCart();
   const [activeTab, setActiveTab] = useState<'designs' | 'orders' | 'addresses'>(initialTab);
 
@@ -235,10 +235,10 @@ export const Account: React.FC<AccountProps> = ({
           Sign in to access your saved card creations, view order tracking timelines, and manage delivery addresses.
         </p>
         <button
-          onClick={() => signInWithGoogle()}
+          onClick={openSignIn}
           className="px-6 py-3 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl shadow-xs transition"
         >
-          Sign In with Google
+          Sign In
         </button>
       </div>
     );

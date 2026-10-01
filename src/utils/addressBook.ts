@@ -4,7 +4,7 @@ const LOCAL_ADDRESSES_KEY = 'cardly_saved_addresses';
 
 /**
  * The address book lives in localStorage, matching designs/favorites/orders.
- * The Firestore user doc is never read back for `savedAddresses` (see
+ * The Postgres user doc is never read back for `savedAddresses` (see
  * authService), so writing only there would lose the book on every reload.
  */
 export function getSavedAddresses(): DeliveryAddress[] {

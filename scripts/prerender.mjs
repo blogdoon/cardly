@@ -2,8 +2,8 @@
 // real <title>/meta/canonical and visible content without running JavaScript.
 // Run after `vite build` (see the `build` script in package.json).
 //
-// The catalog lives in Firestore and is NOT in the client bundle, and this build has no
-// Firebase credentials — so the template list comes from scripts/catalog.manifest.json.
+// The catalog lives in Postgres and is NOT in the client bundle, and this build has no
+// database credentials — so the template list comes from scripts/catalog.manifest.json.
 // Regenerate that with `node scripts/export-manifest.mjs`.
 import fs from 'node:fs';
 import path from 'node:path';
@@ -96,7 +96,7 @@ const PAGE_STYLE = `
 `;
 
 // Templates retired from the admin console must not keep serving static pages or
-// sitemap entries. Retirements live in Firestore (written at runtime), so they
+// sitemap entries. Retirements live in Postgres (written at runtime), so they
 // are piped in at build time via RETIRED_TEMPLATE_IDS (comma-separated) or a
 // scripts/retired-templates.json list — see AGENTS.md.
 const RETIRED_IDS = (() => {

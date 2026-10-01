@@ -7,7 +7,7 @@
  * template, and it appears publicly only once an admin approves it.
  *
  * The gate is enforced in three places, which is worth knowing when reading this:
- *  - Firestore rules pin the document id to `${orderId}_${templateId}`, so one
+ *  - Postgres rules pin the document id to `${orderId}_${templateId}`, so one
  *    order yields at most one review per card;
  *  - the rules require the review to be created as `pending`;
  *  - the client only offers the form for templates the customer has bought.

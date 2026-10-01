@@ -138,7 +138,7 @@ export const Browse: React.FC<BrowseProps> = ({
   const [templateList, setTemplateList] = useState<CardTemplate[]>(getLiveCatalog());
 
   useEffect(() => {
-    // Re-read the live catalog (Firestore-backed) whenever it changes, so an
+    // Re-read the live catalog (Postgres-backed) whenever it changes, so an
     // admin deletion disappears from the grid without a page reload.
     const handleUpdate = () => setTemplateList([...getLiveCatalog()]);
     window.addEventListener('cardly_templates_updated', handleUpdate);

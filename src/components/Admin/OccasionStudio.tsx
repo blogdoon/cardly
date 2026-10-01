@@ -156,7 +156,7 @@ export const OccasionStudio: React.FC<OccasionStudioProps> = ({ onNavigate, onTe
 
   // Generate & Publish Template
   //
-  // The catalog now lives in Firestore and nothing is bundled, so "publish" must
+  // The catalog now lives in Postgres and nothing is bundled, so "publish" must
   // actually write to the database — otherwise a card created here would only
   // ever exist in this browser. We register locally first so the UI updates
   // instantly, then persist; a failed write is reported rather than swallowed.
@@ -191,7 +191,7 @@ export const OccasionStudio: React.FC<OccasionStudioProps> = ({ onNavigate, onTe
       await upsertTemplate(newTemplate);
       setPublishError(null);
     } catch (e) {
-      console.error('Could not publish template to Firestore:', e);
+      console.error('Could not publish template to Postgres:', e);
       setPublishError(
         e instanceof Error
           ? `Saved in this browser only — publishing to the database failed: ${e.message}`
@@ -208,7 +208,7 @@ export const OccasionStudio: React.FC<OccasionStudioProps> = ({ onNavigate, onTe
   const handleDeleteCustomTemplate = async (id: string) => {
     // Drop the local copy first so the list updates, then retire it in the
     // database (if it was ever published) so it leaves the storefront for
-    // everyone. A card that never reached Firestore has nothing to retire.
+    // everyone. A card that never reached Postgres has nothing to retire.
     unregisterCustomTemplate(id);
     setCustomTemplates(getCustomUploadedTemplates());
     if (latestCreatedTemplate?.id === id) {
@@ -218,7 +218,7 @@ export const OccasionStudio: React.FC<OccasionStudioProps> = ({ onNavigate, onTe
     try {
       await deleteTemplate(id);
     } catch (e) {
-      console.warn(`Could not retire ${id} in Firestore:`, e);
+      console.warn(`Could not retire ${id} in Postgres:`, e);
     }
   };
 

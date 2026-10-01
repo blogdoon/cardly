@@ -1,16 +1,17 @@
-import { doc, getDoc, setDoc, deleteDoc } from 'firebase/firestore';
-import { db, isFirebaseConfigured, auth } from './firebase';
+import { db, isSupabaseConfigured, currentUserId } from './supabase';
 import { UserDesign } from '../types/design';
-import { handleFirestoreError, OperationType } from './firestoreErrors';
 
 /**
- * Read-only "proof" links: a customer shares a card with someone for approval
- * before ordering it. Backed by Firestore rather than localStorage because the
+ * Read-only "proof" links: a customer shares a card for approval before
+ * ordering. Backed by `public.shared_cards` (not localStorage) because the
  * recipient is a different person on a different device.
  *
- * The share id is the only secret. `firestore.rules` allows anonymous reads on
- * /shared/{shareId}, so the id must be unguessable — hence crypto.randomUUID.
+ * The share id is the only secret. The select policy is public, so the id must
+ * be unguessable — hence crypto.randomUUID. The table stores only `pages` +
+ * title + owner, never an address or order detail (the row is world-readable).
  */
+
+const TABLE = 'shared_cards';
 
 export interface SharedProof {
   shareId: string;
@@ -25,8 +26,11 @@ export interface SharedProof {
 /** Proofs are disposable; 30 days is long enough to collect opinions. */
 const PROOF_TTL_DAYS = 30;
 
+const expiryOf = (createdAt: string): string =>
+  new Date(new Date(createdAt).getTime() + PROOF_TTL_DAYS * 86_400_000).toISOString();
+
 export function isShareAvailable(): boolean {
-  return isFirebaseConfigured && Boolean(db) && Boolean(auth?.currentUser);
+  return isSupabaseConfigured;
 }
 
 export function sharePath(shareId: string): string {
@@ -34,67 +38,65 @@ export function sharePath(shareId: string): string {
 }
 
 export async function createShareProof(design: UserDesign): Promise<SharedProof> {
-  const user = auth?.currentUser;
-  if (!db || !user) throw new Error('Sign in to share a card proof.');
+  const ownerId = await currentUserId();
+  if (!ownerId) throw new Error('Sign in to share a card proof.');
 
   const shareId = crypto.randomUUID();
-  const now = new Date();
-  const expires = new Date(now.getTime() + PROOF_TTL_DAYS * 24 * 60 * 60 * 1000);
+  const createdAt = new Date().toISOString();
 
-  const proof: SharedProof = {
+  const { error } = await db().from(TABLE).insert({
+    id: shareId,
+    owner_id: ownerId,
+    title: design.title,
+    pages: design.pages,
+  });
+  if (error) throw new Error(error.message);
+
+  return {
     shareId,
-    ownerId: user.uid,
+    ownerId,
     title: design.title,
     design,
-    createdAt: now.toISOString(),
-    expiresAt: expires.toISOString(),
+    createdAt,
+    expiresAt: expiryOf(createdAt),
   };
-
-  const path = `shared/${shareId}`;
-  try {
-    await setDoc(doc(db, 'shared', shareId), proof);
-  } catch (e: any) {
-    if (e?.code === 'permission-denied') {
-      handleFirestoreError(e, OperationType.CREATE, path);
-    }
-    throw e;
-  }
-  return proof;
 }
 
-/** A hung read must not leave the recipient staring at a spinner forever. */
-const READ_TIMEOUT_MS = 8000;
-
 export async function getShareProof(shareId: string): Promise<SharedProof | null> {
-  if (!db || !shareId) return null;
+  if (!isSupabaseConfigured || !shareId) return null;
   try {
-    const read = (async () => {
-      const snap = await getDoc(doc(db, 'shared', shareId));
-      if (!snap.exists()) return null;
-      return snap.data() as SharedProof;
-    })();
+    const { data, error } = await db()
+      .from(TABLE)
+      .select('*')
+      .eq('id', shareId)
+      .maybeSingle();
+    if (error || !data) return null;
 
-    const proof = await Promise.race([
-      read,
-      new Promise<null>((resolve) => setTimeout(() => resolve(null), READ_TIMEOUT_MS)),
-    ]);
+    const createdAt = (data.created_at as string) ?? new Date().toISOString();
+    const expiresAt = expiryOf(createdAt);
+    // Soft expiry: the client refuses a stale link.
+    if (new Date(expiresAt).getTime() < Date.now()) return null;
 
-    // Soft expiry: rules cannot compare dates, so the client refuses a stale link.
-    if (proof?.expiresAt && new Date(proof.expiresAt).getTime() < Date.now()) return null;
-    return proof;
-  } catch (e: any) {
-    if (e?.code === 'permission-denied') {
-      handleFirestoreError(e, OperationType.LIST, `shared/${shareId}`);
-    }
+    // Only `pages` is stored; reconstruct the minimal design the viewer needs.
+    const design = { pages: data.pages, title: data.title } as unknown as UserDesign;
+    return {
+      shareId,
+      ownerId: (data.owner_id as string) ?? '',
+      title: (data.title as string) ?? '',
+      design,
+      createdAt,
+      expiresAt,
+    };
+  } catch (e) {
     console.warn('Could not load share proof:', e);
     return null;
   }
 }
 
 export async function revokeShareProof(shareId: string): Promise<void> {
-  if (!db) return;
+  if (!isSupabaseConfigured) return;
   try {
-    await deleteDoc(doc(db, 'shared', shareId));
+    await db().from(TABLE).delete().eq('id', shareId);
   } catch (e) {
     console.warn('Could not revoke share proof:', e);
   }

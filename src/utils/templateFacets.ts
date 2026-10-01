@@ -1,5 +1,5 @@
 /**
- * Browse metadata for a template, derived once and stored on the Firestore doc.
+ * Browse metadata for a template, derived once and stored on the Postgres doc.
  *
  * The catalog lives in the database now, so every facet the storefront filters
  * on has to be a real, queryable field on `templates/{id}`. Previously both
@@ -329,7 +329,7 @@ const SEASONS = SEASON_TYPES;
 
 /**
  * Coerce one facet to a member of its union, falling back when the stored value
- * is absent or not recognised. Without this, a hand-edited Firestore doc can
+ * is absent or not recognised. Without this, a hand-edited Postgres doc can
  * hold `style: "Botanical"` and the storefront silently drops that card from
  * every style filter.
  */
@@ -474,7 +474,7 @@ const round2 = (n: number) => Math.round(n * 100) / 100;
  * Build the full facet set for a template.
  *
  * Values already present on `existing` win — the database is the source of
- * truth, and an admin editing a card in Firestore must not be undone by a
+ * truth, and an admin editing a card in Postgres must not be undone by a
  * rebuild. Only *missing or invalid* fields are filled in, which is what makes
  * this safe to run on the read path (see `mergeCatalog` in
  * `services/catalogService.ts`) and needs no migration.

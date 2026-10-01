@@ -40,7 +40,7 @@ export const AdminReviewsPanel: React.FC = () => {
       } catch (e) {
         setError(
           e instanceof Error
-            ? `${e.message} — check that firestore.rules allow admin review moderation.`
+            ? `${e.message} — check that RLS policies allow admin review moderation.`
             : 'That action failed.'
         );
       } finally {

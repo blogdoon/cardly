@@ -1,13 +1,16 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { UserProfile } from '../types/user';
 import { loginWithGoogle, logoutUser, subscribeToAuth } from '../services/authService';
-import { isFirebaseConfigured } from '../services/firebase';
+import { isSupabaseConfigured } from '../services/supabase';
+import { SignInModal } from '../components/SignInModal';
 
 interface AuthContextType {
   user: UserProfile | null;
   loading: boolean;
-  isFirebaseActive: boolean;
+  isAuthActive: boolean;
   signInWithGoogle: () => Promise<void>;
+  /** Opens the email/password + Google sign-in dialog. */
+  openSignIn: () => void;
   signOut: () => Promise<void>;
   isAdmin: boolean;
 }
@@ -17,6 +20,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [signInOpen, setSignInOpen] = useState(false);
 
   useEffect(() => {
     const unsub = subscribeToAuth((profile) => {
@@ -27,15 +31,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const handleGoogleSignIn = async () => {
+    // Redirects to Google and back; the session arrives via subscribeToAuth on
+    // reload, so there is no profile to set here.
+    setLoading(true);
     try {
-      setLoading(true);
-      const profile = await loginWithGoogle();
-      setUser(profile);
+      await loginWithGoogle();
     } catch (err) {
+      setLoading(false);
       console.error(err);
       throw err;
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -44,9 +48,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUser(null);
   };
 
-  // `role` is resolved from the `admin` custom claim (with a legacy email
-  // fallback) in authService. Re-checking the email here would re-open the
-  // hardcoded-email hole the claim was meant to close.
+  // `role` is resolved from the `app_metadata.is_admin` flag on the Supabase
+  // JWT (the same field the RLS `is_admin()` reads). Re-checking here would
+  // duplicate a server-controlled decision.
   const isAdmin = user?.role === 'admin';
 
   return (
@@ -54,13 +58,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       value={{
         user,
         loading,
-        isFirebaseActive: isFirebaseConfigured,
+        isAuthActive: isSupabaseConfigured,
         signInWithGoogle: handleGoogleSignIn,
+        openSignIn: () => setSignInOpen(true),
         signOut: handleSignOut,
         isAdmin,
       }}
     >
       {children}
+      {signInOpen && !user && (
+        <SignInModal onClose={() => setSignInOpen(false)} onGoogle={handleGoogleSignIn} />
+      )}
     </AuthContext.Provider>
   );
 };

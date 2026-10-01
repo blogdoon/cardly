@@ -104,7 +104,7 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
               </span>
             )}
             {autosaveStatus === 'saved' && (
-              <span className="text-emerald-600 flex items-center gap-1 font-medium truncate" title="Saved automatically to Firestore and local storage">
+              <span className="text-emerald-600 flex items-center gap-1 font-medium truncate" title="Saved automatically to your account and local storage">
                 <Check className="w-2.5 h-2.5 shrink-0" />
                 <span className="hidden xs:inline">
                   {lastSavedAt ? `Saved ${lastSavedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : 'Saved to Cloud'}

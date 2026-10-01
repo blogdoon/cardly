@@ -1,7 +1,7 @@
 /**
  * Checks that every browse facet is derived, stored, and true.
  *
- * The catalog lives in Firestore, so the fields `Browse.tsx` filters on —
+ * The catalog lives in Postgres, so the fields `Browse.tsx` filters on —
  * category, recipient, style, photo and milestone — have to be real, queryable
  * fields on `templates/{id}`. Both generators used to hardcode
  * `recipient: 'Anyone'` / `style: 'Floral'` for every card, which meant those
@@ -108,7 +108,7 @@ eq('unknown artwork uses the fallback recipients', unknown.recipients, [...DEFAU
 
 // Templates written before the facets became arrays stored `recipient: 'X'` and
 // `style: 'Y'` as single values. Those must widen on read, or every existing
-// Firestore document would be invisible to the array-based filters.
+// Postgres document would be invisible to the array-based filters.
 const legacy = buildTemplateFacets({
   occasion: 'Birthday',
   imageUrl: art('monstera_vase_terracotta.png'),
@@ -236,7 +236,7 @@ ok('a junk price does not produce NaN', priceRangeFor(Number.NaN).max >= 0);
 
 // --- a hand-edited doc cannot poison a facet --------------------------------
 
-// Someone typing "Botanical" into Firestore must not produce a card that no
+// Someone typing "Botanical" into Postgres must not produce a card that no
 // style filter can ever return.
 const bad = buildTemplateFacets({
   occasion: 'Birthday',

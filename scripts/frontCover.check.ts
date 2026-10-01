@@ -2,7 +2,7 @@
  * Checks the front-cover text policy: a template's first side is artwork only.
  *
  * The customer adds their own wording, so a template that ships with a baked-in
- * headline is a bug — and templates live in Firestore, so this has to hold for
+ * headline is a bug — and templates live in Postgres, so this has to hold for
  * data this repo does not contain. The policy is enforced at load time by
  * `editablePagesFrom` / `stripFrontText`, and templates are generated without
  * front text in the first place.
@@ -72,7 +72,7 @@ const sticker = (id: string): CardElement => ({
   stickerId: 'heart',
 });
 
-// A template that still carries baked-in front copy, like the ones already in Firestore.
+// A template that still carries baked-in front copy, like the ones already in Postgres.
 const legacyFront: CardPageDefinition = {
   pageType: 'front',
   backgroundColor: '#faf8f5',

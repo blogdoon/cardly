@@ -3,7 +3,7 @@
  *
  * Replaces the old inline order list, which read the operator's own
  * `localStorage` — so it could only ever show that browser's orders and the
- * revenue cards could not report real money. Orders now come from Firestore via
+ * revenue cards could not report real money. Orders now come from Postgres via
  * `adminOrderService`, and the panel can move an order through its lifecycle,
  * attach a tracking number, and refund or cancel it.
  *
@@ -76,7 +76,7 @@ export const AdminOrdersPanel: React.FC = () => {
       setError(
         e instanceof Error
           ? e.message
-          : 'Could not load orders. Check that firestore.rules allow admin reads of orders.'
+          : 'Could not load orders. Check that RLS policies allow admin reads of orders.'
       );
     } finally {
       setLoading(false);
@@ -122,7 +122,7 @@ export const AdminOrdersPanel: React.FC = () => {
       } catch (e) {
         setError(
           e instanceof Error
-            ? `${e.message} — check that firestore.rules allow admin order updates.`
+            ? `${e.message} — check that RLS policies allow admin order updates.`
             : 'That action failed.'
         );
       } finally {

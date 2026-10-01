@@ -1,8 +1,8 @@
 /**
  * Shared image fallback. Every card in this catalogue is an image, and the
  * thumbnails come from three places that can each fail: the Vite bundle, the
- * user's own localStorage data-URLs (quota-pruned), and Firebase Storage — whose
- * CORS config is opt-in (see VITE_USE_FIREBASE_STORAGE in .env.example).
+ * user's own localStorage data-URLs (quota-pruned), and Supabase Storage — whose
+ * CORS config is opt-in (see VITE_USE_SUPABASE_STORAGE in .env.example).
  * Without a fallback any of those failures renders a blank white tile.
  *
  * Callers pass the card's own background colour via data-bgcolor so a broken

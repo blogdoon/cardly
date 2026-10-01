@@ -75,13 +75,13 @@ function AppRoutes() {
     () => parsePath(window.location.pathname, window.location.search).facets
   );
   const [activeDesign, setActiveDesign] = useState<UserDesign | null>(null);
-  const { user, loading } = useAuth();
+  const { user, loading, isAdmin } = useAuth();
   const deepLinkHandled = useRef(false);
 
   // Deep-link handling: when a recipient scans the printed QR code, load their digital card/design.
   // Legacy links are query params on the root path (/?design=…, /?card=…, /?edit=…) and get
   // rewritten to their canonical path here; path-based links are parsed by parsePath above.
-  // Runs once, after auth settles: the design may live in Firestore for a signed-in user, and a
+  // Runs once, after auth settles: the design may live in Postgres for a signed-in user, and a
   // recipient on their own device has no copy at all — then fall back to the template it was made from.
   React.useEffect(() => {
     if (loading || deepLinkHandled.current) return;
@@ -292,7 +292,32 @@ function AppRoutes() {
             )}
 
             {currentRoute === 'admin' && (
-              <Admin onNavigate={handleNavigate} />
+              loading ? (
+                <div className="max-w-xl mx-auto px-6 py-24 text-center text-sm text-slate-600">
+                  Checking access…
+                </div>
+              ) : isAdmin ? (
+                <Admin onNavigate={handleNavigate} />
+              ) : (
+                <div className="max-w-xl mx-auto px-6 py-24 text-center space-y-4">
+                  <p className="text-6xl font-black text-rose-500">403</p>
+                  <h1 className="text-2xl font-bold text-slate-900">Admins only</h1>
+                  <p className="text-sm text-slate-600">
+                    {user
+                      ? 'Your account does not have admin access.'
+                      : 'Sign in with an admin account to manage the store.'}
+                  </p>
+                  <div className="flex justify-center gap-2 pt-2">
+                    <button
+                      type="button"
+                      onClick={() => handleNavigate('home')}
+                      className="px-4 py-2 rounded-full bg-rose-500 text-white text-sm font-semibold hover:bg-rose-600 transition"
+                    >
+                      Back to home
+                    </button>
+                  </div>
+                </div>
+              )
             )}
 
             {currentRoute === 'notFound' && (

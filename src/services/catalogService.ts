@@ -1,40 +1,35 @@
 /**
- * Firestore-backed catalog service.
+ * Catalog service — `public.templates` in Postgres.
  *
- * The catalog is the database. There is no bundled fallback any more — the 340
- * templates that used to ship in `data/templates.ts` were removed, so if
- * Firestore is empty or unreachable the storefront is genuinely empty and says
- * so, rather than silently showing a stale copy of the seed.
+ * The catalog is the database. There is no bundled fallback: if Supabase is
+ * empty or unreachable the storefront is genuinely empty and says so, rather
+ * than silently showing a stale copy of a seed.
  *
- * Reads:  `subscribeToCatalog` keeps the in-memory live catalog in sync and
- *         gives callers a snapshot stream (used by CatalogContext).
- * Writes: `upsertTemplate` / `deleteTemplate` / `restoreTemplate` are the admin
- *         operations. Delete is a SOFT delete — it stamps `deletedAt` instead of
- *         removing the document, because past orders, saved designs and
- *         favourites all reference `templateId` and would otherwise 404.
+ * Reads:  `subscribeToCatalog` fetches once, registers the caller, and notifies
+ *         it again on every reload — `CatalogProvider` holds the only
+ *         subscription and fans the result out to React.
+ * Writes: every admin write reloads the catalog before it resolves, so a
+ *         retired card disappears everywhere without a refresh. This is a
+ *         refetch rather than a realtime channel on purpose: there is one
+ *         operator, and a channel would add a publication migration and a
+ *         reconnect path to save one SELECT after a write the admin just made.
+ *         Add Supabase Realtime on `templates` if a second admin ever needs to
+ *         watch the storefront live.
  *
- * Bulk writes are batched (Firestore caps a batch at 500 operations).
+ * `deleteTemplate` is a SOFT delete — it stamps `deleted_at` instead of
+ * removing the row, because past orders, saved designs and favourites all
+ * reference `templateId`. RLS keeps retired rows readable for that reason and
+ * the storefront filters them out (see `mergeCatalog`).
  */
 
-import {
-  collection,
-  deleteDoc,
-  doc,
-  getDocs,
-  onSnapshot,
-  setDoc,
-  writeBatch,
-  query,
-  where,
-  type Unsubscribe,
-} from 'firebase/firestore';
-import { db, isFirebaseConfigured } from './firebase';
 import { getLiveCatalog, setLiveCatalog } from '../data/templates';
 import { getCustomUploadedTemplates } from '../utils/occasionTemplateLoader';
 import { CardTemplate } from '../types/template';
 import { buildTemplateFacets } from '../utils/templateFacets';
+import { isSupabaseConfigured, db } from './supabase';
+import { rowToTemplate, templateToRow } from './templateRows';
 
-const COLLECTION = 'templates';
+const TABLE = 'templates';
 
 /** A stored template plus the admin lifecycle fields. */
 export interface CatalogDocument extends CardTemplate {
@@ -44,7 +39,7 @@ export interface CatalogDocument extends CardTemplate {
 }
 
 const toCatalogDocument = (t: CardTemplate): CatalogDocument => {
-  // Every browse facet is filled in on write, so a doc written from anywhere
+  // Every browse facet is filled in on write, so a row written from anywhere
   // carries a real, filterable recipients/styles/season/tags/colors set rather
   // than the ones the caller happened to remember.
   const facets = buildTemplateFacets({
@@ -53,20 +48,17 @@ const toCatalogDocument = (t: CardTemplate): CatalogDocument => {
     previewColors: t.previewColors,
     existing: t,
   });
-  // Page definitions are deep and Firestore rejects `undefined`, so we let the
-  // SDK serialise what is actually present.
-  const doc: CatalogDocument = { ...t, ...facets };
-  return doc;
+  return { ...t, ...facets };
 };
 
 /**
- * Fill in any facet a stored doc is missing.
+ * Fill in any facet a stored row is missing.
  *
- * Templates written before facets were stored (or hand-edited in Firestore) are
- * completed at load time from the artwork, mirroring how `utils/frontCover.ts`
- * cleans up cards stored before the artwork-only-front rule existed. This is why
- * no migration is needed: the data corrects itself on read. A legacy scalar
- * `recipient`/`style` is widened to an array here, which is how those documents
+ * Templates written before facets were stored (or hand-edited) are completed at
+ * load time from the artwork, mirroring how `utils/frontCover.ts` cleans up
+ * cards stored before the artwork-only-front rule existed. This is why no data
+ * migration is needed: the data corrects itself on read. A legacy scalar
+ * `recipient`/`style` is widened to an array here, which is how those rows
  * migrate themselves.
  */
 const withFacets = (t: CardTemplate): CardTemplate => ({
@@ -79,7 +71,7 @@ const withFacets = (t: CardTemplate): CardTemplate => ({
   }),
 });
 
-/** Locally created (Occasion Studio) templates, which have no DB doc yet. */
+/** Locally created (Occasion Studio) templates, which have no DB row yet. */
 const localCustomTemplates = (): CardTemplate[] => {
   try {
     return getCustomUploadedTemplates();
@@ -91,8 +83,8 @@ const localCustomTemplates = (): CardTemplate[] => {
 const isRetired = (d: CatalogDocument): boolean => Boolean(d.deletedAt);
 
 /**
- * Merge Firestore documents with locally created templates, drop retired ones,
- * and de-duplicate by id (database wins, since an admin may have edited it).
+ * Merge database rows with locally created templates, drop retired ones, and
+ * de-duplicate by id (database wins, since an admin may have edited it).
  */
 const mergeCatalog = (remote: CatalogDocument[]): CardTemplate[] => {
   const byId = new Map<string, CardTemplate>();
@@ -105,108 +97,142 @@ const mergeCatalog = (remote: CatalogDocument[]): CardTemplate[] => {
   return Array.from(byId.values());
 };
 
-/**
- * Subscribe to the live catalog.
- *
- * @param onTemplates Called with the merged, retired-filtered catalog. Fires
- *   immediately with any locally created templates, then again on every change.
- * @param onStatus Optional status callback so the admin UI can report whether the
- *   catalog is database-backed, empty, or unreachable.
- */
-export function subscribeToCatalog(
-  onTemplates: (templates: CardTemplate[]) => void,
-  onStatus?: (status: CatalogStatus) => void
-): Unsubscribe {
-  const initial = mergeCatalog([]);
-  onTemplates(initial);
-  onStatus?.({ source: isFirebaseConfigured ? 'loading' : 'offline', templateCount: initial.length });
-
-  if (!isFirebaseConfigured) {
-    return () => {};
-  }
-
-  let cancelled = false;
-
-  try {
-    const unsub = onSnapshot(
-      collection(db, COLLECTION),
-      (snap) => {
-        if (cancelled) return;
-        const docs = snap.docs.map((d) => ({ id: d.id, ...d.data() }) as CatalogDocument);
-        const merged = mergeCatalog(docs);
-        setLiveCatalog(merged);
-        onTemplates(merged);
-        // An empty collection is a real, reportable state now that there is no
-        // bundled seed to fall back to.
-        onStatus?.({
-          source: docs.length === 0 ? 'empty' : 'database',
-          templateCount: merged.length,
-        });
-      },
-      (err) => {
-        if (cancelled) return;
-        // Permission denied / offline: report it rather than pretending. The
-        // storefront shows the empty state and the admin console shows why.
-        console.warn('Catalog subscription failed:', err.message);
-        onTemplates(initial);
-        onStatus?.({ source: 'error', templateCount: initial.length, error: err.message });
-      }
-    );
-    return unsub;
-  } catch (err) {
-    const message = err instanceof Error ? err.message : 'unknown error';
-    onStatus?.({ source: 'error', templateCount: initial.length, error: message });
-    return () => {};
-  }
-}
-
 export interface CatalogStatus {
-  /** `loading` until the first snapshot; `empty` when the collection has no docs. */
+  /** `loading` until the first fetch; `empty` when the table has no rows. */
   source: 'loading' | 'database' | 'empty' | 'offline' | 'error';
   templateCount: number;
   error?: string;
 }
 
-/** Create or update a single template. Admin only (enforced by firestore.rules). */
-export async function upsertTemplate(template: CardTemplate): Promise<void> {
-  await setDoc(
-    doc(db, COLLECTION, template.id),
-    { ...toCatalogDocument(template), updatedAt: new Date().toISOString() },
-    { merge: true }
-  );
+export interface CatalogSnapshot {
+  templates: CardTemplate[];
+  status: CatalogStatus;
+}
+
+type Listener = (snapshot: CatalogSnapshot) => void;
+
+const listeners = new Set<Listener>();
+
+const notify = (snapshot: CatalogSnapshot) => {
+  for (const listener of listeners) listener(snapshot);
+};
+
+const localSnapshot = (status: CatalogStatus['source']): CatalogSnapshot => {
+  const templates = mergeCatalog([]);
+  return { templates, status: { source: status, templateCount: templates.length } };
+};
+
+/** All rows, retired included. Admin screens only — RLS hides retired rows from everyone else. */
+export async function fetchAllCatalogDocuments(): Promise<CatalogDocument[]> {
+  const { data, error } = await db().from(TABLE).select('*');
+  if (error) throw new Error(error.message);
+  return (data ?? []).map(rowToTemplate) as CatalogDocument[];
+}
+
+/** Documents that have been soft deleted, for the "retired" view. */
+export async function fetchRetiredTemplateIds(): Promise<string[]> {
+  const { data, error } = await db().from(TABLE).select('id').not('deleted_at', 'is', null);
+  if (error) throw new Error(error.message);
+  return (data ?? []).map((r) => r.id as string);
+}
+
+let lastSnapshot: CatalogSnapshot = { templates: [], status: { source: 'loading', templateCount: 0 } };
+
+/**
+ * Re-read the catalog and tell every subscriber. Called after each write and
+ * by `recomputeTemplateRating`, so a rating change reaches the storefront too.
+ */
+export async function reloadCatalog(): Promise<void> {
+  if (!isSupabaseConfigured) return;
+  try {
+    const docs = await fetchAllCatalogDocuments();
+    const templates = mergeCatalog(docs);
+    setLiveCatalog(templates);
+    lastSnapshot = {
+      templates,
+      status: {
+        source: docs.length === 0 ? 'empty' : 'database',
+        templateCount: templates.length,
+      },
+    };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'unknown error';
+    // Report it rather than pretending: the storefront shows the empty state
+    // and the admin console shows why.
+    console.warn('Catalog reload failed:', message);
+    lastSnapshot = {
+      templates: mergeCatalog([]),
+      status: { source: 'error', templateCount: 0, error: message },
+    };
+  }
+  notify(lastSnapshot);
 }
 
 /**
- * Soft delete: stamp `deletedAt` so the card disappears from the storefront
- * immediately, everywhere, but the document survives for existing orders and
- * saved designs. Use `purgeTemplate` to actually remove it.
+ * Subscribe to the live catalog.
+ *
+ * @param onTemplates Called with the merged, retired-filtered catalog.
+ * @param onStatus Optional status callback so the admin UI can report whether
+ *   the catalog is database-backed, empty, or unreachable.
+ */
+export function subscribeToCatalog(
+  onTemplates: (templates: CardTemplate[]) => void,
+  onStatus?: (status: CatalogStatus) => void
+): () => void {
+  const listener: Listener = (snapshot) => {
+    onTemplates(snapshot.templates);
+    onStatus?.(snapshot.status);
+  };
+  listeners.add(listener);
+
+  if (!isSupabaseConfigured) {
+    const snapshot = localSnapshot('offline');
+    listener(snapshot);
+    return () => listeners.delete(listener);
+  }
+
+  listener(lastSnapshot);
+  void reloadCatalog();
+
+  return () => {
+    listeners.delete(listener);
+  };
+}
+
+/** Create or update a single template. Admin only (enforced by RLS). */
+export async function upsertTemplate(template: CardTemplate): Promise<void> {
+  const row = templateToRow(toCatalogDocument(template));
+  const { error } = await db().from(TABLE).upsert(row, { onConflict: 'id' });
+  if (error) throw new Error(error.message);
+  await reloadCatalog();
+}
+
+/**
+ * Soft delete: stamp `deleted_at` so the card disappears from the storefront
+ * immediately, everywhere, but the row survives for existing orders and saved
+ * designs. Use `purgeTemplate` to actually remove it.
  */
 export async function deleteTemplate(templateId: string, actorEmail: string): Promise<void> {
-  await setDoc(
-    doc(db, COLLECTION, templateId),
-    { deletedAt: new Date().toISOString(), deletedBy: actorEmail },
-    { merge: true }
-  );
+  await tombstone(templateId, { deleted_at: new Date().toISOString(), deleted_by: actorEmail });
 }
 
 /** Undo a soft delete. */
 export async function restoreTemplate(templateId: string): Promise<void> {
-  await setDoc(
-    doc(db, COLLECTION, templateId),
-    { deletedAt: null, deletedBy: null, updatedAt: new Date().toISOString() },
-    { merge: true }
-  );
+  await tombstone(templateId, { deleted_at: null, deleted_by: null });
 }
 
-/** Firestore accepts at most 500 writes per batch. */
-const MAX_BATCH = 500;
+const tombstone = async (templateId: string, patch: Record<string, unknown>): Promise<void> => {
+  const { error } = await db().from(TABLE).update(patch).eq('id', templateId);
+  if (error) throw new Error(error.message);
+  await reloadCatalog();
+};
 
 /**
- * Soft delete many templates in as few round trips as possible.
+ * Retire many templates in one round trip.
  *
  * @param templateIds Ids to retire.
  * @param actorEmail Recorded on each tombstone.
- * @param onProgress Called after each batch with (completed, total).
+ * @param onProgress Called with (completed, total) once the batch lands.
  * @returns How many ids were retired.
  */
 export async function bulkDeleteTemplate(
@@ -215,66 +241,40 @@ export async function bulkDeleteTemplate(
   onProgress?: (completed: number, total: number) => void
 ): Promise<number> {
   if (templateIds.length === 0) return 0;
-  const stamp = new Date().toISOString();
-  let done = 0;
-
-  for (let i = 0; i < templateIds.length; i += MAX_BATCH) {
-    const slice = templateIds.slice(i, i + MAX_BATCH);
-    const batch = writeBatch(db);
-    for (const id of slice) {
-      batch.set(doc(db, COLLECTION, id), { deletedAt: stamp, deletedBy: actorEmail }, { merge: true });
-    }
-    await batch.commit();
-    done += slice.length;
-    onProgress?.(done, templateIds.length);
-  }
-  return done;
+  const { error } = await db()
+    .from(TABLE)
+    .update({ deleted_at: new Date().toISOString(), deleted_by: actorEmail })
+    .in('id', templateIds);
+  if (error) throw new Error(error.message);
+  await reloadCatalog();
+  onProgress?.(templateIds.length, templateIds.length);
+  return templateIds.length;
 }
 
-/** Restore many retired templates. Same batching as `bulkDeleteTemplate`. */
+/** Restore many retired templates. One statement, like `bulkDeleteTemplate`. */
 export async function bulkRestoreTemplate(
   templateIds: string[],
   onProgress?: (completed: number, total: number) => void
 ): Promise<number> {
   if (templateIds.length === 0) return 0;
-  const stamp = new Date().toISOString();
-  let done = 0;
-
-  for (let i = 0; i < templateIds.length; i += MAX_BATCH) {
-    const slice = templateIds.slice(i, i + MAX_BATCH);
-    const batch = writeBatch(db);
-    for (const id of slice) {
-      batch.set(
-        doc(db, COLLECTION, id),
-        { deletedAt: null, deletedBy: null, updatedAt: stamp },
-        { merge: true }
-      );
-    }
-    await batch.commit();
-    done += slice.length;
-    onProgress?.(done, templateIds.length);
-  }
-  return done;
+  const { error } = await db()
+    .from(TABLE)
+    .update({ deleted_at: null, deleted_by: null })
+    .in('id', templateIds);
+  if (error) throw new Error(error.message);
+  await reloadCatalog();
+  onProgress?.(templateIds.length, templateIds.length);
+  return templateIds.length;
 }
 
 /**
- * Irreversibly remove the document. Only safe for templates that were never
- * sold, customised or favourited — prefer `deleteTemplate`.
+ * Irreversibly remove the row. Only safe for templates that were never sold,
+ * customised or favourited — prefer `deleteTemplate`.
  */
 export async function purgeTemplate(templateId: string): Promise<void> {
-  await deleteDoc(doc(db, COLLECTION, templateId));
-}
-
-/** All documents including retired ones, for the admin catalog screen. */
-export async function fetchAllCatalogDocuments(): Promise<CatalogDocument[]> {
-  const snap = await getDocs(collection(db, COLLECTION));
-  return snap.docs.map((d) => ({ id: d.id, ...d.data() }) as CatalogDocument);
-}
-
-/** Documents that have been soft deleted, for the "retired" view. */
-export async function fetchRetiredTemplateIds(): Promise<string[]> {
-  const snap = await getDocs(query(collection(db, COLLECTION), where('deletedAt', '!=', null)));
-  return snap.docs.map((d) => d.id);
+  const { error } = await db().from(TABLE).delete().eq('id', templateId);
+  if (error) throw new Error(error.message);
+  await reloadCatalog();
 }
 
 /** The catalog currently in use, for callers that need it outside React. */

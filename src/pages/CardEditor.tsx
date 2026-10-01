@@ -16,7 +16,6 @@ import {
   saveActiveDraftId,
   getLocalDesigns,
 } from '../services/cardStorage';
-import { auth } from '../services/firebase';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import { getCardDesignThumbnail } from '../utils/imageOptimizer';
@@ -178,11 +177,11 @@ export const CardEditor: React.FC<CardEditorProps> = ({
     }
   }, [designId, templateId]);
 
-  // Query Firestore asynchronously upon initial load if opening existing design
+  // Query Postgres asynchronously upon initial load if opening existing design
   useEffect(() => {
     let isMounted = true;
     (async () => {
-      const effectiveUserId = user?.uid || auth?.currentUser?.uid;
+      const effectiveUserId = user?.uid;
       if (effectiveUserId && designId && !initialDesign) {
         try {
           const remoteDoc = await getDesignById(designId, effectiveUserId);
@@ -272,7 +271,7 @@ export const CardEditor: React.FC<CardEditorProps> = ({
     [historyIndex]
   );
 
-  // Central save function (persists to Firestore and localStorage)
+  // Central save function (persists to Postgres and localStorage)
   const performSave = useCallback(
     async (isManual: boolean = false): Promise<void> => {
       if (isSavingRef.current) return;
@@ -290,7 +289,7 @@ export const CardEditor: React.FC<CardEditorProps> = ({
       setAutosaveStatus('saving');
 
       try {
-        const effectiveUserId = user?.uid || auth?.currentUser?.uid || 'guest_user';
+        const effectiveUserId = user?.uid || 'guest_user';
         const effectiveThumbnail = getCardDesignThumbnail(pages, template?.thumbnail);
         const designToSave: UserDesign = {
           id: designId,
@@ -342,7 +341,7 @@ export const CardEditor: React.FC<CardEditorProps> = ({
     return () => clearTimeout(timer);
   }, [autosaveStatus, performSave]);
 
-  // Periodic Auto-Save Interval (runs every 15 seconds to ensure changes are synced to Firestore)
+  // Periodic Auto-Save Interval (runs every 15 seconds to ensure changes are synced to Postgres)
   useEffect(() => {
     const interval = setInterval(() => {
       const currentPagesStr = JSON.stringify(pages);
@@ -362,7 +361,7 @@ export const CardEditor: React.FC<CardEditorProps> = ({
   useEffect(() => {
     const handleBeforeUnload = () => {
       try {
-        const effectiveUserId = user?.uid || auth?.currentUser?.uid || 'guest_user';
+        const effectiveUserId = user?.uid || 'guest_user';
         const effectiveThumbnail = getCardDesignThumbnail(pages, template?.thumbnail);
         const designToSave: UserDesign = {
           id: designId,

@@ -75,7 +75,7 @@ export const TemplateFacetEditor: React.FC<TemplateFacetEditorProps> = ({
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
 
-  // Edits are held locally until Save, so an accidental click is not a Firestore
+  // Edits are held locally until Save, so an accidental click is not a Postgres
   // write — and the catalog cannot change underneath a half-finished edit.
   // These read the arrays directly: a legacy scalar `recipient`/`style` was
   // already widened by `withFacets` in catalogService before this component saw it.

@@ -1,7 +1,7 @@
 // One-time: exports the current bundled catalog to scripts/catalog.manifest.json.
 //
 // The app no longer ships hardcoded templates (see AGENTS.md) — the catalog lives in
-// Firestore. But the build has no Firebase credentials, so prerendering static card
+// Postgres. But the build has no database credentials, so prerendering static card
 // pages and the cover-art check still need a build-time list. This manifest is that
 // list: it is read by scripts/prerender.mjs and scripts/covers.check.mjs, and is NOT
 // part of the client bundle.

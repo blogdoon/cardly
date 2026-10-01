@@ -3,11 +3,11 @@ import { CardTemplate, OccasionType, RecipientType } from '../types/template';
 /**
  * In-memory live catalog mirror.
  *
- * The catalog is Firestore-backed and nothing is bundled. `templates/{id}` in
- * Firestore is the source of truth. This module is an in-memory mirror kept in sync
+ * The catalog is Postgres-backed and nothing is bundled. `templates/{id}` in
+ * Postgres is the source of truth. This module is an in-memory mirror kept in sync
  * by CatalogProvider (via `subscribeToCatalog` in `src/services/catalogService.ts`).
  *
- * An empty catalog is a real state. When Firestore has documents, they are streamed
+ * An empty catalog is a real state. When Postgres has documents, they are streamed
  * into `liveCatalog` via `setLiveCatalog()`.
  */
 

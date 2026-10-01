@@ -109,7 +109,7 @@ export type OccasionType =
   | 'Housewarming';
 
 // The recipient/style/tone/season vocabularies are declared once as runtime
-// arrays in `utils/templateFacets.ts` — the catalog is Firestore-backed now, so
+// arrays in `utils/templateFacets.ts` — the catalog is Postgres-backed now, so
 // these double as the set of values the Browse facets will accept, and a stored
 // value outside them would silently drop a card from that filter. The types
 // below are derived from those arrays so the two cannot drift.
