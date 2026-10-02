@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import QRCode from 'qrcode';
 import {
   Printer,
@@ -102,6 +103,26 @@ export const PAPER_SIZES: Record<PaperSizeKey, PaperSizeConfig> = {
     unfoldedHeightInches: 8.5,
     description: 'Created by folding a standard 8.5" × 11" US Letter sheet in half.',
   },
+};
+
+/**
+ * The paper each card size prints on, as the browser's print dialog sees it.
+ *
+ * The card is laid out at real size (96dpi), so the page box must BE the sheet
+ * it is printed on — otherwise a printer left on 100% produces a card the wrong
+ * size, which is a refund. Everything except the folded US Letter lands on A4
+ * landscape, the sheet a European home printer has; a smaller card is centred
+ * on it, never scaled, because a scaled card is the wrong size.
+ *
+ * `size` is a *named* page so the dialog preselects the paper and the landscape
+ * orientation; `wMm` / `hMm` are the same box in millimetres for the CSS custom
+ * properties that size each printed sheet.
+ */
+const PRINT_PAGES: Record<PaperSizeKey, { size: string; wMm: number; hMm: number }> = {
+  '5x7': { size: 'A4 landscape', wMm: 297, hMm: 210 },
+  '4x6': { size: 'A4 landscape', wMm: 297, hMm: 210 },
+  'a5': { size: 'A4 landscape', wMm: 297, hMm: 210 },
+  'letter-half': { size: 'Letter landscape', wMm: 279.4, hMm: 215.9 },
 };
 
 const formatStickerSvg = (svg: string) => {
@@ -239,6 +260,12 @@ export const PrintPreview: React.FC<PrintPreviewProps> = ({
   if (!isOpen) return null;
 
   const config = PAPER_SIZES[selectedSize];
+  const printPage = PRINT_PAGES[selectedSize];
+  // The preview draws the card at 64 CSS px per inch (the home-printer mock-up
+  // at 54); paper is 96 px per inch. Scaling by 96 / pxPerInch therefore puts
+  // the card on the sheet at ACTUAL SIZE and keeps type, stickers and QR codes
+  // in exactly the proportion shown on screen — the design itself is untouched.
+  const printScale = 96 / (layoutFormat === 'sheet-letter' ? 54 : 64);
 
   // Standard safe inside-left fallback if missing
   const insideLeftDef: CardPageDefinition = pages.insideLeft || {
@@ -558,7 +585,7 @@ export const PrintPreview: React.FC<PrintPreviewProps> = ({
     };
 
     return (
-      <div className={`absolute ${styles[position]} pointer-events-none z-40 w-7 h-7 print:visible`}>
+      <div className={`absolute ${styles[position]} crop-mark pointer-events-none z-40 w-7 h-7 print:visible`}>
         {/* Horizontal cut line */}
         <div
           className={`absolute h-[1.5px] w-5 bg-slate-900 ${
@@ -591,51 +618,127 @@ export const PrintPreview: React.FC<PrintPreviewProps> = ({
     );
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/85 backdrop-blur-md text-slate-100 overflow-hidden select-none">
-      {/* Hidden print stylesheet injection to guarantee high-DPI full-page physical card prints */}
+  // Portalled to <body> so the print stylesheet can suppress everything else
+  // with one rule and leave these sheets in normal flow. They used to sit inside
+  // the fixed, overflow-hidden modal shell, where the second sheet was clipped
+  // away instead of paginating — the reason both sides ended up on one side.
+  const modal = (
+    <div className="print-preview-root fixed inset-0 z-50 flex items-center justify-center bg-slate-950/85 backdrop-blur-md text-slate-100 overflow-hidden select-none">
+      {/* Print stylesheet: the page box IS the paper, and one .print-sheet is one
+          side of one physical sheet — two pages, duplex, no trailing blank. */}
       <style>{`
+        @page { size: ${printPage.size}; margin: 0; }
         @media print {
-          body * {
-            visibility: hidden !important;
-          }
-          #cardly-print-area, #cardly-print-area * {
-            visibility: visible !important;
+          html, body {
+            margin: 0 !important;
+            padding: 0 !important;
+            overflow: visible !important;
+            background: #ffffff !important;
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
           }
-          #cardly-print-area {
-            position: absolute !important;
-            left: 0 !important;
-            top: 0 !important;
-            width: 100% !important;
+          /* The modal is portalled to <body>: the app behind it does not print. */
+          body > * { display: none !important; }
+          body > .print-preview-root {
+            display: block !important;
+            position: static !important;
+            inset: auto !important;
+            width: auto !important;
+            height: auto !important;
             margin: 0 !important;
             padding: 0 !important;
+            overflow: visible !important;
             background: transparent !important;
-            color: black !important;
+            backdrop-filter: none !important;
+            -webkit-backdrop-filter: none !important;
+            z-index: auto !important;
           }
-          #cardly-print-area.is-grayscale,
-          #cardly-print-area.is-grayscale * {
+          .print-preview-root, .print-preview-root * {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+          .print-preview-shell, .print-canvas {
+            display: block !important;
+            position: static !important;
+            width: auto !important;
+            height: auto !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            overflow: visible !important;
+            background: transparent !important;
+          }
+          .no-print { display: none !important; }
+
+          #cardly-print-area {
+            display: block !important;
+            position: static !important;
+            width: auto !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            transform: none !important; /* the on-screen zoom never reaches paper */
+            transition: none !important; /* …and it cannot animate into the print */
+            filter: none !important;    /* ink-saver runs per card, not per page */
+          }
+          #cardly-print-area.is-grayscale .print-card-frame {
             filter: grayscale(100%) contrast(108%) !important;
           }
-          .no-print {
-            display: none !important;
-          }
+
+          /* "Single Pages" becomes one card per page rather than a screen grid. */
+          .print-grid { display: block !important; }
+
+          /* One .print-sheet is one side of one physical sheet of paper. */
           .print-sheet {
-            page-break-after: always !important;
-            break-after: page !important;
-            margin: 0 auto !important;
-            box-shadow: none !important;
+            box-sizing: border-box;
+            position: relative;
+            display: flex !important;
+            flex-direction: row !important;
+            align-items: center !important;
+            justify-content: center !important;
+            width: var(--page-w, 297mm) !important;
+            height: var(--page-h, 210mm) !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            overflow: hidden;
+            background: #ffffff;
             border: none !important;
+            box-shadow: none !important;
+            page-break-after: always;
+            break-after: page;
           }
-          @page {
-            size: auto;
-            margin: 0.35in;
+          /* Nothing follows the last side: no trailing blank page. */
+          .print-sheet:last-child { page-break-after: auto; break-after: auto; }
+
+          /* The card at actual size, centred on its side of the sheet. Both sides
+             use the same box, so the fold and the panels register across the
+             duplex: page 1 = outside (back | front), page 2 = inside. */
+          .print-card-frame {
+            box-sizing: border-box;
+            padding: 0 !important;
+            margin: 0 !important;
+            border: none !important;
+            border-radius: 0 !important;
+            box-shadow: none !important;
+            background: #ffffff !important;
+            transform: scale(var(--print-scale, 1.5)) !important;
+            transform-origin: center center !important;
+          }
+          /* Trim marks stand clear of the card so they never ink onto it; on a
+             full-bleed card they fall outside the sheet and are clipped. */
+          .crop-mark { margin: -14px !important; }
+          /* The home-printer mock sheet is a screen aid, not printed paper. */
+          .print-sim-sheet {
+            width: auto !important;
+            height: auto !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            border: none !important;
+            box-shadow: none !important;
+            background: transparent !important;
           }
         }
       `}</style>
 
-      <div className="relative w-full h-full flex flex-col bg-slate-900 overflow-hidden">
+      <div className="print-preview-shell relative w-full h-full flex flex-col bg-slate-900 overflow-hidden">
         {/* Top Navbar */}
         <header className="h-16 px-4 sm:px-6 bg-slate-900/95 border-b border-slate-800 flex items-center justify-between shrink-0 no-print z-30">
           <div className="flex items-center space-x-3">
@@ -985,7 +1088,7 @@ export const PrintPreview: React.FC<PrintPreviewProps> = ({
               <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-1 text-[11px] text-slate-300">
                 <li className="flex items-start gap-1.5 bg-slate-900/60 p-2 rounded-lg border border-slate-700/50">
                   <span className="text-rose-400 font-bold">1.</span>
-                  <span><strong>Scale 100% / Actual Size:</strong> In your browser's print dialog, disable "Fit to Page" and choose 100% scale.</span>
+                  <span><strong>Scale 100% / Actual Size:</strong> Paper size is set to A4 landscape (Letter for the folded US Letter), so disable "Fit to Page" and print at 100%.</span>
                 </li>
                 <li className="flex items-start gap-1.5 bg-slate-900/60 p-2 rounded-lg border border-slate-700/50">
                   <span className="text-rose-400 font-bold">2.</span>
@@ -993,7 +1096,7 @@ export const PrintPreview: React.FC<PrintPreviewProps> = ({
                 </li>
                 <li className="flex items-start gap-1.5 bg-slate-900/60 p-2 rounded-lg border border-slate-700/50">
                   <span className="text-rose-400 font-bold">3.</span>
-                  <span><strong>Duplex (2-Sided):</strong> Set printer to "Flip on short edge" for horizontal bi-fold cards.</span>
+                  <span><strong>Duplex (2-Sided):</strong> The card prints as exactly 2 pages — page 1 the outside (back | front), page 2 the inside — and those are the two sides of ONE sheet. Pick Two-Sided and "Flip on short edge" (landscape).</span>
                 </li>
                 <li className="flex items-start gap-1.5 bg-slate-900/60 p-2 rounded-lg border border-slate-700/50">
                   <span className="text-emerald-400 font-bold">4.</span>
@@ -1019,7 +1122,7 @@ export const PrintPreview: React.FC<PrintPreviewProps> = ({
         )}
 
         {/* Scrollable Center Print Canvas Area */}
-        <div className="flex-1 overflow-auto p-4 sm:p-8 flex flex-col items-center justify-start bg-slate-950/90 relative">
+        <div className="print-canvas flex-1 overflow-auto p-4 sm:p-8 flex flex-col items-center justify-start bg-slate-950/90 relative">
           {/* Grayscale Ink Saver Notification Banner */}
           {colorMode === 'grayscale' ? (
             <div className="no-print mb-4 px-4 py-2.5 bg-emerald-950/80 border border-emerald-500/40 rounded-xl text-emerald-200 text-xs flex items-center justify-between gap-3 shadow-lg max-w-2xl w-full animate-in fade-in duration-150">
@@ -1069,6 +1172,13 @@ export const PrintPreview: React.FC<PrintPreviewProps> = ({
               transformOrigin: 'top center',
               transition: 'transform 0.15s ease-out',
               filter: colorMode === 'grayscale' ? 'grayscale(100%) contrast(108%)' : 'none',
+              // Read by the print stylesheet above: the physical page, and the
+              // scale that puts this card on it at actual size.
+              ...({
+                '--page-w': `${printPage.wMm}mm`,
+                '--page-h': `${printPage.hMm}mm`,
+                '--print-scale': String(printScale),
+              } as React.CSSProperties),
             }}
           >
             {/* 1) BIFOLD FORMAT (Standard Folded Card) */}
@@ -1088,7 +1198,7 @@ export const PrintPreview: React.FC<PrintPreviewProps> = ({
                     </div>
 
                     {/* Paper Spread Card Container */}
-                    <div className="relative bg-white text-slate-900 shadow-2xl rounded-sm p-4 sm:p-6 border border-slate-300">
+                    <div className="print-card-frame relative bg-white text-slate-900 shadow-2xl rounded-sm p-4 sm:p-6 border border-slate-300">
                       {/* 4 Corner Crop Marks */}
                       <CornerCropMark position="tl" showScissors={true} />
                       <CornerCropMark position="tr" showScissors={true} />
@@ -1128,7 +1238,7 @@ export const PrintPreview: React.FC<PrintPreviewProps> = ({
                         {/* CENTER FOLD / SCORE GUIDE */}
                         {showFoldLine && (
                           <div className="absolute top-0 bottom-0 left-1/2 -translate-x-1/2 w-0 border-l border-dashed border-slate-400/80 z-40 flex flex-col justify-between items-center py-2 pointer-events-none">
-                            <span className="text-[8px] font-mono bg-white/90 text-slate-500 px-1 py-0.5 rounded border border-slate-200 shadow-2xs rotate-90 my-auto">
+                            <span className="no-print text-[8px] font-mono bg-white/90 text-slate-500 px-1 py-0.5 rounded border border-slate-200 shadow-2xs rotate-90 my-auto">
                               FOLD HERE
                             </span>
                           </div>
@@ -1174,7 +1284,7 @@ export const PrintPreview: React.FC<PrintPreviewProps> = ({
                     </div>
 
                     {/* Paper Spread Card Container */}
-                    <div className="relative bg-white text-slate-900 shadow-2xl rounded-sm p-4 sm:p-6 border border-slate-300">
+                    <div className="print-card-frame relative bg-white text-slate-900 shadow-2xl rounded-sm p-4 sm:p-6 border border-slate-300">
                       {/* 4 Corner Crop Marks */}
                       <CornerCropMark position="tl" showScissors={true} />
                       <CornerCropMark position="tr" showScissors={true} />
@@ -1207,7 +1317,7 @@ export const PrintPreview: React.FC<PrintPreviewProps> = ({
                         {/* CENTER FOLD / SCORE GUIDE */}
                         {showFoldLine && (
                           <div className="absolute top-0 bottom-0 left-1/2 -translate-x-1/2 w-0 border-l border-dashed border-slate-400/80 z-40 flex flex-col justify-between items-center py-2 pointer-events-none">
-                            <span className="text-[8px] font-mono bg-white/90 text-slate-500 px-1 py-0.5 rounded border border-slate-200 shadow-2xs rotate-90 my-auto">
+                            <span className="no-print text-[8px] font-mono bg-white/90 text-slate-500 px-1 py-0.5 rounded border border-slate-200 shadow-2xs rotate-90 my-auto">
                               FOLD HERE
                             </span>
                           </div>
@@ -1230,7 +1340,7 @@ export const PrintPreview: React.FC<PrintPreviewProps> = ({
 
                       {/* Instructions */}
                       <div className="text-[10px] text-slate-400 mt-2 flex items-center justify-between no-print">
-                        <span>Print on back of Sheet 1 or on separate sheet to glue together</span>
+                        <span>Prints on the back of Sheet 1 — two-sided, flip on short edge</span>
                         <span>Interior Layout</span>
                       </div>
                     </div>
@@ -1241,7 +1351,7 @@ export const PrintPreview: React.FC<PrintPreviewProps> = ({
 
             {/* 2) SINGLE PAGES FORMAT (4 Separate Cards) */}
             {layoutFormat === 'single' && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              <div className="print-grid grid grid-cols-1 md:grid-cols-2 gap-8">
                 {[
                   { title: 'Page 1: Front Cover', page: pages.front },
                   { title: 'Page 2: Inside Left', page: insideLeftDef },
@@ -1252,7 +1362,7 @@ export const PrintPreview: React.FC<PrintPreviewProps> = ({
                     <span className="text-xs font-bold text-slate-400 mb-1.5 no-print">
                       {item.title} ({config.foldedWidthInches}" × {config.foldedHeightInches}")
                     </span>
-                    <div className="relative bg-white shadow-xl rounded-sm p-4 border border-slate-300">
+                    <div className="print-card-frame relative bg-white shadow-xl rounded-sm p-4 border border-slate-300">
                       <CornerCropMark position="tl" />
                       <CornerCropMark position="tr" />
                       <CornerCropMark position="bl" />
@@ -1289,7 +1399,7 @@ export const PrintPreview: React.FC<PrintPreviewProps> = ({
 
                 {/* Simulated 8.5x11 white paper sheet */}
                 <div
-                  className="relative bg-white shadow-2xl border border-slate-400 p-8 flex flex-col items-center justify-center text-slate-900"
+                  className="print-sim-sheet relative bg-white shadow-2xl border border-slate-400 p-8 flex flex-col items-center justify-center text-slate-900"
                   style={{
                     width: '680px',
                     height: '880px',
@@ -1302,7 +1412,7 @@ export const PrintPreview: React.FC<PrintPreviewProps> = ({
                   </div>
 
                   {/* Centered Folded Card Area */}
-                  <div className="relative">
+                  <div className="print-card-frame relative">
                     <CornerCropMark position="tl" showScissors={true} />
                     <CornerCropMark position="tr" showScissors={true} />
                     <CornerCropMark position="bl" showScissors={true} />
@@ -1351,7 +1461,7 @@ export const PrintPreview: React.FC<PrintPreviewProps> = ({
                   </div>
 
                   {/* Instructions on bottom margin of paper */}
-                  <div className="absolute bottom-4 left-6 right-6 text-center text-[10px] text-slate-500 font-sans pointer-events-none border-t border-slate-200 pt-2 flex items-center justify-center gap-1.5">
+                  <div className="no-print absolute bottom-4 left-6 right-6 text-center text-[10px] text-slate-500 font-sans pointer-events-none border-t border-slate-200 pt-2 flex items-center justify-center gap-1.5">
                     <Scissors className="w-3.5 h-3.5 text-rose-500 shrink-0" />
                     <span>
                       {showCropMarks
@@ -1413,7 +1523,7 @@ export const PrintPreview: React.FC<PrintPreviewProps> = ({
 
         {/* QR Code Settings & Live Scanner Modal */}
         {isQrSettingsOpen && (
-          <div className="fixed inset-0 z-60 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in duration-150">
+          <div className="no-print fixed inset-0 z-60 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in duration-150">
             <div className="bg-slate-900 border border-slate-700/80 rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden text-slate-100 flex flex-col">
               {/* Header */}
               <div className="p-4 sm:p-5 border-b border-slate-800 flex items-center justify-between bg-slate-850">
@@ -1635,4 +1745,6 @@ export const PrintPreview: React.FC<PrintPreviewProps> = ({
       </div>
     </div>
   );
+
+  return typeof document === 'undefined' ? null : createPortal(modal, document.body);
 };
