@@ -5,7 +5,7 @@
  * insert policy in `supabase/migrations/0002_rls.sql` verifies the order belongs
  * to the caller and *contains the template*, using `items @> …`. Postgres rules
  * could not query another collection, so that check used to be a client
- * assertion — this is the one place Postgres beats Postgres outright.
+ * assertion — this is the one place RLS beats the old scheme outright.
  *
  * The composite primary key `(order_id, template_id)` enforces "one review per
  * order per card" structurally. New reviews land as `pending`; an admin

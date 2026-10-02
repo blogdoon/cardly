@@ -1,5 +1,6 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { CardElement, CardPageDefinition, TextElement, PhotoElement, StickerElement } from '../../types/template';
+import { CardElement, CardPageDefinition, TextElement, PhotoElement, StickerElement, MediaElement } from '../../types/template';
+import { MediaQrCode } from '../MediaQrCode';
 import { RotateCw, Grid3X3, Magnet } from 'lucide-react';
 import { getStickerById } from '../../data/elements';
 import { computeTextReadabilityStyle } from '../../utils/textStyle';
@@ -646,6 +647,36 @@ export const CardCanvas: React.FC<CardCanvasProps> = ({
                     </div>
                   </>
                 )}
+              </div>
+            );
+          }
+
+          if (el.type === 'media') {
+            // A printed card cannot play sound, so a media element is drawn as the
+            // QR code the recipient will scan — with a caption telling them what
+            // they are about to get. Showing a fake player frame here would be a
+            // lie: nothing plays in print.
+            return (
+              <div
+                key={el.id}
+                className="absolute flex flex-col items-center justify-center bg-white/95 backdrop-blur-xs rounded-lg border border-slate-300/80 shadow-sm overflow-hidden"
+                style={{
+                  left: `${el.x}%`,
+                  top: `${el.y}%`,
+                  width: `${el.width}%`,
+                  height: `${el.height * 1.25}%`,
+                  transform: `rotate(${el.rotation || 0}deg)`,
+                  opacity: el.opacity ?? 1,
+                  zIndex: el.zIndex,
+                }}
+              >
+                <div className="w-full aspect-square p-0.5 rounded-md bg-white flex items-center justify-center">
+                  <MediaQrCode mediaId={(el as MediaElement).mediaId} kind={(el as MediaElement).mediaKind} />
+                </div>
+                <span className="mt-0.5 text-[6px] sm:text-[7px] leading-none font-semibold text-slate-800 text-center px-0.5 truncate max-w-full">
+                  {(el as MediaElement).scanLabel ||
+                    (el.mediaKind === 'audio' ? 'Scan to listen' : 'Scan to watch')}
+                </span>
               </div>
             );
           }

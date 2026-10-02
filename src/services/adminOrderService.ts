@@ -1,16 +1,16 @@
 /**
  * Admin order management — `public.orders` in Postgres.
  *
- * Orders are one flat table now (was `users/{uid}/orders/{orderId}` in
- * Postgres), so the admin list is a plain SELECT that RLS scopes to admins —
+ * Orders are one flat table now (was a per-user document subcollection), so
+ * the admin list is a plain SELECT that RLS scopes to admins —
  * no collectionGroup query. `updateOrderStatus` and friends touch only
  * fulfilment columns; the `guard_order_columns()` trigger in
  * `supabase/migrations/0002_rls.sql` blocks an admin from rewriting the total,
  * items or address through any path.
  *
- * KNOWN LIMITATION: guest checkout writes orders to localStorage only (see
- * `createOrder` in cardStorage), so guest orders are invisible here. They need
- * to be posted server-side, which needs the payments work.
+ * Guest orders used to be localStorage-only and invisible here. They are now
+ * written server-side by `create-checkout` with `user_id = null`, so every
+ * paid order — guest or signed-in — shows up in this list.
  */
 
 import { db } from './supabase';

@@ -6,12 +6,18 @@ export type { DeliveryAddress };
 /**
  * Order lifecycle.
  *
+ * `pending_payment` comes first: the order row is written by the checkout
+ * Edge Function before the customer is sent to Stripe, and only the signed
+ * webhook moves it to `processing`. It is a real row with a real (server-side)
+ * total — it just has not been charged yet, so it must not count as revenue.
+ *
  * `cancelled` and `refunded` are terminal: they are reachable by an admin, and
  * the customer sees the outcome (and any refund) on their order. They were
  * missing before, which left the "free reprint or refund" promise in the footer
  * and on the card page with no way to actually honour it.
  */
 export type OrderStatus =
+  | 'pending_payment'
   | 'processing'
   | 'printed'
   | 'dispatched'

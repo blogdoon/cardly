@@ -2,14 +2,9 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { CartItem, PromoCode } from '../types/cart';
 import { useAuth } from './AuthContext';
 import { STANDARD_DELIVERY_PRICE } from '../utils/delivery';
+import { VALID_PROMOS } from '../utils/promos';
 
 const LOCAL_CART_KEY = 'cardly_shopping_cart';
-
-const VALID_PROMOS: Record<string, PromoCode> = {
-  'CARDLY20': { code: 'CARDLY20', discountPercentage: 20, description: '20% off your entire order' },
-  'LOVE10': { code: 'LOVE10', discountPercentage: 10, description: '10% off greeting cards' },
-  'FREESHIP': { code: 'FREESHIP', discountPercentage: 15, description: '15% off discount covering shipping' },
-};
 
 interface CartContextType {
   items: CartItem[];

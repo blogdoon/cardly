@@ -1,6 +1,12 @@
 export type CardPageType = 'front' | 'inside-left' | 'inside-right' | 'back';
 
-export type ElementType = 'text' | 'photo' | 'sticker' | 'shape';
+/**
+ * The two things a card can carry to a phone. `audio` and `video` differ only in
+ * how the scan page renders them and in the size ceiling applied on upload.
+ */
+export type MediaKind = 'audio' | 'video';
+
+export type ElementType = 'text' | 'photo' | 'sticker' | 'shape' | 'media';
 
 export interface BaseElement {
   id: string;
@@ -76,7 +82,32 @@ export interface ShapeElement extends BaseElement {
   strokeWidth?: number;
 }
 
-export type CardElement = TextElement | PhotoElement | StickerElement | ShapeElement;
+/**
+ * An audio or video memory the customer attached, printed as a scannable QR
+ * code rather than as pixels — a card cannot play sound, but the recipient's
+ * phone can. `mediaId` points at a row in `card_media` (see services/mediaService),
+ * NOT at a blob or data URL: the file lives in the `card-media` bucket, and the
+ * row is what makes the URL public-but-unguessable.
+ *
+ * Deliberately not a File reference. Nothing here may hold bytes: a design jsonb
+ * column with a base64 video in it would blow the 1MB document limit instantly.
+ */
+export interface MediaElement extends BaseElement {
+  type: 'media';
+  /** Row id in `card_media`, minted with crypto.randomUUID. */
+  mediaId: string;
+  mediaKind: MediaKind;
+  /** Shown on the scan page and under the QR caption. Never trust from the client. */
+  title?: string;
+  /** Poster frame for video (a data URL from the editor, or a bucket object). */
+  posterUrl?: string;
+  /** Seconds. Read from the file in the browser so the page can show a duration. */
+  durationSeconds?: number;
+  /** Controls the QR caption wording, e.g. "Scan to listen". */
+  scanLabel?: string;
+}
+
+export type CardElement = TextElement | PhotoElement | StickerElement | ShapeElement | MediaElement;
 
 export interface CardPageDefinition {
   pageType: CardPageType;

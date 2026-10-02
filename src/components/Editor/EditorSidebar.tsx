@@ -10,11 +10,14 @@ import {
   Upload,
   BookOpen,
   Search,
+  Music4,
   X
 } from 'lucide-react';
-import { CardPageType } from '../../types/template';
+import { CardPageType, type MediaKind } from '../../types/template';
 import { PRESET_COLORS } from '../../data/fonts';
 import { StickerLibraryPanel } from './StickerLibraryPanel';
+import { MediaPanel } from './MediaPanel';
+import type { CardMedia } from '../../services/mediaService';
 import { uploadUserPhoto } from '../../services/cardStorage';
 import { generateCardMessage, isAiMessageAvailable, CardMessageContext } from '../../utils/aiMessage';
 
@@ -37,13 +40,20 @@ interface EditorSidebarProps {
     message: string;
   };
   onQuickFieldChange: (field: 'name' | 'message', val: string) => void;
+  /**
+   * Audio/video memories: ids already on the card, and the callback that places
+   * one as a QR code. Undefined hides the tab entirely, so a build without
+   * storage configured never offers a feature that cannot work.
+   */
+  usedMediaIds?: string[];
+  onAttachMedia?: (media: CardMedia) => void;
   /** Template metadata used to steer the AI writer. */
   aiContext?: CardMessageContext;
   activeTab?: TabType;
   onTabChange?: (tab: TabType) => void;
 }
 
-export type TabType = 'quick' | 'text' | 'photos' | 'elements' | 'background' | 'pages';
+export type TabType = 'quick' | 'text' | 'photos' | 'elements' | 'background' | 'pages' | 'media';
 
 export const EditorSidebar: React.FC<EditorSidebarProps> = ({
   currentPage,
@@ -54,6 +64,8 @@ export const EditorSidebar: React.FC<EditorSidebarProps> = ({
   onBackgroundChange,
   quickFields,
   onQuickFieldChange,
+  usedMediaIds,
+  onAttachMedia,
   aiContext,
   activeTab: controlledTab,
   onTabChange,
@@ -213,6 +225,23 @@ export const EditorSidebar: React.FC<EditorSidebarProps> = ({
           <Layers className="w-5 h-5" />
           <span>Pages</span>
         </button>
+
+        {/* Recordings tab. Only rendered when the parent passes onAttachMedia,
+            which it does only when storage is configured — a tab that could never
+            work is worse than no tab. */}
+        {onAttachMedia && (
+          <button
+            onClick={() => selectTab('media')}
+            className={`flex flex-col items-center gap-1 p-2 rounded-xl text-[10px] font-bold transition w-14 ${
+              activeTab === 'media'
+                ? 'bg-rose-500 text-white shadow-sm'
+                : 'text-slate-600 hover:bg-slate-200/60'
+            }`}
+          >
+            <Music4 className="w-5 h-5" />
+            <span>Recording</span>
+          </button>
+        )}
       </div>
 
       {/* Secondary flyout tab content panel */}
@@ -497,6 +526,11 @@ export const EditorSidebar: React.FC<EditorSidebarProps> = ({
               </button>
             </div>
           </div>
+        )}
+
+        {/* Recordings Tab */}
+        {activeTab === 'media' && onAttachMedia && (
+          <MediaPanel usedMediaIds={usedMediaIds ?? []} onAttach={onAttachMedia} />
         )}
       </div>
     </div>

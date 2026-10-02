@@ -47,6 +47,8 @@ interface PendingDelete {
   customIds: string[];
   /** Title shown in the dialog; the full list when several are selected. */
   title: string;
+  /** `purge` = erase from the database for good; unset = retire (soft delete). */
+  mode?: 'purge';
 }
 
 export const Admin: React.FC<AdminProps> = ({ onNavigate }) => {
@@ -61,6 +63,7 @@ export const Admin: React.FC<AdminProps> = ({ onNavigate }) => {
     restoreTemplate,
     bulkDeleteTemplates,
     bulkRestoreTemplates,
+    purgeRetiredTemplates,
   } = useCatalog();
   const [search, setSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
@@ -262,6 +265,44 @@ export const Admin: React.FC<AdminProps> = ({ onNavigate }) => {
     },
     [isLocallyCreated]
   );
+
+  /** Retired cards only: ask to erase them from the database for good. */
+  const requestPurge = useCallback((targets: CardTemplate[]) => {
+    if (targets.length === 0) return;
+    setPendingDelete({
+      ids: targets.map((t) => t.id),
+      customIds: [],
+      title: targets.length === 1 ? targets[0].title : `${targets.length} selected cards`,
+      mode: 'purge',
+    });
+  }, []);
+
+  const handleConfirmPurge = useCallback(async () => {
+    if (!pendingDelete) return;
+    const { ids } = pendingDelete;
+    setPendingDelete(null);
+    setBulkBusy(true);
+    setBulkProgress({ done: 0, total: ids.length });
+    try {
+      // One call: it refuses live cards and anything already sold, so the
+      // failure message comes from the single place that knows the rules.
+      const purged = await purgeRetiredTemplates(ids);
+      await refreshDocuments();
+      setNotice({
+        tone: 'ok',
+        text: `Erased ${purged} card${purged === 1 ? '' : 's'} from the database. Gone for good.`,
+      });
+      clearSelection();
+    } catch (e) {
+      setNotice({
+        tone: 'error',
+        text: e instanceof Error ? `Nothing was erased: ${e.message}` : 'Erase failed.',
+      });
+    } finally {
+      setBulkBusy(false);
+      setBulkProgress(null);
+    }
+  }, [pendingDelete, purgeRetiredTemplates, refreshDocuments, clearSelection]);
 
   const handleToggleBestSeller = useCallback(
     async (template: CardTemplate) => {
@@ -569,14 +610,27 @@ export const Admin: React.FC<AdminProps> = ({ onNavigate }) => {
                   Clear selection
                 </button>
                 {showRetired ? (
-                  <button
-                    onClick={handleBulkRestore}
-                    disabled={bulkBusy}
-                    className="px-3 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-[11px] font-bold flex items-center gap-1.5 disabled:opacity-50"
-                  >
-                    {bulkBusy ? <Loader2 className="w-3 h-3 animate-spin" /> : <RotateCcw className="w-3 h-3" />}
-                    Restore {selected.size}
-                  </button>
+                  <>
+                    <button
+                      onClick={handleBulkRestore}
+                      disabled={bulkBusy}
+                      className="px-3 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-[11px] font-bold flex items-center gap-1.5 disabled:opacity-50"
+                    >
+                      {bulkBusy ? <Loader2 className="w-3 h-3 animate-spin" /> : <RotateCcw className="w-3 h-3" />}
+                      Restore {selected.size}
+                    </button>
+                    <button
+                      onClick={() =>
+                        requestPurge(visibleTemplates.filter((t) => selected.has(t.id)))
+                      }
+                      disabled={bulkBusy}
+                      title="Erase the selected retired cards from the database"
+                      className="px-3 py-1.5 rounded-lg bg-rose-500 hover:bg-rose-600 text-[11px] font-bold flex items-center gap-1.5 disabled:opacity-50"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                      Erase {selected.size}
+                    </button>
+                  </>
                 ) : (
                   <button
                     onClick={() => requestDelete(visibleTemplates.filter((t) => selected.has(t.id)))}
@@ -708,18 +762,30 @@ export const Admin: React.FC<AdminProps> = ({ onNavigate }) => {
                       <td className="py-2 px-4">
                         <div className="flex items-center justify-end gap-1.5">
                           {isRetired ? (
-                            <button
-                              onClick={() => handleRestore(t)}
-                              disabled={isBusy}
-                              className="px-2.5 py-1 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-[10px] font-bold flex items-center gap-1 disabled:opacity-50"
-                            >
-                              {isBusy ? (
-                                <Loader2 className="w-3 h-3 animate-spin" />
-                              ) : (
-                                <RotateCcw className="w-3 h-3" />
-                              )}
-                              Restore
-                            </button>
+                            <>
+                              <button
+                                onClick={() => handleRestore(t)}
+                                disabled={isBusy}
+                                className="px-2.5 py-1 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-[10px] font-bold flex items-center gap-1 disabled:opacity-50"
+                              >
+                                {isBusy ? (
+                                  <Loader2 className="w-3 h-3 animate-spin" />
+                                ) : (
+                                  <RotateCcw className="w-3 h-3" />
+                                )}
+                                Restore
+                              </button>
+                              <button
+                                onClick={() => requestPurge([t])}
+                                disabled={isBusy || bulkBusy}
+                                aria-label={`Erase ${t.title} from the database`}
+                                title="Erase from the database for good"
+                                className="px-2.5 py-1 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 text-[10px] font-bold flex items-center gap-1 disabled:opacity-50"
+                              >
+                                <Trash2 className="w-3 h-3" />
+                                Erase
+                              </button>
+                            </>
                           ) : (
                             <button
                               onClick={() => requestDelete([t])}
@@ -821,6 +887,7 @@ export const Admin: React.FC<AdminProps> = ({ onNavigate }) => {
         const count = pendingDelete.ids.length;
         const isBulk = count > 1;
         const dbCount = count - pendingDelete.customIds.length;
+        const isPurge = pendingDelete.mode === 'purge';
         return (
           <div
             className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4"
@@ -835,7 +902,13 @@ export const Admin: React.FC<AdminProps> = ({ onNavigate }) => {
                 </div>
                 <div>
                   <h3 id="delete-template-heading" className="font-bold text-slate-900">
-                    {isBulk ? `Delete ${count} cards?` : 'Delete this card?'}
+                    {isPurge
+                      ? isBulk
+                        ? `Erase ${count} cards for good?`
+                        : 'Erase this card for good?'
+                      : isBulk
+                        ? `Delete ${count} cards?`
+                        : 'Delete this card?'}
                   </h3>
                   <p className="text-xs text-slate-500 mt-0.5 font-mono">
                     {isBulk ? `${count} selected` : pendingDelete.ids[0]}
@@ -844,7 +917,15 @@ export const Admin: React.FC<AdminProps> = ({ onNavigate }) => {
               </div>
 
               <p className="text-xs text-slate-600 leading-relaxed">
-                {isBulk ? (
+                {isPurge ? (
+                  <>
+                    {isBulk ? `The ${count} selected cards` : `&ldquo;${pendingDelete.title}&rdquo;`}{' '}
+                    will be <strong>erased from the database</strong>, not hidden: the row, its
+                    favourites and its reviews go with it, and there is no restore. Cards that have
+                    ever been sold are refused and stay retired — the erase only works on retired
+                    cards in the first place.
+                  </>
+                ) : isBulk ? (
                   <>
                     The {count} selected cards will disappear from the storefront for everyone.
                     {dbCount > 0 && (
@@ -904,10 +985,22 @@ export const Admin: React.FC<AdminProps> = ({ onNavigate }) => {
                   Cancel
                 </button>
                 <button
-                  onClick={isBulk ? handleBulkDelete : handleConfirmDelete}
+                  onClick={
+                    isPurge
+                      ? handleConfirmPurge
+                      : isBulk
+                        ? handleBulkDelete
+                        : handleConfirmDelete
+                  }
                   className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold"
                 >
-                  {isBulk ? `Delete ${count} cards` : 'Delete card'}
+                  {isPurge
+                    ? isBulk
+                      ? `Erase ${count} cards`
+                      : 'Erase card'
+                    : isBulk
+                      ? `Delete ${count} cards`
+                      : 'Delete card'}
                 </button>
               </div>
             </div>

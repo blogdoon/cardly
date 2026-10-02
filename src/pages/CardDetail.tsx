@@ -18,7 +18,7 @@ import { CardTemplate, CardSize, CardFinishOption } from '../types/template';
 import { getTemplateById } from '../data/templates';
 import { CARD_SIZES, ENVELOPE_COLORS, CARD_FINISHES } from '../data/fonts';
 import { formatPrice } from '../utils/currency';
-import { editablePagesFrom } from '../utils/frontCover';
+import { editablePagesFrom, designSnapshotFromTemplate } from '../utils/frontCover';
 import { CardReviews } from '../components/CardReviews';
 import { useFavorites } from '../context/FavoritesContext';
 import { useCart } from '../context/CartContext';
@@ -97,6 +97,14 @@ export const CardDetail: React.FC<CardDetailProps> = ({
       finish: finishConfig.id,
       quantity: 1,
       unitPrice: template.price * sizeConfig.priceMultiplier,
+      // Fulfilment reads the design off the ORDER ITEM, not the design table:
+      // `create-checkout` copies `designSnapshot` into `items` so the printed card
+      // is the one that was bought even if the template is edited or retired
+      // afterwards. A quick-add with no snapshot therefore produces an order whose
+      // card cannot be printed — `Account.getOrderCardDesign` silently falls back to
+      // template defaults, which is a blank card with no message. So the snapshot is
+      // mandatory here, built from the same `editablePagesFrom` the editor uses.
+      designSnapshot: designSnapshotFromTemplate(template),
       addons: [
         ...(envelopeConfig.price > 0
           ? [{ id: envelopeConfig.id, name: envelopeConfig.name, price: envelopeConfig.price, description: 'Luxury Envelope' }]

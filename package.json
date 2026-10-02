@@ -10,7 +10,8 @@
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit",
-    "test": "node --experimental-strip-types scripts/addressBook.check.ts && node --experimental-strip-types scripts/delivery.check.ts && node --experimental-strip-types scripts/frontCover.check.ts && node --experimental-strip-types scripts/orderReview.check.ts && node --experimental-strip-types scripts/templateFacets.check.ts && node scripts/catalogSelect.check.mjs && node scripts/routes.check.ts && node scripts/covers.check.mjs && node scripts/templateGenerator.check.mjs"
+    "test": "node --experimental-strip-types scripts/mediaRoute.check.ts && node --experimental-strip-types scripts/addressBook.check.ts && node --experimental-strip-types scripts/delivery.check.ts && node --experimental-strip-types scripts/frontCover.check.ts && node --experimental-strip-types scripts/paymentPricing.check.ts && node --experimental-strip-types scripts/orderReview.check.ts && node --experimental-strip-types scripts/printLayout.check.ts && node --experimental-strip-types scripts/templateFacets.check.ts && node --experimental-strip-types scripts/legal.check.ts && node scripts/catalogSelect.check.mjs && node scripts/routes.check.ts && node scripts/covers.check.mjs && node scripts/templateGenerator.check.mjs",
+    "test:strict": "npm test && node --experimental-strip-types scripts/legal.check.ts --strict"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",

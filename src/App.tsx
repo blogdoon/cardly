@@ -8,11 +8,13 @@ import { Footer } from './components/Footer';
 import { CartDrawer } from './components/CartDrawer';
 
 import { Home } from './pages/Home';
+import { MediaPage } from './pages/MediaPage';
 import { Browse } from './pages/Browse';
 import { CardDetail } from './pages/CardDetail';
 import { CardEditor } from './pages/CardEditor';
 import { Cart } from './pages/Cart';
 import { Checkout } from './pages/Checkout';
+import { CheckoutSuccess } from './pages/CheckoutSuccess';
 import { Favorites } from './pages/Favorites';
 import { Account } from './pages/Account';
 import { Admin } from './pages/Admin';
@@ -276,6 +278,10 @@ function AppRoutes() {
               <Checkout onNavigate={handleNavigate} />
             )}
 
+            {currentRoute === 'checkoutSuccess' && (
+              <CheckoutSuccess onNavigate={handleNavigate} />
+            )}
+
             {currentRoute === 'favorites' && (
               <Favorites
                 onNavigate={handleNavigate}
@@ -318,6 +324,10 @@ function AppRoutes() {
                   </div>
                 </div>
               )
+            )}
+
+            {currentRoute === 'media' && routeParam && (
+              <MediaPage mediaId={routeParam} />
             )}
 
             {currentRoute === 'notFound' && (

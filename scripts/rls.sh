@@ -75,14 +75,10 @@ $fn$;
 -- yet enabled at this point, so these inserts are plain.
 SQL
 
-echo "rls: applying 0001_schema.sql"
-"${PSQL[@]}" -f "$ROOT/supabase/migrations/0001_schema.sql" >/dev/null
-
-echo "rls: applying 0002_rls.sql"
-"${PSQL[@]}" -f "$ROOT/supabase/migrations/0002_rls.sql" >/dev/null
-
-echo "rls: applying 0003_bootstrap_admin.sql"
-"${PSQL[@]}" -f "$ROOT/supabase/migrations/0003_bootstrap_admin.sql" >/dev/null
+echo "rls: applying migrations"
+for migration in "$ROOT"/supabase/migrations/*.sql; do
+  "${PSQL[@]}" -f "$migration" >/dev/null
+done
 
 echo "rls: running behaviour tests"
 OUT="$("${PSQL[@]}" -f "$ROOT/supabase/tests/rls.sql" 2>&1 || true)"

@@ -268,13 +268,80 @@ export async function bulkRestoreTemplate(
 }
 
 /**
- * Irreversibly remove the row. Only safe for templates that were never sold,
- * customised or favourited — prefer `deleteTemplate`.
+ * Irreversibly erase retired rows from the database.
+ *
+ * Two guards make this safe to hand to an operator:
+ *
+ *   1. Only *retired* rows can be erased. A live card has to go through
+ *      `deleteTemplate` first, so one stray click on the live tab cannot wipe
+ *      the storefront.
+ *   2. Nothing that has ever been sold. Orders carry the cart line as jsonb,
+ *      so there is no foreign key to lean on — this is the only thing stopping
+ *      a purge from breaking a customer's record (and cascading their review
+ *      away with it).
+ *
+ * @returns How many rows were actually erased.
  */
-export async function purgeTemplate(templateId: string): Promise<void> {
-  const { error } = await db().from(TABLE).delete().eq('id', templateId);
+export async function purgeRetiredTemplates(templateIds: string[]): Promise<number> {
+  if (templateIds.length === 0) return 0;
+  if (!isSupabaseConfigured) throw new Error('Supabase is not configured.');
+
+  const { data: live, error: liveError } = await db()
+    .from(TABLE)
+    .select('id')
+    .in('id', templateIds)
+    .is('deleted_at', null);
+  if (liveError) throw new Error(liveError.message);
+  if (live && live.length > 0) {
+    throw new Error(
+      `${live.length} of these are still live in the catalog — retire them before erasing.`
+    );
+  }
+
+  const sold = await soldCounts(templateIds);
+  if (sold.size > 0) {
+    const detail = Array.from(sold, ([id, n]) => `${id} (${n} order${n === 1 ? '' : 's'})`).join(', ');
+    throw new Error(
+      `These have been bought, so they must keep existing: ${detail}. ` +
+        'Retire them and leave them retired.'
+    );
+  }
+
+  const { data, error } = await db().from(TABLE).delete().in('id', templateIds).select('id');
   if (error) throw new Error(error.message);
   await reloadCatalog();
+  return data?.length ?? templateIds.length;
+}
+
+/**
+ * Orders that contain each template, i.e. the "has this card been sold?" test.
+ *
+ * `items` is jsonb (`items @> [{templateId}]`), which PostgREST answers with a
+ * head-count per id — one small query per candidate rather than one clever
+ * `or`-filter full of escaped JSON, because this is the check that decides
+ * whether customer data gets destroyed.
+ */
+async function soldCounts(templateIds: string[]): Promise<Map<string, number>> {
+  const counts = new Map<string, number>();
+  await Promise.all(
+    templateIds.map(async (id) => {
+      const { count, error } = await db()
+        .from('orders')
+        .select('id', { count: 'exact', head: true })
+        .contains('items', [{ templateId: id }]);
+      if (error) throw new Error(`Could not check orders for "${id}": ${error.message}`);
+      if (count) counts.set(id, count);
+    })
+  );
+  return counts;
+}
+
+/**
+ * Erase one retired row. Thin wrapper so there is one purge path with the
+ * guards above — see `purgeRetiredTemplates`.
+ */
+export async function purgeTemplate(templateId: string): Promise<void> {
+  await purgeRetiredTemplates([templateId]);
 }
 
 /** The catalog currently in use, for callers that need it outside React. */

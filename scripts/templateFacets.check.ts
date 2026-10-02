@@ -15,6 +15,8 @@
  * `npm test`
  */
 
+import { readdirSync } from 'node:fs';
+
 import {
   ARTWORK_FACETS,
   DEFAULT_FACETS,
@@ -60,6 +62,79 @@ eq('artworkSlug strips the extension', artworkSlug('felt_giraffe_hat_bunting.png
 eq('artworkSlug strips a millisecond suffix', artworkSlug('wildflower_meadow_1790279890817.png'), 'wildflower_meadow');
 eq('imageSlug reads the last path segment', imageSlug('https://x/a/b/felt_giraffe_hat_bunting.png?v=2'), 'felt_giraffe_hat_bunting');
 eq('imageSlug survives a query string', imageSlug('https://x/abc.png?width=800'), 'abc');
+
+// Vite hands back glob keys percent-encoded, so an asset URL containing a space
+// arrives as `%20`. Without decoding first, every space became `_20` and no
+// hand-written key could ever match, which silently pushed 29 christmas/get-well
+// cards onto DEFAULT_FACETS. The encoded and decoded forms must agree.
+eq('artworkSlug percent-decodes before normalising', artworkSlug('Penguin%E2%80%99s%20Oversized%20Christmas%20Tree.png'), 'penguin_s_oversized_christmas_tree');
+eq('an encoded path segment decodes to the same slug as the plain filename', artworkSlug(encodeURIComponent('Art Deco Holiday Column and Holly.png')), 'art_deco_holiday_column_and_holly');
+eq('imageSlug decodes an encoded asset URL', imageSlug('/src/assets/images/occasions/christmas/Watercolor%20Holiday%20Gift%20and%20Botanicals.png'), 'watercolor_holiday_gift_and_botanicals');
+ok('a malformed percent escape does not throw', artworkSlug('50% off.png').length > 0);
+
+// --- every bundled artwork is assigned, not falling back ---------------------
+
+// This is the guard for the bug above. The fallback is deliberately a single
+// style and a single recipient, so a card that quietly missed its map entry is
+// unreachable from most of the browse facets while still looking plausible — the
+// same "populated but useless" failure AGENTS.md warns about for `?color=`.
+// Every real filename that ships in the occasions folders must be a map key.
+const encodedAsset = encodeURIComponent('Art Deco Holiday Column and Holly.png');
+ok(
+  'an unassigned artwork falls back rather than throwing',
+  buildTemplateFacets({ occasion: 'Christmas', imageUrl: '/src/assets/images/occasions/christmas/definitely-not-reviewed.png' }).styles.length > 0
+);
+ok(
+  'the fallback is single-valued, so a missing entry is visible',
+  DEFAULT_FACETS.styles.length === 1 && DEFAULT_FACETS.recipients.length === 1
+);
+ok('the reviewed christmas art resolves its own entry', ARTWORK_FACETS['art_deco_holiday_column_and_holly'] !== undefined || artworkSlug(encodedAsset) in ARTWORK_FACETS);
+
+/**
+ * The definitive version of the guard: read the artwork directory off disk and
+ * require a map entry for every file. Without this, dropping a new PNG into
+ * `occasions/` produced a card with a perfectly valid but generic facet set, and
+ * nothing failed until someone noticed that half the winter collection was
+ * unreachable from `?style=`. Now `npm test` fails on the spot.
+ */
+const ARTWORK_DIR = new URL('../src/assets/images/occasions/', import.meta.url);
+const walkArtwork = (dir: URL): string[] => {
+  const out: string[] = [];
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const child = new URL(`${entry.name}${entry.isDirectory() ? '/' : ''}`, dir);
+    if (entry.isDirectory()) out.push(...walkArtwork(child));
+    else if (/\.(jpe?g|png|webp|avif|svg)$/i.test(entry.name)) out.push(entry.name);
+  }
+  return out;
+};
+
+let artworkFiles: string[] = [];
+try {
+  artworkFiles = walkArtwork(ARTWORK_DIR);
+} catch {
+  console.warn('template facets: artwork directory not found, skipping the coverage check');
+}
+const unassigned = artworkFiles
+  .filter((file) => !(artworkSlug(file) in ARTWORK_FACETS))
+  .sort();
+ok(`every bundled artwork file has a reviewed entry (${artworkFiles.length} files)`, unassigned.length === 0);
+if (unassigned.length > 0) {
+  console.error(
+    `  unassigned artwork (add these to ARTWORK_FACETS in src/utils/templateFacets.ts):\n` +
+      unassigned.map((f) => `    ${artworkSlug(f)}   <- ${f}`).join('\n')
+  );
+}
+
+// Every map key should correspond to a file that actually ships, so the map does
+// not drift into entries that look like coverage but can never be reached.
+const assignedSlugs = new Set(Object.keys(ARTWORK_FACETS).map(artworkSlug));
+const orphanKeys = [...assignedSlugs]
+  .filter((slug) => !artworkFiles.some((f) => artworkSlug(f) === slug))
+  .sort();
+ok(`every ARTWORK_FACETS entry matches a bundled file (${assignedSlugs.size} keys)`, orphanKeys.length === 0);
+if (orphanKeys.length > 0) {
+  console.error(`  ARTWORK_FACETS keys with no artwork file: ${orphanKeys.join(', ')}`);
+}
 
 // --- the map itself is well formed ------------------------------------------
 

@@ -22,11 +22,104 @@ const loadCatalogManifest = () => {
   }
   return JSON.parse(fs.readFileSync(MANIFEST, 'utf8'));
 };
-// Absolute origin for canonical/og URLs, robots.txt and the sitemap (see .env.example).
-const ORIGIN = (process.env.SITE_ORIGIN || process.env.APP_URL || 'https://cardly.app').replace(
-  /\/+$/,
-  ''
-);
+// Absolute origin for canonical/og URLs, robots.txt and the sitemap (see .env.example
+// and DEPLOYMENT.md).
+//
+// .env is deliberately NOT read here. Vite already loads it for the VITE_* client vars,
+// and whatever builds this bundle injects the real environment into this process. A
+// gitignored local .env is not a source of truth for where the site is served from, and
+// this repo's .env still carries the AI Studio placeholder APP_URL="MY_APP_URL" — reading
+// it would make that placeholder the site's canonical origin (which is exactly how
+// `Sitemap: MY_APP_URL/sitemap.xml` once shipped).
+const DEFAULT_ORIGIN = 'https://cardly.app';
+
+// Values that are unmistakably not a real deployment origin. Rejected with a specific
+// reason rather than a bare "invalid URL", because some of these do parse (`your-domain.com`
+// and `http://localhost:3000` both yield a perfectly good URL object) and would otherwise
+// put 343 wrong <loc> entries into the sitemap without complaint.
+const ORIGIN_PLACEHOLDERS = [
+  { test: /(^|[^a-z0-9])(your|my)[_-]/i, why: 'it still contains a YOUR_/MY_ placeholder' },
+  { test: /[<>]|\$\{/, why: 'it contains an unsubstituted placeholder (<…> or ${…})' },
+  {
+    test: /example\.(com|org|net)|localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1\]/i,
+    why: 'it is a documentation or loopback host, not a public site',
+  },
+  {
+    test: /^(my_?app_?url|your_?app_?url|app_?url|site_?origin|url|origin|changeme|todo|tbd)$/i,
+    why: 'it is a placeholder name, not a URL',
+  },
+];
+
+// One layer of matching quotes, in case the value came through a shell/YAML/CI secret that
+// kept them: `SITE_ORIGIN="https://…"`. Without this, the quote breaks URL parsing and the
+// error says "not a URL" for what is actually a quoting mistake.
+const unquote = (v) => {
+  const m = /^(['"])([\s\S]*)\1$/.exec(v);
+  return m ? m[2] : v;
+};
+
+/**
+ * Resolve the build origin, or throw.
+ *
+ * `SITE_ORIGIN` wins; `APP_URL` is the older AI Studio name and is kept only as a
+ * fallback. Both genuinely unset/empty falls back to DEFAULT_ORIGIN so a plain local
+ * build still succeeds; anything set but unusable fails the build loudly, because a
+ * wrong origin is not a cosmetic problem — it silently rewrites the canonical URL and
+ * og:url of every prerendered page and points robots.txt at a host that does not exist.
+ */
+const resolveOrigin = () => {
+  const chosen = [
+    ['SITE_ORIGIN', process.env.SITE_ORIGIN],
+    ['APP_URL', process.env.APP_URL],
+  ].find(([, raw]) => typeof raw === 'string' && raw.trim() !== '');
+  if (!chosen) return { origin: DEFAULT_ORIGIN, source: 'default' };
+
+  const [name, rawValue] = chosen;
+  const value = unquote(rawValue.trim());
+  const fail = (why) => {
+    throw new Error(
+      [
+        `prerender: ${name} is not usable as the site origin — ${why}.`,
+        '',
+        `  ${name}=${JSON.stringify(rawValue)}`,
+        '',
+        '  Every <link rel="canonical"> and og:url on every prerendered card page, plus',
+        '  robots.txt and all 343 <loc> entries in sitemap.xml, are built from this value.',
+        '  A placeholder therefore ships a sitemap telling search engines the entire site',
+        '  lives on a host that does not exist, so the build fails instead.',
+        '',
+        '  Fix: set SITE_ORIGIN to the absolute origin this build is served from, e.g.',
+        '      export SITE_ORIGIN=https://cardly.app',
+        `  or leave SITE_ORIGIN and APP_URL both unset to fall back to ${DEFAULT_ORIGIN}.`,
+        '  (.env is not read by this script — export the variable in the build environment.)',
+      ].join('\n')
+    );
+  };
+
+  const placeholder = ORIGIN_PLACEHOLDERS.find((p) => p.test.test(value));
+  if (placeholder) fail(placeholder.why);
+
+  let url;
+  try {
+    url = new URL(value);
+  } catch {
+    fail('it is not a parseable absolute URL');
+  }
+  if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+    fail(`its scheme is "${url.protocol}"; only http:// and https:// are allowed`);
+  }
+  if (!url.hostname) fail('it has no hostname');
+  // An origin is scheme + host + port only. A trailing path or a query string would be
+  // pasted in front of every generated URL (`https://host/shop/card/<id>/`).
+  if (url.pathname !== '/' || url.search || url.hash) {
+    fail('it must be an origin only — no path, query string or fragment');
+  }
+
+  // `url.origin` normalises the trailing slash away for http/https.
+  return { origin: url.origin, source: name };
+};
+
+const { origin: ORIGIN, source: ORIGIN_SOURCE } = resolveOrigin();
 
 const shell = fs.readFileSync(path.join(dist, 'index.html'), 'utf8');
 const builtAssets = fs.readdirSync(path.join(dist, 'assets'));
@@ -261,6 +354,6 @@ fs.writeFileSync(
 );
 
 console.log(
-  `prerender: ${written} template pages -> dist/card/<id>/index.html, plus robots.txt + sitemap.xml (${sitemapUrls.split('\n').length} urls, origin ${ORIGIN})` +
+  `prerender: ${written} template pages -> dist/card/<id>/index.html, plus robots.txt + sitemap.xml (${sitemapUrls.split('\n').length} urls, origin ${ORIGIN} from ${ORIGIN_SOURCE})` +
     (removed > 0 ? `; removed ${removed} stale retired page(s)` : '')
 );

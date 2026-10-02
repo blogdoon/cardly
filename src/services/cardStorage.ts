@@ -1,7 +1,7 @@
 import { db, isSupabaseConfigured, currentUserId, PHOTO_BUCKET } from './supabase';
 import { UserDesign } from '../types/design';
 import { Order } from '../types/order';
-import { orderToRow, rowToOrder } from './orderRows';
+import { rowToOrder } from './orderRows';
 import { optimizeImageFile, getCardDesignThumbnail } from '../utils/imageOptimizer';
 
 const LOCAL_DESIGNS_KEY = 'cardly_user_designs';
@@ -209,7 +209,11 @@ export function getLocalDesigns(): UserDesign[] {
 export function getLocalFavorites(): string[] {
   try {
     const raw = localStorage.getItem(LOCAL_FAVORITES_KEY);
-    return raw ? JSON.parse(raw) : ['card-001', 'card-003', 'card-007'];
+    // No fabricated defaults. This used to seed `['card-001', 'card-003',
+  // 'card-007']`, which is a lie twice over: those templates were deleted when
+  // the catalog moved to the studio, and it inflated the favourites badge with
+  // ids nothing can resolve. The empty list is the truthful state.
+  return raw ? JSON.parse(raw) : [];
   } catch {
     return [];
   }
@@ -285,20 +289,22 @@ export async function getUserOrders(userId?: string): Promise<Order[]> {
   return localOrders;
 }
 
+/**
+ * Record an order in this browser's history.
+ *
+ * The database row is created server-side by the `create-checkout` Edge
+ * Function — a client may not insert an order because a client may not decide
+ * the total (`supabase/migrations/0004_payments.sql` drops the insert policy
+ * behind that). This is the local copy: guest order history, and the
+ * signed-in fallback when the network is down. Idempotent by id, because the
+ * success page can mount twice in dev.
+ */
 export async function createOrder(order: Order): Promise<void> {
   const cleaned: Order = clean(order);
   const current = getLocalOrders();
+  if (current.some((o) => o.id === cleaned.id)) return;
   current.unshift(cleaned);
   localStorage.setItem(LOCAL_ORDERS_KEY, JSON.stringify(current));
-
-  if (await isOwner(cleaned.userId)) {
-    try {
-      const { error } = await db().from('orders').insert(orderToRow(cleaned));
-      if (error) throw error;
-    } catch (e) {
-      console.warn('Order creation warning:', e);
-    }
-  }
 }
 
 // ======================== RECENTLY VIEWED ========================
@@ -317,7 +323,10 @@ export function recordRecentlyViewed(templateId: string): void {
 export function getRecentlyViewed(): string[] {
   try {
     const raw = localStorage.getItem(LOCAL_RECENT_KEY);
-    return raw ? JSON.parse(raw) : ['card-001', 'card-002', 'card-005', 'card-008'];
+    // No fabricated history either — see getLocalFavorites. Seeding four dead ids
+  // also poisoned getPersonalizedFeed, which read them as real interests and so
+  // scored recommendations against templates that no longer exist.
+  return raw ? JSON.parse(raw) : [];
   } catch {
     return [];
   }

@@ -20,6 +20,7 @@ import {
   bulkDeleteTemplate,
   bulkRestoreTemplate,
   purgeTemplate,
+  purgeRetiredTemplates,
   upsertTemplate,
   fetchAllCatalogDocuments,
   type CatalogDocument,
@@ -43,6 +44,8 @@ interface CatalogContextValue {
   /** Restore many at once; resolves with the number restored. */
   bulkRestoreTemplates: (ids: string[], onProgress?: (done: number, total: number) => void) => Promise<number>;
   purgeTemplate: (id: string) => Promise<void>;
+  /** Erase retired rows for good; refuses live or already-sold cards. */
+  purgeRetiredTemplates: (ids: string[]) => Promise<number>;
 }
 
 const CatalogContext = createContext<CatalogContextValue | undefined>(undefined);
@@ -94,6 +97,7 @@ export const CatalogProvider: React.FC<{ children: React.ReactNode }> = ({ child
       bulkRestoreTemplates: (ids: string[], onProgress?: (done: number, total: number) => void) =>
         bulkRestoreTemplate(ids, onProgress),
       purgeTemplate,
+      purgeRetiredTemplates,
     }),
     [templates, documents, status, loading, refreshDocuments, actorEmail]
   );

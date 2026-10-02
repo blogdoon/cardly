@@ -31,12 +31,24 @@ export function getPersonalizedFeed(favorites: string[], limit = 8): CardTemplat
   const recentIds = getRecentlyViewed();
   const interestedIds = Array.from(new Set([...favorites, ...recentIds]));
 
+  // Fall back to the real catalog when we have no signal. This used to filter on
+  // `isPopular` only, which returns nothing until an admin flags something — so a
+  // first-time visitor (no favourites, no history) got an empty rail rather than a
+  // usable one. Prefer flagged cards, but never return less than asked for while
+  // the catalog has stock to show.
   if (interestedIds.length === 0) {
-    return getLiveCatalog().filter((t) => t.isPopular).slice(0, limit);
+    const catalog = getLiveCatalog();
+    const popular = catalog.filter((t) => t.isPopular || t.isBestSeller);
+    return (popular.length ? popular : catalog).slice(0, limit);
   }
 
+  // Ignore interest ids that no longer resolve, so a stale localStorage entry can
+  // never skew the scoring below.
+  const knownIds = new Set(getLiveCatalog().map((t) => t.id));
+  const liveInterest = interestedIds.filter((id) => knownIds.has(id));
+
   // Find preferred categories and recipients
-  const preferredTemplates = getLiveCatalog().filter((t) => interestedIds.includes(t.id));
+  const preferredTemplates = getLiveCatalog().filter((t) => liveInterest.includes(t.id));
   const categoryFreq: Record<string, number> = {};
   const recipientFreq: Record<string, number> = {};
 
@@ -49,7 +61,7 @@ export function getPersonalizedFeed(favorites: string[], limit = 8): CardTemplat
     });
   });
 
-  const scored = getLiveCatalog().filter((t) => !interestedIds.includes(t.id)).map((t) => {
+  const scored = getLiveCatalog().filter((t) => !liveInterest.includes(t.id)).map((t) => {
     const catScore = (categoryFreq[t.category] || 0) * 3;
     // Best-matching recipient counts, not "any overlap", so a card listed for
     // one specific person is not boosted as much as a broadly-usable one.

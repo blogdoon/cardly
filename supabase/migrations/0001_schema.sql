@@ -5,13 +5,14 @@
 -- rather than snake_cased, because the client maps rows to `CardTemplate` and
 -- friends directly and a rename would mean a translation layer nobody asked for.
 --
--- Two things are genuinely better in Postgres than in Firestore rules, and both
+-- Two things are genuinely better in Postgres than in document rules, and both
 -- are load-bearing (see 0002_rls.sql):
 --   * `reviews` is keyed (order_id, template_id), so "one review per order per
 --     card" is a primary key rather than a doc-id naming convention.
 --   * RLS policies can *query other tables*, so the review insert policy can
---     finally verify the order actually contains the template. Firestore could
---     not, and that gap is documented in AGENTS.md as needing a Cloud Function.
+--     finally verify the order actually contains the template. The old document
+--     rules could not, and that gap used to be tracked in AGENTS.md as needing
+--     a Cloud Function — it is closed here instead.
 --
 -- Money is in EUR as plain numbers (the store is euro-only, see AGENTS.md) and
 -- is stored in minor units-free `numeric(10,2)` so arithmetic cannot drift.

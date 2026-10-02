@@ -37,6 +37,15 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, onPersonalize }) => {
   const popularCards = getPopularTemplates(8);
   const photoCards = getPhotoTemplates(8);
   const birthdayCards = getTemplatesByCategory('Birthday').slice(0, 8);
+
+  // The hero stack used to link to a hardcoded 'card-001'. Those templates were
+  // deleted when the catalog moved to the studio, so the literal resolved to
+  // nothing and opened an empty editor — and `popularCards` is empty until an
+  // admin flags something popular, so the hero image was blank too. Always take
+  // a real row from the live catalog, and render nothing rather than a broken
+  // image when the catalog is empty.
+  const heroCard = popularCards[0] ?? birthdayCards[0] ?? getLiveCatalog()[0] ?? null;
+  const heroBackCard = birthdayCards[1] ?? popularCards[1] ?? getLiveCatalog()[1] ?? null;
   const funnyCards = getLiveCatalog().filter((t) => t.styles.includes('Funny')).slice(0, 8);
   const personalizedFeed = getPersonalizedFeed(favorites, 8);
 
@@ -151,29 +160,35 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, onPersonalize }) => {
                 <div className="absolute w-72 h-72 bg-amber-200/50 rounded-full blur-3xl -bottom-10 -right-10" />
 
                 {/* Back card teaser */}
-                <div className="absolute w-56 h-76 rounded-2xl bg-white shadow-xl rotate-[-12deg] -translate-x-12 translate-y-4 border border-slate-200 overflow-hidden opacity-85 transition-transform hover:rotate-[-8deg]">
-                  <img
-                    src={birthdayCards[1]?.thumbnail || popularCards[1]?.thumbnail}
-                    alt="Card"
-                    className="w-full h-full object-contain p-2"
-                  />
-                </div>
+                {heroBackCard && (
+                  <div className="absolute w-56 h-76 rounded-2xl bg-white shadow-xl rotate-[-12deg] -translate-x-12 translate-y-4 border border-slate-200 overflow-hidden opacity-85 transition-transform hover:rotate-[-8deg]">
+                    <img
+                      src={heroBackCard.thumbnail}
+                      alt={heroBackCard.title}
+                      className="w-full h-full object-contain p-2"
+                      onError={handleImageError}
+                    />
+                  </div>
+                )}
 
                 {/* Front hero featured card */}
-                <div
-                  onClick={() => onPersonalize('card-001')}
-                  className="relative w-64 h-84 rounded-2xl bg-white shadow-2xl rotate-[4deg] border border-rose-200 overflow-hidden cursor-pointer group hover:rotate-0 transition-all duration-300"
-                >
-                  <img
-                    src={popularCards[0]?.thumbnail}
-                    alt="Thirty, Flirty & Thriving"
-                    className="w-full h-full object-contain p-3 group-hover:scale-105 transition-transform"
-                  />
-                  <div className="absolute inset-x-3 bottom-3 p-2 bg-slate-900/80 backdrop-blur-xs text-white rounded-xl text-center text-xs font-bold shadow-md flex items-center justify-center gap-1">
-                    <Sparkles className="w-3.5 h-3.5 text-amber-300" />
-                    <span>Click to Personalize</span>
+                {heroCard && (
+                  <div
+                    onClick={() => onPersonalize(heroCard.id)}
+                    className="relative w-64 h-84 rounded-2xl bg-white shadow-2xl rotate-[4deg] border border-rose-200 overflow-hidden cursor-pointer group hover:rotate-0 transition-all duration-300"
+                  >
+                    <img
+                      src={heroCard.thumbnail}
+                      alt={heroCard.title}
+                      className="w-full h-full object-contain p-3 group-hover:scale-105 transition-transform"
+                      onError={handleImageError}
+                    />
+                    <div className="absolute inset-x-3 bottom-3 p-2 bg-slate-900/80 backdrop-blur-xs text-white rounded-xl text-center text-xs font-bold shadow-md flex items-center justify-center gap-1">
+                      <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+                      <span>Click to Personalize</span>
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
             </div>
           </div>

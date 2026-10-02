@@ -263,12 +263,12 @@ create trigger orders_guard before update on public.orders
 -- ---------------------------------------------------------------------------
 -- reviews — purchase + moderation
 --
--- This is the one place Postgres beats Firestore outright. The insert policy
+-- This is the one place Postgres beats the old document rules outright. The
+-- insert policy
 -- below verifies the order exists, belongs to the caller, and *contains the
--- template being reviewed*. firestore.rules could not do that (documented in
--- AGENTS.md as a known gap needing a Cloud Function) because a Firestore rule
--- cannot query another collection — but an RLS policy is a SQL query, so the
--- check is now server-side and unforgeable by the client.
+-- template being reviewed*. The old rules could not do that (it was a known gap
+-- in AGENTS.md) because a rule cannot query another table — but an RLS policy
+-- is a SQL query, so the check is now server-side and unforgeable by the client.
 -- ---------------------------------------------------------------------------
 alter table public.reviews enable row level security;
 

@@ -1,42 +1,40 @@
 import React, { useState } from 'react';
-import confetti from 'canvas-confetti';
 import {
-  ShieldCheck,
   Truck,
   CreditCard,
-  CheckCircle,
   ArrowRight,
   Sparkles,
   Lock,
-  ArrowLeft,
-  Package
+  ArrowLeft
 } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
-import { DeliveryAddress, DeliveryMethod, Order } from '../types/order';
-import { createOrder } from '../services/cardStorage';
-import { DELIVERY_METHODS, deliveryWindow } from '../utils/delivery';
+import { DeliveryAddress, DeliveryMethod } from '../types/order';
+import { DELIVERY_METHODS } from '../utils/delivery';
+import { formatPrice, SHIPPING_COUNTRIES, DEFAULT_SHIPPING_COUNTRY } from '../utils/currency';
+import { startCheckout, stashPendingOrder } from '../services/paymentService';
 
 interface CheckoutProps {
   onNavigate: (route: string) => void;
 }
 
 export const Checkout: React.FC<CheckoutProps> = ({ onNavigate }) => {
-  const { items, subtotal, discount, total, clearCart } = useCart();
+  const { items, subtotal, discount, promoCode } = useCart();
   const { user } = useAuth();
 
   const [deliveryType, setDeliveryType] = useState<'back_to_me' | 'direct_to_recipient'>('direct_to_recipient');
 
-  // Address State
+  // Address State. Nothing is prefilled: a placeholder address is a fabricated
+  // one, and the customer is the only source for where this card should go.
   const [address, setAddress] = useState<DeliveryAddress>({
     id: `addr_${Date.now()}`,
     name: user?.displayName || '',
-    line1: '42 Highfield Crescent',
+    line1: '',
     line2: '',
-    city: 'London',
-    county: 'Greater London',
-    postcode: 'SW1A 1AA',
-    country: 'United Kingdom',
+    city: '',
+    county: '',
+    postcode: '',
+    country: DEFAULT_SHIPPING_COUNTRY,
   });
 
   // Delivery Method State
@@ -44,15 +42,10 @@ export const Checkout: React.FC<CheckoutProps> = ({ onNavigate }) => {
 
   const [selectedMethod, setSelectedMethod] = useState<DeliveryMethod>(deliveryOptions[0]);
 
-  // Payment Form State
-  const [paymentMethod, setPaymentMethod] = useState<'google_pay' | 'card'>('google_pay');
-  const [cardNumber, setCardNumber] = useState('•••• •••• •••• 4242');
-  const [cardExpiry, setCardExpiry] = useState('12/28');
-  const [cardCvc, setCardCvc] = useState('888');
-
-  // Order Placed State
+  // Payment state. There is no card form here on purpose — card details are
+  // entered on Stripe's hosted page, so they never exist in this bundle at all.
   const [isPlacing, setIsPlacing] = useState(false);
-  const [placedOrder, setPlacedOrder] = useState<Order | null>(null);
+  const [paymentError, setPaymentError] = useState<string | null>(null);
 
   const finalTotal = Math.max(0, subtotal - discount + selectedMethod.price);
 
@@ -64,133 +57,26 @@ export const Checkout: React.FC<CheckoutProps> = ({ onNavigate }) => {
     }
 
     setIsPlacing(true);
+    setPaymentError(null);
 
-    const orderNumber = `CRD-2026-${Math.floor(1000 + Math.random() * 9000)}`;
-    const newOrder: Order = {
-      id: `ord_${Date.now()}`,
-      orderNumber,
-      userId: user?.uid || 'guest_user',
-      items: [...items],
-      subtotal,
-      deliveryFee: selectedMethod.price,
-      discount,
-      total: finalTotal,
-      status: 'processing',
-      shippingAddress: address,
-      deliveryMethod: selectedMethod,
-      // The finished card goes to the recipient, not back to the customer.
-      deliveryType: 'direct_to_recipient',
-      // Derived from the delivery method's own production window rather than
-      // hardcoded, so the order row cannot disagree with the estimate the
-      // customer was shown (see utils/delivery.ts).
-      estimatedArrival: deliveryWindow(selectedMethod).arrivalDate.toISOString(),
-      dispatchDate: new Date(Date.now() + 1000 * 60 * 60 * 4).toISOString(),
-      paymentSummary: {
-        method: paymentMethod,
-        last4: paymentMethod === 'card' ? cardNumber.slice(-4) : '4242',
-        brand: paymentMethod === 'google_pay' ? 'Google Pay' : 'Visa',
-      },
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-
-    await createOrder(newOrder);
-
-    // Trigger celebration confetti
     try {
-      confetti({
-        particleCount: 120,
-        spread: 70,
-        origin: { y: 0.6 },
-        colors: ['#e11d48', '#f59e0b', '#8b5cf6', '#10b981'],
+      // The server prices this order from the catalog and hands back a hosted
+      // Stripe checkout URL. It is written as `pending_payment`; only the
+      // signed webhook turns it into a real order (see AGENTS.md blocker #1).
+      const { url, order } = await startCheckout({
+        items,
+        deliveryMethodId: selectedMethod.id,
+        deliveryType,
+        promoCode: promoCode?.code ?? null,
+        address,
       });
-    } catch {
-      // ignore
+      stashPendingOrder(order);
+      window.location.href = url;
+    } catch (err) {
+      setPaymentError(err instanceof Error ? err.message : 'Could not start payment.');
+      setIsPlacing(false);
     }
-
-    clearCart();
-    setPlacedOrder(newOrder);
-    setIsPlacing(false);
   };
-
-  // Render Order Confirmation Screen
-  if (placedOrder) {
-    return (
-      <div className="max-w-2xl mx-auto px-4 py-16 text-center space-y-6 animate-in zoom-in-95 duration-300">
-        <div className="w-20 h-20 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto shadow-md">
-          <CheckCircle className="w-10 h-10" />
-        </div>
-
-        <div className="space-y-2">
-          <span className="text-xs font-bold text-rose-600 uppercase tracking-wider">
-            Order Confirmed!
-          </span>
-          <h1 className="text-3xl font-black text-slate-900">
-            Thank you, {placedOrder.shippingAddress.name}!
-          </h1>
-          <p className="text-xs text-slate-500 max-w-md mx-auto leading-relaxed">
-            Your personalized card order <strong className="text-slate-900 font-mono">{placedOrder.orderNumber}</strong> has been received and sent to our high-resolution print studio.
-          </p>
-        </div>
-
-        {/* Order Details Card */}
-        <div className="bg-white rounded-3xl p-6 border border-slate-200/90 text-left shadow-md space-y-4">
-          <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-            <span className="text-xs font-bold text-slate-700">Dispatch Status</span>
-            <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800">
-              Printing on 350gsm Silk
-            </span>
-          </div>
-
-          <div className="space-y-3">
-            {placedOrder.items.map((it) => (
-              <div key={it.id} className="flex items-center justify-between text-xs">
-                <div>
-                  <span className="font-bold text-slate-900">{it.title}</span>
-                  <p className="text-[11px] text-slate-500">
-                    {it.quantity}x • {it.cardSize} size • {it.envelopeColor} envelope
-                  </p>
-                </div>
-                <span className="font-bold text-slate-800">£{(it.unitPrice * it.quantity).toFixed(2)}</span>
-              </div>
-            ))}
-          </div>
-
-          <div className="pt-3 border-t border-slate-100 text-xs space-y-1 text-slate-600">
-            <div className="flex justify-between">
-              <span>Delivery:</span>
-              <span className="font-semibold text-slate-800">{placedOrder.deliveryMethod.name}</span>
-            </div>
-            <div className="flex justify-between">
-              <span>Ship to:</span>
-              <span className="font-semibold text-slate-800">
-                {placedOrder.shippingAddress.line1}, {placedOrder.shippingAddress.postcode}
-              </span>
-            </div>
-            <div className="flex justify-between text-sm font-black text-slate-900 pt-2 border-t border-slate-100">
-              <span>Total Paid:</span>
-              <span>£{placedOrder.total.toFixed(2)}</span>
-            </div>
-          </div>
-        </div>
-
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-4">
-          <button
-            onClick={() => onNavigate('account')}
-            className="w-full sm:w-auto px-6 py-3.5 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl shadow-xs transition"
-          >
-            View My Orders
-          </button>
-          <button
-            onClick={() => onNavigate('browse')}
-            className="w-full sm:w-auto px-6 py-3.5 bg-white hover:bg-slate-50 border border-slate-300 text-slate-800 font-bold text-xs rounded-xl transition"
-          >
-            Continue Shopping
-          </button>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
@@ -325,10 +211,11 @@ export const Checkout: React.FC<CheckoutProps> = ({ onNavigate }) => {
                   onChange={(e) => setAddress({ ...address, country: e.target.value })}
                   className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:outline-rose-500 bg-white"
                 >
-                  <option value="United Kingdom">United Kingdom</option>
-                  <option value="Ireland">Ireland</option>
-                  <option value="United States">United States</option>
-                  <option value="Australia">Australia</option>
+                  {SHIPPING_COUNTRIES.map((country) => (
+                    <option key={country} value={country}>
+                      {country}
+                    </option>
+                  ))}
                 </select>
               </div>
             </div>
@@ -364,18 +251,18 @@ export const Checkout: React.FC<CheckoutProps> = ({ onNavigate }) => {
                       <div className="text-[11px] text-slate-500">{opt.estimatedDelivery} • {opt.description}</div>
                     </div>
                   </div>
-                  <span className="font-bold text-xs text-slate-900">£{opt.price.toFixed(2)}</span>
+                  <span className="font-bold text-xs text-slate-900">{formatPrice(opt.price)}</span>
                 </label>
               ))}
             </div>
           </div>
 
-          {/* Step 4: Payment Simulation */}
+          {/* Step 4: Payment — hosted by Stripe */}
           <div className="bg-white p-6 rounded-3xl border border-slate-200/90 shadow-2xs space-y-4">
             <div className="flex items-center justify-between">
               <h2 className="font-bold text-slate-900 text-sm uppercase tracking-wider flex items-center gap-2">
                 <CreditCard className="w-4 h-4 text-rose-500" />
-                <span>4. Payment Method</span>
+                <span>4. Payment</span>
               </h2>
               <span className="text-[11px] text-emerald-600 flex items-center gap-1 font-semibold">
                 <Lock className="w-3 h-3" />
@@ -383,64 +270,18 @@ export const Checkout: React.FC<CheckoutProps> = ({ onNavigate }) => {
               </span>
             </div>
 
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={() => setPaymentMethod('google_pay')}
-                className={`flex-1 py-3 rounded-xl border font-bold text-xs flex items-center justify-center gap-2 transition ${
-                  paymentMethod === 'google_pay'
-                    ? 'border-rose-500 bg-rose-50 text-rose-900 ring-2 ring-rose-200'
-                    : 'border-slate-200 text-slate-700 hover:bg-slate-50'
-                }`}
-              >
-                <span>Google Pay</span>
-              </button>
+            <p className="text-xs text-slate-600 leading-relaxed">
+              Pressing pay takes you to Stripe's secure checkout, where you can pay by card, Google
+              Pay or Apple Pay. Your card details are entered on their page and never reach Cardly —
+              we only ever find out one thing: whether the payment succeeded.
+            </p>
 
-              <button
-                type="button"
-                onClick={() => setPaymentMethod('card')}
-                className={`flex-1 py-3 rounded-xl border font-bold text-xs flex items-center justify-center gap-2 transition ${
-                  paymentMethod === 'card'
-                    ? 'border-rose-500 bg-rose-50 text-rose-900 ring-2 ring-rose-200'
-                    : 'border-slate-200 text-slate-700 hover:bg-slate-50'
-                }`}
+            {paymentError && (
+              <div
+                role="alert"
+                className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-xs font-semibold text-rose-700"
               >
-                <span>Credit / Debit Card</span>
-              </button>
-            </div>
-
-            {paymentMethod === 'card' && (
-              <div className="space-y-3 pt-2 text-xs">
-                <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Card Number</label>
-                  <input
-                    type="text"
-                    value={cardNumber}
-                    onChange={(e) => setCardNumber(e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:outline-rose-500 font-mono"
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block font-semibold text-slate-700 mb-1">Expires</label>
-                    <input
-                      type="text"
-                      value={cardExpiry}
-                      onChange={(e) => setCardExpiry(e.target.value)}
-                      className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:outline-rose-500 font-mono"
-                    />
-                  </div>
-                  <div>
-                    <label className="block font-semibold text-slate-700 mb-1">CVC</label>
-                    <input
-                      type="password"
-                      maxLength={4}
-                      value={cardCvc}
-                      onChange={(e) => setCardCvc(e.target.value)}
-                      className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:outline-rose-500 font-mono"
-                    />
-                  </div>
-                </div>
+                {paymentError}
               </div>
             )}
           </div>
@@ -466,7 +307,9 @@ export const Checkout: React.FC<CheckoutProps> = ({ onNavigate }) => {
                     {item.quantity}x • {item.cardSize} • {item.envelopeColor}
                   </p>
                   <p className="font-bold text-slate-800 mt-1">
-                    £{((item.unitPrice + item.addons.reduce((s, a) => s + a.price, 0)) * item.quantity).toFixed(2)}
+                    {formatPrice(
+                      (item.unitPrice + item.addons.reduce((s, a) => s + a.price, 0)) * item.quantity
+                    )}
                   </p>
                 </div>
               </div>
@@ -476,24 +319,24 @@ export const Checkout: React.FC<CheckoutProps> = ({ onNavigate }) => {
           <div className="space-y-2 text-xs text-slate-600 pt-3 border-t border-slate-100">
             <div className="flex justify-between">
               <span>Cards Subtotal</span>
-              <span className="font-semibold text-slate-900">£{subtotal.toFixed(2)}</span>
+              <span className="font-semibold text-slate-900">{formatPrice(subtotal)}</span>
             </div>
 
             {discount > 0 && (
               <div className="flex justify-between text-emerald-600 font-semibold">
                 <span>Discount</span>
-                <span>-£{discount.toFixed(2)}</span>
+                <span>-{formatPrice(discount)}</span>
               </div>
             )}
 
             <div className="flex justify-between">
               <span>Delivery ({selectedMethod.name})</span>
-              <span className="font-semibold text-slate-900">£{selectedMethod.price.toFixed(2)}</span>
+              <span className="font-semibold text-slate-900">{formatPrice(selectedMethod.price)}</span>
             </div>
 
             <div className="flex justify-between text-base font-black text-slate-900 pt-3 border-t border-slate-200">
               <span>Total to Pay</span>
-              <span>£{finalTotal.toFixed(2)}</span>
+              <span>{formatPrice(finalTotal)}</span>
             </div>
           </div>
 
@@ -503,10 +346,10 @@ export const Checkout: React.FC<CheckoutProps> = ({ onNavigate }) => {
             className="w-full py-4 bg-rose-600 hover:bg-rose-700 text-white font-black text-sm rounded-2xl shadow-xl shadow-rose-200 flex items-center justify-center gap-2 transition transform active:scale-98 disabled:opacity-50"
           >
             {isPlacing ? (
-              <span>Printing Order...</span>
+              <span>Taking you to Stripe…</span>
             ) : (
               <>
-                <span>Pay £{finalTotal.toFixed(2)} & Place Order</span>
+                <span>Pay {formatPrice(finalTotal)} &amp; Place Order</span>
                 <ArrowRight className="w-4 h-4" />
               </>
             )}

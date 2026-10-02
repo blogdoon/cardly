@@ -43,6 +43,7 @@ const cases: Array<[RouteType, string | undefined]> = [
   ['editor', 'card-042'],
   ['cart', undefined],
   ['checkout', undefined],
+  ['checkoutSuccess', undefined],
   ['favorites', undefined],
   ['account', 'designs'],
   ['account', 'orders'],

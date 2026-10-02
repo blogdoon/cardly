@@ -6,7 +6,8 @@ import { PropertyPanel } from '../components/Editor/PropertyPanel';
 import { PreviewModal } from '../components/PreviewModal';
 import { PrintPreview } from '../components/PrintPreview';
 import { StickerLibraryPanel } from '../components/Editor/StickerLibraryPanel';
-import { CardTemplate, CardPageType, CardPageDefinition, CardElement, TextElement, PhotoElement, StickerElement } from '../types/template';
+import { CardTemplate, CardPageType, CardPageDefinition, CardElement, TextElement, PhotoElement, StickerElement, MediaElement } from '../types/template';
+import { isMediaUploadAvailable, type CardMedia } from '../services/mediaService';
 import { UserDesign, AutosaveStatus } from '../types/design';
 import { getTemplateById } from '../data/templates';
 import { getStickerById } from '../data/elements';
@@ -135,6 +136,17 @@ export const CardEditor: React.FC<CardEditorProps> = ({
   const [historyIndex, setHistoryIndex] = useState(0);
   const [undoToast, setUndoToast] = useState<{ message: string; action: 'undo' | 'redo' } | null>(null);
   const historyDebounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Ids of recordings already placed on any page, so the panel can mark them "On
+  // card" and refuse to add the same one twice.
+  const usedMediaIds = React.useMemo(
+    () =>
+      Object.values(pages)
+        .flatMap((p) => p?.elements ?? [])
+        .filter((el: CardElement) => el.type === 'media')
+        .map((el) => (el as MediaElement).mediaId),
+    [pages]
+  );
 
   // Quick fill fields
   const [quickFields, setQuickFields] = useState({
@@ -492,19 +504,38 @@ export const CardEditor: React.FC<CardEditorProps> = ({
   };
 
   // Update elements inside current page
+  // Top z-index for a page, so a newly placed element lands on top of artwork
+  // rather than behind it.
+  const nextZIndex = (page: CardPageType) => {
+    const els =
+      page === 'front'
+        ? pages.front.elements
+        : page === 'inside-left'
+        ? (pages.insideLeft?.elements ?? [])
+        : page === 'inside-right'
+        ? pages.insideRight.elements
+        : pages.back.elements;
+    return els.length ? Math.max(...els.map((e) => e.zIndex)) + 1 : 1;
+  };
+
   const updateCurrentPageElements = useCallback(
-    (elements: CardElement[], mode: 'commit' | 'debounce' | 'live' = 'commit') => {
-      const updated = {
-        ...pages,
-        [currentPage === 'front'
+    (elements: CardElement[] | ((els: CardElement[]) => CardElement[]), mode: 'commit' | 'debounce' | 'live' = 'commit') => {
+      const pageKey =
+        currentPage === 'front'
           ? 'front'
           : currentPage === 'inside-left'
           ? 'insideLeft'
           : currentPage === 'inside-right'
           ? 'insideRight'
-          : 'back']: {
+          : 'back';
+      // Accept a function so callers can append without racing the current page's
+      // element list — the same pattern handleAddSticker uses.
+      const nextElements = typeof elements === 'function' ? elements(activePageDefinition.elements) : elements;
+      const updated = {
+        ...pages,
+        [pageKey]: {
           ...activePageDefinition,
-          elements,
+          elements: nextElements,
         },
       };
       pushState(updated, mode);
@@ -619,6 +650,51 @@ export const CardEditor: React.FC<CardEditorProps> = ({
   };
 
   // Adding new elements
+  /**
+   * Place an uploaded recording on the card as a `media` element.
+   *
+   * The element holds the media *id*, never the file: the bytes live in the
+   * `card-media` bucket and the QR code printed on the card resolves to
+   * /media/<id>/. Keeping the element this small is what lets a 100MB clip cost
+   * the same as a text element in the design jsonb.
+   *
+   * Defaulted to the back page, bottom-right: that is where the existing print QR
+   * lives and it is the one place that is not competing with artwork. x/y are
+   * percentages, matching every other element.
+   */
+  const handleAttachMedia = (media: CardMedia) => {
+    // Always the back page: the front is artwork-only (see frontCover.ts) and the
+    // inside-right is where the customer's own message goes. The back is the one
+    // surface that already carries a printed QR and competes with no artwork.
+    const targetPage: CardPageType = 'back';
+    const element: MediaElement = {
+      id: `media_${Date.now()}`,
+      type: 'media',
+      x: 78,
+      y: 74,
+      width: 16,
+      height: 16,
+      rotation: 0,
+      zIndex: nextZIndex(targetPage),
+      mediaId: media.id,
+      mediaKind: media.kind,
+      title: media.title,
+      durationSeconds: media.durationSeconds ?? undefined,
+      scanLabel: media.kind === 'audio' ? 'Scan to listen' : 'Scan to watch',
+    };
+    setPages((prev) => {
+      const key: keyof typeof prev = 'back';
+      const back = prev.back;
+      const updated: CardPageDefinition = { ...back, elements: [...back.elements, element] };
+      const next = { ...prev, [key]: updated } as typeof prev;
+      pushState(next);
+      return next;
+    });
+    setCurrentPage('back');
+    setSelectedElementId(element.id);
+    setSidebarTab('media');
+  };
+
   const handleAddText = (type: 'heading' | 'subheading' | 'body') => {
     const id = `txt_${Date.now()}`;
     const hasPhotoOrBg = Boolean(
@@ -978,6 +1054,8 @@ export const CardEditor: React.FC<CardEditorProps> = ({
             onBackgroundChange={handleBackgroundChange}
             quickFields={quickFields}
             onQuickFieldChange={handleQuickFieldChange}
+            usedMediaIds={usedMediaIds}
+            onAttachMedia={isMediaUploadAvailable() ? handleAttachMedia : undefined}
             aiContext={{
               occasion: template?.category,
               tone: template?.tone,

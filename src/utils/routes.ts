@@ -5,10 +5,12 @@ export type RouteType =
   | 'editor'
   | 'cart'
   | 'checkout'
+  | 'checkoutSuccess'
   | 'favorites'
   | 'account'
   | 'admin'
   | 'shared'
+  | 'media'
   | 'privacy'
   | 'terms'
   | 'notFound';
@@ -113,7 +115,8 @@ export function parsePath(
     case 'cart':
       return { route: 'cart' };
     case 'checkout':
-      return { route: 'checkout' };
+      // Stripe returns to /checkout/success/?session_id=… after a paid session.
+      return seg[1] === 'success' ? { route: 'checkoutSuccess' } : { route: 'checkout' };
     case 'favorites':
       return { route: 'favorites' };
     case 'account':
@@ -122,6 +125,11 @@ export function parsePath(
       return { route: 'admin' };
     case 'shared':
       return seg[1] ? { route: 'shared', param: decodeURIComponent(seg[1]) } : { route: 'notFound' };
+    // The audio/video memory a printed card's QR code points at. Reached by a
+    // phone camera, not by a customer, so it must work with no session, no JS
+    // state and no signed-in user.
+    case 'media':
+      return seg[1] ? { route: 'media', param: decodeURIComponent(seg[1]) } : { route: 'notFound' };
     case 'privacy':
       return { route: 'privacy' };
     case 'terms':
@@ -168,11 +176,28 @@ export function routePath(route: RouteType, param?: string, facets?: BrowseFacet
       return param && param !== 'designs' ? `/account/?tab=${encodeURIComponent(param)}` : '/account/';
     case 'shared':
       return `/shared/${encodeURIComponent(param ?? '')}/`;
+    case 'media':
+      return `/media/${encodeURIComponent(param ?? '')}/`;
+    case 'checkoutSuccess':
+      return '/checkout/success/';
     case 'notFound':
       return '/';
     default:
       return `/${route}/`;
   }
+}
+
+/**
+ * The scan URL for an audio/video memory attached to a card.
+ *
+ * Lives here, next to `routePath`, because a printed QR code and the router must
+ * agree byte-for-byte: MediaQrCode encodes this and `parsePath` resolves it, and
+ * a mismatch would print a card that scans to a 404. `MediaQrCode` prepends the
+ * origin at generation time rather than baking one in, so a card printed from any
+ * host resolves against whoever serves it.
+ */
+export function mediaPath(mediaId: string): string {
+  return `/media/${encodeURIComponent(mediaId)}/`;
 }
 
 export const DEFAULT_DESCRIPTION =
@@ -188,12 +213,20 @@ export const ROUTE_META: Record<RouteType, { title: string; desc: string }> = {
   editor: { title: 'Personalise Your Card | Cardly', desc: DEFAULT_DESCRIPTION },
   cart: { title: 'Your Basket | Cardly', desc: DEFAULT_DESCRIPTION },
   checkout: { title: 'Checkout | Cardly', desc: DEFAULT_DESCRIPTION },
+  checkoutSuccess: {
+    title: 'Order Confirmed | Cardly',
+    desc: 'Your personalised greeting card order has been paid and queued for print.',
+  },
   favorites: { title: 'Your Favourite Cards | Cardly', desc: DEFAULT_DESCRIPTION },
   account: { title: 'My Account | Cardly', desc: DEFAULT_DESCRIPTION },
   admin: { title: 'Admin | Cardly', desc: DEFAULT_DESCRIPTION },
   shared: {
     title: 'A Card Made For You | Cardly',
     desc: 'Somebody made this greeting card for you. Take a look before it goes to print.',
+  },
+  media: {
+    title: 'A Memory For You | Cardly',
+    desc: 'A personal audio or video recording was attached to this card. Tap play to listen or watch.',
   },
   privacy: {
     title: 'Privacy Policy | Cardly',

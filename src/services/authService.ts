@@ -1,7 +1,7 @@
 /**
  * Authentication.
  *
- * Supabase Auth replaced Supabase Auth. The shape of this module is unchanged —
+ * Sign-in runs on Supabase Auth. The shape of this module is unchanged —
  * `AuthContext` still calls `loginWithGoogle` / `logoutUser` / `subscribeToAuth`
  * — but three things are different, and better:
  *
@@ -33,6 +33,26 @@ const isLoopback = (): boolean => {
   const h = location.hostname;
   return h === 'localhost' || h === '127.0.0.1' || h === '[::1]' || h.endsWith('.localhost');
 };
+
+/**
+ * Whether the demo session may run at all.
+ *
+ * Two independent gates, and the first one is the important one:
+ *
+ *  1. `import.meta.env.DEV` is replaced with the literal `false` by Vite in a
+ *     production build, so this whole constant folds to `false` and every
+ *     `if (!DEMO_SESSION_ENABLED) throw ...` becomes a guard the minifier can
+ *     see is always taken. The admin profile literal, the demo address book and
+ *     the demo e-mail are dropped from the production bundle entirely rather
+ *     than shipped behind a runtime hostname check. AGENTS.md blocker 3 asked
+ *     for exactly this ("that code still ships in the production bundle").
+ *  2. `isLoopback()` still applies in dev, so `npm run dev` reached from a LAN
+ *     address or a phone does not hand out an admin session either.
+ *
+ * Both are needed: (1) alone would still ship a live backdoor to anyone running
+ * a dev build on a shared host, and (2) alone is what shipped before.
+ */
+const DEMO_SESSION_ENABLED: boolean = import.meta.env.DEV && isLoopback();
 
 const DEFAULT_AVATAR = (uid: string) =>
   `https://api.dicebear.com/7.x/avataaars/svg?seed=${uid}`;
@@ -154,12 +174,14 @@ function waitForUser(timeoutMs: number): Promise<User> {
  * keys, so a demo session keeps the admin console usable.
  */
 function getFallbackDemoProfile(): UserProfile {
-  if (!isLoopback()) {
+  if (!DEMO_SESSION_ENABLED) {
     throw new Error(
       'Google sign-in is unavailable and the local developer fallback only runs on localhost. ' +
         'Check the Supabase redirect URLs for this host.'
     );
   }
+  // Everything below this point is dropped from a production build: the guard
+  // above folds to `throw`, so this literal is unreachable and gets eliminated.
   const demoProfile: UserProfile = {
     uid: 'demo_user_google_108',
     email: 'blogdoontv@gmail.com',
@@ -217,6 +239,13 @@ export async function logoutUser(): Promise<void> {
 }
 
 export function getStoredDemoUser(): UserProfile | null {
+  // Also gated on the same flag, not just on `!isLoopback()`. Without Supabase
+  // configured — a misconfigured deploy — `subscribeToAuth` falls through to this
+  // read, so a hand-edited `cardly_demo_user_session` value in localStorage would
+  // render the admin UI to whoever set it. RLS is still the real boundary (no
+  // write is possible), but a console that shows an operator orders that do not
+  // exist is a bad failure mode. In production this returns null, always.
+  if (!DEMO_SESSION_ENABLED) return null;
   try {
     const raw = localStorage.getItem(DEMO_USER_STORAGE_KEY);
     return raw ? JSON.parse(raw) : null;

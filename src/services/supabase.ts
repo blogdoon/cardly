@@ -3,7 +3,7 @@ import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 /**
  * The single Supabase client.
  *
- * Replaces `services/firebase.ts`: Postgres is the catalog, orders and designs;
+ * Postgres is the catalog, orders and designs;
  * Supabase Auth is the identity provider. Configuration comes from two env vars
  * (see `.env.example`) — no config file is checked in, because the anon key is
  * public but the project ref is not a secret either and a checked-in config
@@ -46,13 +46,23 @@ export function db(): SupabaseClient {
   return supabase;
 }
 
-/** Storage bucket for customer photos. Mirrors the old Supabase Storage path. */
+/** Storage bucket for customer photos. */
 export const PHOTO_BUCKET = 'user-photos';
 
 /**
+ * Storage bucket for audio/video memories, and PUBLIC — the deliberate opposite
+ * of PHOTO_BUCKET. A customer's photo is only ever shown back to them inside the
+ * app, so that bucket is private (0005_storage.sql). A memory attached to a card
+ * is printed as a QR code and played by whoever holds the card, on a phone with
+ * no account, so it has to be world-readable; the unguessable row id in
+ * `card_media` is the only thing protecting it (0006_media.sql).
+ */
+export const MEDIA_BUCKET = 'card-media';
+
+/**
  * The signed-in user's id (Supabase auth uuid), or null. Async because the
- * session lives in IndexedDB/localStorage; replaces Supabase's synchronous
- * `auth.currentUser.uid`. Reads the cached session, so it does not hit the network.
+ * session lives in IndexedDB/localStorage, so this is async rather than a
+ * synchronous property read. Reads the cached session, so it does not hit the network.
  */
 export async function currentUserId(): Promise<string | null> {
   if (!supabase) return null;

@@ -22,6 +22,10 @@ import {
   Ban,
   RefreshCw,
   AlertCircle,
+  Printer,
+  Download,
+  FileText,
+  TriangleAlert,
 } from 'lucide-react';
 import {
   fetchAllOrders,
@@ -31,6 +35,13 @@ import {
   cancelOrder,
   isRefundable,
 } from '../../services/adminOrderService';
+import {
+  fetchPrintFiles,
+  fulfilOrder,
+  printFileUrl,
+  preferredPrintFile,
+  type PrintFile,
+} from '../../services/printService';
 import { formatPrice } from '../../utils/currency';
 import {
   ORDER_STATUS_FLOW,
@@ -39,9 +50,15 @@ import {
   type OrderStatus,
 } from '../../types/order';
 
-const ALL_STATUSES: OrderStatus[] = [...ORDER_STATUS_FLOW, 'cancelled', 'refunded'];
+const ALL_STATUSES: OrderStatus[] = [
+  'pending_payment',
+  ...ORDER_STATUS_FLOW,
+  'cancelled',
+  'refunded',
+];
 
 const STATUS_TONE: Record<OrderStatus, string> = {
+  pending_payment: 'bg-sky-50 text-sky-700',
   processing: 'bg-slate-100 text-slate-700',
   printed: 'bg-purple-50 text-purple-700',
   dispatched: 'bg-amber-100 text-amber-800',
@@ -66,6 +83,14 @@ export const AdminOrdersPanel: React.FC = () => {
   const [refundAmount, setRefundAmount] = useState('');
   const [refundReason, setRefundReason] = useState('');
   const [cancelReason, setCancelReason] = useState('');
+  // Print files (fulfilment). Loaded per-order on demand rather than with the
+  // order list: they live in a second table and are only needed once an operator
+  // is actually working on an order.
+  const [printFiles, setPrintFiles] = useState<Record<string, PrintFile[]>>({});
+  const [printBusyId, setPrintBusyId] = useState<string | null>(null);
+  const [printNotice, setPrintNotice] = useState<{ id: string; text: string; bad?: boolean } | null>(
+    null
+  );
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -101,10 +126,12 @@ export const AdminOrdersPanel: React.FC = () => {
     });
   }, [orders, query, statusFilter]);
 
-  // Revenue counts what was actually paid, so refunded and cancelled orders are
-  // excluded rather than flattering the totals.
+  // Revenue counts what was actually paid: refunded, cancelled and not-yet-paid
+  // orders are excluded rather than flattering the totals.
   const stats = useMemo(() => {
-    const live = orders.filter((o) => o.status !== 'refunded' && o.status !== 'cancelled');
+    const live = orders.filter(
+      (o) => o.status !== 'refunded' && o.status !== 'cancelled' && o.status !== 'pending_payment'
+    );
     const revenue = live.reduce((sum, o) => sum + o.total, 0);
     const refunded = orders
       .filter((o) => o.refund)
@@ -132,6 +159,71 @@ export const AdminOrdersPanel: React.FC = () => {
     },
     [load]
   );
+
+  // --- fulfilment ----------------------------------------------------------
+  // Fulfilment normally runs by itself: `stripe-webhook` calls `fulfil-order`
+  // when payment lands. These are the manual paths — produce a file that failed
+  // to render, re-produce after fixing a template, or download what was made.
+  const loadPrintFiles = useCallback(async (order: Order) => {
+    setPrintBusyId(order.id);
+    setPrintNotice(null);
+    try {
+      // Awaited before the updater: a state setter must stay pure, so the fetch
+      // cannot live inside the callback.
+      const files = await fetchPrintFiles(order.id);
+      setPrintFiles((prev) => ({ ...prev, [order.id]: files }));
+    } catch (e) {
+      setPrintNotice({
+        id: order.id,
+        text: e instanceof Error ? e.message : 'Could not load the print files.',
+        bad: true,
+      });
+    } finally {
+      setPrintBusyId(null);
+    }
+  }, []);
+
+  const runFulfilment = useCallback(
+    async (order: Order) => {
+      setPrintBusyId(order.id);
+      setPrintNotice(null);
+      try {
+        const result = await fulfilOrder(order.id);
+        setPrintFiles((prev) => ({ ...prev, [order.id]: result.files }));
+        // `problems` is where a missing design or an unconfigured PDF renderer
+        // shows up. Surface it rather than letting the operator believe the file
+        // is fine because a row appeared.
+        setPrintNotice({
+          id: order.id,
+          text: result.problems.length ? result.problems.join(' · ') : `Produced ${result.files.length} print file(s).`,
+          bad: result.problems.length > 0,
+        });
+      } catch (e) {
+        setPrintNotice({
+          id: order.id,
+          text: e instanceof Error ? e.message : 'Could not produce the print file.',
+          bad: true,
+        });
+      } finally {
+        setPrintBusyId(null);
+      }
+    },
+    []
+  );
+
+  const downloadPrintFile = useCallback(async (file: PrintFile) => {
+    setPrintNotice(null);
+    try {
+      const url = await printFileUrl(file.storagePath);
+      window.open(url, '_blank', 'noopener');
+    } catch (e) {
+      setPrintNotice({
+        id: file.orderId,
+        text: e instanceof Error ? e.message : 'Could not create a download link.',
+        bad: true,
+      });
+    }
+  }, []);
 
   const openPanel = (order: Order, kind: 'tracking' | 'refund' | 'cancel') => {
     setPanel({ id: order.id, kind });
@@ -205,7 +297,7 @@ export const AdminOrdersPanel: React.FC = () => {
       {filtered.length === 0 ? (
         <p className="py-10 text-center text-xs text-slate-500">
           {orders.length === 0
-            ? 'No orders in the database yet. Guest checkout writes to localStorage only, so guest orders will not appear here.'
+            ? 'No orders in the database yet. Orders are created by the checkout function when a customer pays.'
             : 'No orders match those filters.'}
         </p>
       ) : (
@@ -283,7 +375,31 @@ export const AdminOrdersPanel: React.FC = () => {
                     </select>
                   </div>
 
-                  <div className="flex items-center justify-end gap-1.5">
+<div className="flex items-center justify-end gap-1.5">
+                    {/* Fulfilment: produce or download the print file. Only shown
+                        for a paid order — `fulfil-order` refuses to print an unpaid
+                        one, so a button that could only ever error is not offered. */}
+                    {!terminal && ord.status !== 'pending_payment' && (
+                      <button
+                        onClick={() =>
+                          printFiles[ord.id] ? runFulfilment(ord) : loadPrintFiles(ord)
+                        }
+                        disabled={printBusyId === ord.id}
+                        className="px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-700 text-white text-[10px] font-bold flex items-center gap-1 disabled:opacity-40"
+                        title={
+                          printFiles[ord.id]
+                            ? 'Re-produce the print file'
+                            : 'Load the print files for this order'
+                        }
+                      >
+                        {printBusyId === ord.id ? (
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                        ) : (
+                          <Printer className="h-3 w-3" />
+                        )}
+                        Print file
+                      </button>
+                    )}
                     <button
                       onClick={() => openPanel(ord, 'tracking')}
                       disabled={isBusy || terminal}
@@ -313,6 +429,75 @@ export const AdminOrdersPanel: React.FC = () => {
                       </>
                     )}
                   </div>
+{/* The print files themselves, once loaded. */}
+                  {printFiles[ord.id] && (
+                    <div className="lg:col-span-2 rounded-xl border border-slate-200 bg-slate-50 p-3 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wide">
+                          Print files
+                        </span>
+                        {printFiles[ord.id].length > 0 && (
+                          <span className="text-[10px] text-slate-500">
+                            Print duplex, flip on the short edge. Do not scale to fit.
+                          </span>
+                        )}
+                      </div>
+
+                      {printNotice?.id === ord.id && (
+                        <p
+                          className={`text-[11px] font-semibold flex items-start gap-1.5 ${
+                            printNotice.bad ? 'text-amber-700' : 'text-emerald-700'
+                          }`}
+                        >
+                          <AlertCircle className="w-3 h-3 shrink-0 mt-px" />
+                          {printNotice.text}
+                        </p>
+                      )}
+
+                      {printFiles[ord.id].length === 0 ? (
+                        <p className="text-[11px] text-slate-500">
+                          Nothing produced yet. Use “Print file” to render it now — this also
+                          re-runs a file that failed.
+                        </p>
+                      ) : (
+                        <ul className="space-y-1.5">
+                          {printFiles[ord.id].map((file) => (
+                            <li
+                              key={file.id}
+                              className="flex flex-wrap items-center gap-2 rounded-lg bg-white border border-slate-200 px-2.5 py-2"
+                            >
+                              <FileText className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                              <span className="text-[11px] font-bold text-slate-800">
+                                Card {file.itemIndex + 1}
+                              </span>
+                              <span className="text-[10px] text-slate-500">
+                                {file.kind === 'print_sheet' ? 'PDF' : 'render HTML'}
+                                {file.sheetMm ? ` · ${file.sheetMm} mm` : ''} · ×{file.qty}
+                              </span>
+                              {file.printerRef && (
+                                <span className="text-[10px] font-mono text-slate-500">
+                                  {file.printer}: {file.printerRef}
+                                </span>
+                              )}
+                              {file.warning && (
+                                <span className="text-[10px] font-bold text-amber-700 flex items-center gap-1 basis-full">
+                                  <TriangleAlert className="w-3 h-3 shrink-0" />
+                                  {file.warning}
+                                </span>
+                              )}
+                              <button
+                                onClick={() => downloadPrintFile(preferredPrintFile([file]) ?? file)}
+                                className="ml-auto px-2 py-1 rounded-lg bg-slate-900 hover:bg-slate-700 text-white text-[10px] font-bold flex items-center gap-1"
+                              >
+                                <Download className="w-3 h-3" />
+                                Open
+                              </button>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                  )}
 
                   {isOpen && panel && (
                     <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 space-y-2">

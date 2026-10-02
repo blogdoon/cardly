@@ -25,7 +25,8 @@ import {
   Smartphone,
   Link as LinkIcon
 } from 'lucide-react';
-import { CardPageDefinition, CardElement, TextElement, PhotoElement, StickerElement, ShapeElement } from '../types/template';
+import { CardPageDefinition, CardElement, TextElement, PhotoElement, StickerElement, ShapeElement, MediaElement } from '../types/template';
+import { MediaQrCode } from './MediaQrCode';
 import { getStickerById } from '../data/elements';
 import { computeTextReadabilityStyle } from '../utils/textStyle';
 import { getPhotoFilterCss, getPhotoOverlayColor } from '../utils/photoFilter';
@@ -315,6 +316,33 @@ export const PrintPreview: React.FC<PrintPreviewProps> = ({
                 }}
               >
                 {el.text}
+              </div>
+            );
+          }
+
+          if (el.type === 'media') {
+            const mediaEl = el as MediaElement;
+            // Printed as a scannable code, never as a player: paper cannot play
+            // sound, and a fake play button on a printed card is worse than a code.
+            return (
+              <div
+                key={el.id}
+                className="absolute z-20 flex flex-col items-center"
+                style={{
+                  left: `${mediaEl.x}%`,
+                  top: `${mediaEl.y}%`,
+                  width: `${mediaEl.width}%`,
+                  transform: `translate(-50%, -50%) rotate(${mediaEl.rotation || 0}deg)`,
+                  opacity: mediaEl.opacity ?? 1,
+                }}
+              >
+                <div className="bg-white p-1 rounded-md border border-slate-300">
+                  <MediaQrCode mediaId={mediaEl.mediaId} kind={mediaEl.mediaKind} />
+                </div>
+                <span className="mt-1 text-[7px] font-semibold text-slate-800 text-center tracking-tight max-w-[110px] leading-tight">
+                  {mediaEl.scanLabel ||
+                    (mediaEl.mediaKind === 'audio' ? 'Scan to listen' : 'Scan to watch')}
+                </span>
               </div>
             );
           }

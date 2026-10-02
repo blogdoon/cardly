@@ -279,6 +279,247 @@ export const ARTWORK_FACETS: Record<string, FacetSeed> = {
     tags: ['monstera', 'terracotta', 'botanical', 'minimal', 'foliage'],
     palette: ['#f4f1ea', '#4f6b4a', '#b5651d'],
   },
+
+  // christmas/ — the winter collection. Every entry is winter because that is
+  // what the artwork is: `season` is a real filter, so filing a snow scene as
+  // 'all-year' would let `?season=summer` return a snowman. Each palette is
+  // distinct so `?color=` stays meaningful across the collection.
+  'art_deco_holiday_column_and_holly': {
+    styles: ['Elegant', 'Modern'],
+    recipients: ['Friend', 'Colleague', 'Anyone'],
+    tone: 'Formal',
+    season: 'winter',
+    tags: ['art deco', 'holly', 'column', 'holiday', 'geometric', 'symmetry'],
+    palette: ['#1b2a22', '#0f5132', '#c9a227'],
+  },
+  'botanical_watercolor_corner_frame': {
+    styles: ['Floral', 'Elegant'],
+    recipients: ['Her', 'Friend', 'Anyone'],
+    tone: 'Sweet',
+    season: 'winter',
+    tags: ['watercolour', 'botanical', 'corner', 'frame', 'delicate'],
+    palette: ['#f7f9f6', '#a8c3a0', '#6b7f6b'],
+  },
+  'botanical_winter_countryside_glow': {
+    styles: ['Floral', 'Minimal'],
+    recipients: ['Her', 'Grandparent', 'Anyone'],
+    tone: 'Heartfelt',
+    season: 'winter',
+    tags: ['winter', 'countryside', 'glow', 'botanical', 'landscape', 'peaceful'],
+    palette: ['#eef4f7', '#7f9fb5', '#2f4858'],
+  },
+  'cozy_holiday_lantern_and_robin_scene': {
+    styles: ['Cute', 'Modern'],
+    recipients: ['Friend', 'Her', 'Anyone'],
+    tone: 'Heartfelt',
+    season: 'winter',
+    tags: ['lantern', 'robin', 'cozy', 'evening', 'cottage', 'warm'],
+    palette: ['#1d2321', '#c97b3c', '#e8c07d'],
+  },
+  'elegant_botanical_holiday_wreath_border': {
+    styles: ['Floral', 'Elegant'],
+    recipients: ['Her', 'Grandparent', 'Anyone'],
+    tone: 'Formal',
+    season: 'winter',
+    tags: ['wreath', 'holly', 'border', 'botanical', 'classic', 'hostess'],
+    palette: ['#f6f4ee', '#7f1d1d', '#1f3d2b'],
+  },
+  'elegant_paper_cut_poinsettia_holiday_card': {
+    styles: ['Elegant', 'Minimal'],
+    recipients: ['Her', 'Wife', 'Anyone'],
+    tone: 'Formal',
+    season: 'winter',
+    tags: ['paper cut', 'poinsettia', 'layered', 'minimal', 'craft'],
+    palette: ['#fbf7f4', '#b91c1c', '#7c2d12'],
+  },
+  'elegant_watercolor_holiday_botanicals': {
+    styles: ['Floral', 'Elegant'],
+    recipients: ['Her', 'Mum', 'Grandparent', 'Anyone'],
+    tone: 'Sweet',
+    season: 'winter',
+    tags: ['watercolour', 'botanical', 'holly', 'berry', 'elegant', 'soft'],
+    palette: ['#faf6f2', '#c6a15b', '#8c2f39'],
+  },
+  'elegant_winter_botanical_collage': {
+    styles: ['Floral', 'Elegant'],
+    recipients: ['Her', 'Mum', 'Grandparent', 'Anyone'],
+    tone: 'Sweet',
+    season: 'winter',
+    tags: ['collage', 'botanical', 'winter', 'neutral', 'textured'],
+    palette: ['#f4f1ec', '#8a8578', '#3f4a3c'],
+  },
+  'geometric_retro_christmas_forest': {
+    styles: ['Retro', 'Modern'],
+    recipients: ['Friend', 'Colleague', 'Anyone'],
+    tone: 'Playful',
+    season: 'winter',
+    tags: ['geometric', 'forest', 'trees', 'retro', 'mid-century', 'graphic'],
+    palette: ['#fdf6ec', '#c1440e', '#1f3b2c'],
+  },
+  'gilded_rain_over_a_winter_lake': {
+    styles: ['Luxury', 'Elegant'],
+    recipients: ['Friend', 'Her', 'Colleague', 'Anyone'],
+    tone: 'Formal',
+    season: 'winter',
+    tags: ['gilded', 'gold', 'lake', 'rain', 'atmospheric', 'foil'],
+    palette: ['#0f172a', '#c9a227', '#1e3a5f'],
+  },
+  'glossy_ceramic_holiday_still_life': {
+    styles: ['Modern', 'Minimal'],
+    recipients: ['Her', 'Friend', 'Anyone'],
+    tone: 'Playful',
+    season: 'winter',
+    tags: ['ceramic', 'still life', 'glossy', 'object', 'modern', 'clean'],
+    palette: ['#f2f0eb', '#b5651d', '#2f3e46'],
+  },
+  'isometric_holiday_gift_pattern': {
+    styles: ['Modern', 'Colorful'],
+    recipients: ['Kids', 'Friend', 'Anyone'],
+    tone: 'Playful',
+    season: 'winter',
+    tags: ['isometric', 'gift', 'pattern', 'repeat', 'geometric', 'playful'],
+    palette: ['#fdf1f2', '#dc2626', '#0ea5e9'],
+  },
+  'minimalist_blue_and_gold_winter_card': {
+    styles: ['Minimal', 'Luxury'],
+    recipients: ['Him', 'Friend', 'Colleague', 'Anyone'],
+    tone: 'Formal',
+    season: 'winter',
+    tags: ['minimalist', 'blue', 'gold', 'winter', 'foil', 'sleek'],
+    palette: ['#f8fafc', '#1e40af', '#d4af37'],
+  },
+  'minimalist_winter_wonderland_card': {
+    styles: ['Minimal', 'Modern'],
+    recipients: ['Kids', 'Friend', 'Anyone'],
+    tone: 'Heartfelt',
+    season: 'winter',
+    tags: ['minimalist', 'winter', 'wonderland', 'snow', 'clean', 'quiet'],
+    palette: ['#f7fafc', '#94a3b8', '#1e293b'],
+  },
+  'monochrome_winter_forest_scallop_print': {
+    styles: ['Minimal', 'Modern'],
+    recipients: ['Him', 'Friend', 'Colleague', 'Anyone'],
+    tone: 'Formal',
+    season: 'winter',
+    tags: ['monochrome', 'forest', 'scallop', 'pattern', 'graphic', 'engraved'],
+    palette: ['#fafafa', '#a3a3a3', '#171717'],
+  },
+  'pastel_clay_reindeer_holiday_portrait': {
+    styles: ['Cute', 'Colorful'],
+    recipients: ['Kids', 'Friend', 'Anyone'],
+    tone: 'Playful',
+    season: 'winter',
+    tags: ['clay', 'reindeer', 'portrait', 'pastel', 'sculpted', 'whimsical'],
+    palette: ['#fdf2f8', '#f9a8b8', '#78350f'],
+  },
+  'pastel_holiday_gift_collage': {
+    styles: ['Colorful', 'Cute'],
+    recipients: ['Kids', 'Friend', 'Anyone'],
+    tone: 'Playful',
+    season: 'winter',
+    tags: ['pastel', 'gift', 'collage', 'wrapped', 'cheerful', 'layered'],
+    palette: ['#fdf6f8', '#c4b5fd', '#fda4af'],
+  },
+  'penguin_s_oversized_christmas_tree': {
+    styles: ['Cute', 'Funny'],
+    recipients: ['Kids', 'Friend', 'Best Friend', 'Anyone'],
+    tone: 'Cheeky',
+    season: 'winter',
+    tags: ['penguin', 'christmas tree', 'humour', 'oversized', 'quirky', 'animal'],
+    palette: ['#eff6ff', '#1e3a8a', '#dc2626'],
+  },
+  'retro_ho_ho_ho_christmas_tree': {
+    styles: ['Funny', 'Retro'],
+    recipients: ['Friend', 'Best Friend', 'Anyone'],
+    tone: 'Humorous',
+    season: 'winter',
+    tags: ['ho ho ho', 'christmas tree', 'typography', 'retro', 'slogan', 'cheeky'],
+    palette: ['#fff7ed', '#15803d', '#b91c1c'],
+  },
+  'retro_holiday_gaming_controller_burst': {
+    styles: ['Funny', 'Retro'],
+    recipients: ['Him', 'Brother', 'Friend', 'Anyone'],
+    tone: 'Humorous',
+    season: 'winter',
+    tags: ['gaming', 'controller', 'burst', 'retro', 'gamer', 'geek'],
+    palette: ['#fdf2f8', '#be123c', '#312e81'],
+  },
+  'retro_mid_century_christmas_sunburst_clock': {
+    styles: ['Retro', 'Colorful'],
+    recipients: ['Friend', 'Colleague', 'Anyone'],
+    tone: 'Heartfelt',
+    season: 'winter',
+    tags: ['sunburst', 'clock', 'mid-century', 'retro', 'atomic', 'starburst'],
+    palette: ['#fdf6ef', '#e2725b', '#1e3a5f'],
+  },
+  'scandinavian_geometric_christmas_forest': {
+    styles: ['Modern', 'Minimal'],
+    recipients: ['Friend', 'Colleague', 'Anyone'],
+    tone: 'Heartfelt',
+    season: 'winter',
+    tags: ['scandinavian', 'geometric', 'forest', 'nordic', 'clean', 'cosy'],
+    palette: ['#f8fafc', '#94a3b8', '#365314'],
+  },
+  'vintage_christmas_london_postcard': {
+    styles: ['Retro', 'Elegant'],
+    recipients: ['Friend', 'Her', 'Anyone'],
+    tone: 'Heartfelt',
+    season: 'winter',
+    tags: ['vintage', 'london', 'postcard', 'travel', 'nostalgic', 'stamp'],
+    palette: ['#f5f0e6', '#b45309', '#334155'],
+  },
+  'watercolor_crescent_moon_christmas_card': {
+    styles: ['Minimal', 'Inspirational'],
+    recipients: ['Friend', 'Her', 'Anyone'],
+    tone: 'Heartfelt',
+    season: 'winter',
+    tags: ['watercolour', 'crescent moon', 'night', 'quiet', 'calm', 'gilded'],
+    palette: ['#1e1b4b', '#c9a227', '#e0e7ff'],
+  },
+  'watercolor_holiday_gift_and_botanicals': {
+    styles: ['Floral', 'Cute'],
+    recipients: ['Her', 'Mum', 'Friend', 'Anyone'],
+    tone: 'Sweet',
+    season: 'winter',
+    tags: ['watercolour', 'gift', 'botanical', 'holly', 'berry', 'soft'],
+    palette: ['#faf7f2', '#d98b8b', '#3f6212'],
+  },
+
+  // get-well/ — recovery and "thinking of you" cards, so soft palettes and
+  // gentle recipients. None of these is filed under 'Funny': they get sent to
+  // someone who is unwell, and the joke cards would land badly.
+  'lavender_botanical_brushstrokes': {
+    styles: ['Floral', 'Minimal'],
+    recipients: ['Her', 'Friend', 'Grandparent', 'Anyone'],
+    tone: 'Sweet',
+    season: 'all-year',
+    tags: ['lavender', 'botanical', 'brushstrokes', 'calm', 'soothing', 'get well'],
+    palette: ['#f7f5fc', '#b9a7e0', '#5b5470'],
+  },
+  'pastel_baking_still_life_with_rolling_pin': {
+    styles: ['Cute', 'Colorful'],
+    recipients: ['Her', 'Friend', 'Mum', 'Anyone'],
+    tone: 'Heartfelt',
+    season: 'all-year',
+    tags: ['baking', 'still life', 'pastel', 'rolling pin', 'cozy', 'home'],
+    palette: ['#fdf6ef', '#e8b4a0', '#8c5a3c'],
+  },
+  'vintage_paper_collage_daisy_bouquet': {
+    styles: ['Floral', 'Retro'],
+    recipients: ['Her', 'Mum', 'Grandparent', 'Anyone'],
+    tone: 'Sweet',
+    season: 'spring',
+    tags: ['vintage', 'paper collage', 'daisy', 'bouquet', 'handmade', 'nostalgic'],
+    palette: ['#fdfaf3', '#e6d8b8', '#7c6f5a'],
+  },
+  'whimsical_botanical_reading_nook': {
+    styles: ['Cute', 'Floral'],
+    recipients: ['Her', 'Friend', 'Anyone'],
+    tone: 'Heartfelt',
+    season: 'all-year',
+    tags: ['reading', 'nook', 'whimsical', 'botanical', 'cosy', 'books'],
+    palette: ['#f4faf4', '#a3c9a8', '#6b4f3a'],
+  },
 };
 
 /**
@@ -298,9 +539,31 @@ export const DEFAULT_FACETS: FacetSeed = {
   palette: ['#faf8f5', '#a8a29e', '#d97706'],
 };
 
+/**
+ * Percent-decode a path segment, tolerating a malformed escape.
+ *
+ * Vite hands back glob keys and asset URLs *percent-encoded* — a file called
+ * `Penguin’s Oversized Christmas Tree.png` arrives as
+ * `Penguin%E2%80%99s%20Oversized%20Christmas%20Tree.png`. Without decoding first,
+ * every space became `_20` and the apostrophe became `_e2_80_99`, so a slug came
+ * out as `penguin_e2_80_99s_20oversized_20christmas_20tree`. No hand-written
+ * `ARTWORK_FACETS` key can match that, so the artwork silently fell through to
+ * `DEFAULT_FACETS` — which is how 29 cards ended up filed under one style and one
+ * recipient while the cards check still looked plausible.
+ */
+const decodeOnce = (value: string): string => {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    // A literal '%' that is not a valid escape (e.g. "50% off.png"). Keep the
+    // raw text rather than throwing — the slug just normalises it away.
+    return value;
+  }
+};
+
 /** Normalise a filename to the slug used as an ARTWORK_FACETS key. */
 export const artworkSlug = (fileName: string): string =>
-  fileName
+  decodeOnce(fileName)
     .replace(/\.[^/.]+$/, '')
     .replace(/_\d{10,}$/, '')
     .toLowerCase()
